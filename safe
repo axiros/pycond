@@ -1,0 +1,234 @@
+'''
+Condition parser
+
+'''
+from __future__ import print_function
+import operator, sys
+PY2 = sys.version_info[0] == 2
+is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
+
+KV_DELIM = ' ' # default seperator for strings
+
+OPS = dict([(k, getattr(operator, k)) for k in dir(operator)])
+
+# if val in these we deliver False:
+FALSES = (None, False, '', 0, {}, [], ())
+
+# default lookup of keys here - no module does NOT need to have state.
+# its a convenience thing, see tests:
+State = {}
+def state_get(k, v, state=State):
+    # a lookup function can modify key AND value, i.e. returns both:
+    return state.get(k), v # default k, v access function
+
+def dbg_get(k, v):
+    res = state_get(k, v)
+    v = 'FALSES' if v == FALSES else v
+    out('Lookup:', k, v, '->', res[0])
+    return res
+
+out= lambda *m: print(' '.join([str(s) for s in m]))
+
+# Combining operators:
+# NO! spaced in the keys. User may have spaces in the expression though.
+COMB_OPS = {
+         'or'     : lambda f, g: f or g
+        ,'and'    : lambda f, g: f and g
+        ,'or_not' : lambda f, g: f or not g
+        ,'and_not': lambda f, g: f and not g
+        ,'xor'    : lambda f, g: operator.xor(f, g)
+        } # extensible
+
+# those from user space are also replaced at tokenizing time:
+NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
+
+def py_type(v):
+    if not is_str(v):
+        return v
+    def _(v):
+        # returns a str(v) if float and int do not work:
+        for t in float, int, str:
+            try: return t(v)
+            except: pass
+    return ( True if v == 'true' else False if v == 'false' else
+             None if v == 'None' else _(v) )
+
+def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
+    # '[[ a' -> '[ [ a', then split
+    esc, escaped = [], []
+
+    # remove the space from the ops here, comb ops are like 'and_not':
+    for op in COMB_OPS:
+        if '_' in op:
+            cond = cond.replace(op.replace('_', ' '), op)
+    for op, repl in NEG_REV.items():
+        cond = cond.replace(op, repl)
+
+    cond = [c for c in cond]
+    r = []
+    while cond:
+        c = cond.pop(0)
+        # esape:
+        if c == '\\':
+            c = cond.pop(0)
+            if c in escaped:
+                key = esc[escaped.index(c)]
+            else:
+                escaped.append(c)
+                key = '__esc__%s' % len(escaped)
+                esc.append(key)
+            r += key
+            continue
+
+        isbr = False
+        if c in brkts:
+            isbr = True
+            if r and r[-1] != sep:
+                r += sep
+        r += c
+        if isbr and cond and cond[0] != sep:
+            r += sep
+
+    cond = ''.join(r)
+
+    # replace back the escaped stuff:
+    if not esc:
+        # be fast:
+        return cond.split(sep)
+    # fastets before splitting:
+    cond = cond.replace(sep, '__ESC__')
+    for i in range(len(esc)):
+        cond = cond.replace(esc[i], escaped[i])
+    return cond.split('__ESC__')
+
+
+def find_closing_brack(cond, openbrkt, closebrkt):
+    lev = 1
+    i = 0
+    for c in cond[1:]:
+        i += 1
+        lev += 1 if c == openbrkt else -1 if c == closebrkt else 0
+        if lev == 0:
+            return i
+    f, op, n = cond[1:i], None, None
+    if i < len(cond) - 1:
+        op = cond[i + 1]
+        n = cond[i + 2:]
+    return f, op, n
+
+
+
+def _parse_cond( cond, **kw ):
+    openbrkt, closebrkt = kw['brkts']
+    strct = kw['strct']
+    expr1 = None
+    # ----------------------------------------------- Handle nesting recursions
+    if cond and cond[0] == openbrkt: # [
+        idx = find_closing_brack(cond, openbrkt, closebrkt)
+        expr1, strct1 = _parse_cond(cond[1:idx], **kw)
+        cond = cond[idx + 1:]
+    if not cond:
+        return expr1, [strct1]
+
+    # -------------------------------------------- Handle combination operators
+    # and / or ?
+    # foo eq bar and baz..., i.e. given w/o brackets?
+    # we return then parse_cond( [ foo eq bar ] and [baz...]
+    c, i = [cond[0]], 1
+
+    for part in cond[1:]:
+        i += 1
+
+        if part == openbrkt:
+            break # all well, brackets given
+
+        if is_str(part) and part in COMB_OPS:
+            c.insert(0, openbrkt)
+            [ c.append(v) for v in (closebrkt, part, openbrkt) ]
+            c.extend(cond[i:])
+            c.append(closebrkt)
+            return _parse_cond(c, **kw)
+
+        else:
+            c.append(part)
+
+    # now we have the first expression in brkts parsed and do the next one
+    # after a combining operator:
+    opf = COMB_OPS.get(cond[0]) # opf: combining-operator function
+    if opf:
+        op_n, nxt = cond[0], 1
+        # we recurse into the second part, first we have
+        expr2, strct2 = _parse_cond(cond[nxt:], **kw)
+        strct = [strct1, "COMB_OPS['%s']" % op_n, strct2]
+        return (lambda f=expr1, g=expr2: opf(f(), g()), strct)
+
+    # ------------------------------------------------ Handle atomic conditions
+    # cond like ['foo', 'not', 'le', '10']
+    key = cond.pop(0)
+    # autocondition for key only: not rev contains (None, 0, ...):
+    if len(cond) == 0:
+        for k in (FALSES, 'contains', 'rev', 'not'):
+            cond.insert(0, k)
+
+    keys = kw['keys']
+    if not key in keys:
+        keys.append(key)
+
+
+    # prefixes infront of the operator: not and rev - in any combi:
+    # if sep was spc we replaced them at tokenizing with e.g. not_rev
+    not_, rev_ = False, False
+    # we accept [not] [rev] and also [rev] [not]
+    for i in 1, 2:
+        if cond[0] in ('not', 'not_rev', 'rev_not', 'rev'):
+            nr = cond.pop(0)
+            not_ = True if 'not' in nr else not_
+            rev_ = True if 'rev' in nr else rev_
+
+
+    op = cond.pop(0)
+    f_op = OPS.get(op)
+    if not f_op:
+        raise Exception('Operator %s not known' % op)
+    if rev_:
+        f_op = lambda k, v, f=f_op: f(v, k)
+
+    val = cond.pop(0)
+    val = py_type(val) # '42' -> 42
+    # f_op is the operator function, but we pass key and val of the condition
+    # through a custom lookup function before we apply it:
+    lookup = kw['lookup']
+    import inspect
+    import pdb; pdb.set_trace()
+    lu = lambda f_op, k, v, state: f_op(*lookup(k, v, state))
+    lambd = ( (lambda f=f_op, k=key, v=val, state=State: not lu(f, k, v, state)) if not_ else
+              (lambda f=f_op, k=key, v=val, state=State:     lu(f, k, v, state) ) )
+    # document what we did:
+    strct = [ "%s('%s', '%s')" % (lookup.__name__, key, val),
+              "OPS['%s']"% op, val ]
+    if not_:
+        strct.insert(1, 'not')
+    return lambd, strct
+
+
+def parse_cond( cond, lookup=state_get, **kw ):
+    ''' Main function.
+        see tests
+    '''
+
+    kw['brkts'] = brkts = kw.get('brkts', '[]')
+
+    sep = kw.pop('sep', KV_DELIM)
+    if is_str(cond):
+        cond = tokenize(cond, sep=sep, brkts=brkts)
+
+    kw['keys'] = keys = []
+    kw['strct'] = []
+    kw['lookup'] = lookup
+    cond, strct = _parse_cond(cond, **kw)
+    return cond, {'struct': strct, 'keys': keys}
+
+
+def py_cond(cond, *a, **kw):
+    return parse_cond(cond, *a, **kw)[0]
+
