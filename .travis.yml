@@ -11,5 +11,5 @@ before_script:
 
 
 script:
-    python ./tests/test_pycond.py
+    python -m unittest discover
 
