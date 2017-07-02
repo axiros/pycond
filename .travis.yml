@@ -11,6 +11,6 @@ before_script:
 
 
 script:
-    ./tests/test_pycond.py
-    ./tests/test_perf.py
+    python ./tests/test_pycond.py
+    python ./tests/test_perf.py
 
