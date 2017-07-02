@@ -9,6 +9,7 @@ DEV Notes:
     f_xyz denotes a function (we work a lot with lambdas and partials)
 
 '''
+
 from __future__ import print_function
 import operator, sys
 import inspect
