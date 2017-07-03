@@ -28,7 +28,8 @@ else:
 
 KV_DELIM = ' ' # default seperator for strings
 
-OPS = dict([(k, getattr(operator, k)) for k in dir(operator)])
+OPS = dict([(k, getattr(operator, k)) for k in dir(operator)
+            if not k.startswith('_') and '(a, b)' in getattr(operator, k).__doc__])
 # see api below for these:
 OPS_HK_APPLIED = False
 
@@ -323,7 +324,7 @@ def parse_cond( cond, lookup=state_get, **cfg ):
     return cond, nfo
 
 
-def condf(cond, *a, **cfg):
+def pycond(cond, *a, **cfg):
     ''' condition function - for those who don't need meta infos '''
     return parse_cond(cond, *a, **cfg)[0]
 

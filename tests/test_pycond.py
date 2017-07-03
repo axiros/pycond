@@ -6,7 +6,7 @@ import time
 pth = os.path.abspath(__file__).rsplit('/', 2)[0]
 sys.path.insert(0, pth)
 
-from pycond import condf, state_get, dbg_get, OPS, COMB_OPS
+from pycond import pycond, state_get, dbg_get, OPS, COMB_OPS
 from pycond import parse_cond, State as S
 from pycond import run_all_ops_thru
 
@@ -42,7 +42,7 @@ class Mechanics(T):
 
         f, m = parse(cond)
         # shortcut of you don't want meta:
-        f = condf(cond)
+        f = pycond(cond)
 
         eq(s, m['keys'], ['foo'])
 
@@ -83,10 +83,10 @@ class Mechanics(T):
 
     def test_apo_space(s):
         S['foo'] = 'b a r'
-        eq(s, condf('foo eq "b a r"')(), True)
-        eq(s, condf("foo eq 'b a r'")(), True)
-        eq(s, condf("foo eq 'b \\a r'")(), False)
-        eq(s, condf("foo eq 'b\ a r'")(), False)
+        eq(s, pycond('foo eq "b a r"')(), True)
+        eq(s, pycond("foo eq 'b a r'")(), True)
+        eq(s, pycond("foo eq 'b \\a r'")(), False)
+        eq(s, pycond("foo eq 'b\ a r'")(), False)
 
 
     def test_tokenize_brackets(s):
@@ -154,6 +154,16 @@ class Mechanics(T):
             eq(s, f(), b)
         eq(s, m['keys'], ['notlen4'])
 
+    def test_custom_lookup2(s):
+        model = {'joe': {'last_host': 'somehost'}, 'foo': {'last_host': 'x'}}
+        def my_lu(k, v, req, user, model=model):
+            return model[user][k], req[v]
+        f = pycond('last_host eq host', lookup=my_lu)
+
+        req = {'host': 'somehost'}
+        assert f(req=req, user='joe') == True
+        assert f(req=req, user='foo') == False
+
 
     def test_custom_sep(s, cond='[[foo.eq.b ar]and not.bar.eq.foo]'):
         S['foo'] = 'b ar'
@@ -170,19 +180,19 @@ class Mechanics(T):
 
     def test_autoconv(s):
         S['foo'] = 42
-        eq(s, condf('foo eq 42')(), True)
+        eq(s, pycond('foo eq 42')(), True)
         # the 42 in the condition stays string now:
-        eq(s, condf('foo eq 42', autoconv=False)(), False)
+        eq(s, pycond('foo eq 42', autoconv=False)(), False)
 
         S['foo'] = '42'
         # '42' in state, val is autoconved (the default) -> False(!)
-        eq(s, condf('foo eq 42')(), False)
-        eq(s, condf('foo eq 42', autoconv=False)(), True)
+        eq(s, pycond('foo eq 42')(), False)
+        eq(s, pycond('foo eq 42', autoconv=False)(), True)
         # now we tell py_conf to also convert the looked up values
         # before sending to the operator:
-        eq(s, condf('foo eq 42', autoconv_lookups=True)(), True)
+        eq(s, pycond('foo eq 42', autoconv_lookups=True)(), True)
         # putting apos around numbers also prevents autoconf:
-        eq(s, condf('foo eq "42"')(), True)
+        eq(s, pycond('foo eq "42"')(), True)
 
 
 class TestCombiningOps(T):
@@ -223,15 +233,15 @@ class TestComparisonOps(T):
 
     def test_rev_and_negation(s):
         S['foo'] = 'b'
-        eq(s, condf('foo rev not contains "abc"') ( ), False)
+        eq(s, pycond('foo rev not contains "abc"') ( ), False)
         S['foo'] = 'bar'
-        eq(s, condf('foo contains a'            ) ( ) , True  )
-        eq(s, condf('foo contains x'            ) ( ) , False )
-        eq(s, condf('foo rev contains abara'    ) ( ) , True  )
-        eq(s, condf('foo rev contains abxra'    ) ( ) , False )
-        eq(s, condf('foo rev not contains axra' ) ( ) , True  )
-        eq(s, condf('foo rev contains axra'     ) ( ) , False )
-        eq(s, condf('foo rev contains 1,2,3,bar',
+        eq(s, pycond('foo contains a'            ) ( ) , True  )
+        eq(s, pycond('foo contains x'            ) ( ) , False )
+        eq(s, pycond('foo rev contains abara'    ) ( ) , True  )
+        eq(s, pycond('foo rev contains abxra'    ) ( ) , False )
+        eq(s, pycond('foo rev not contains axra' ) ( ) , True  )
+        eq(s, pycond('foo rev contains axra'     ) ( ) , False )
+        eq(s, pycond('foo rev contains 1,2,3,bar',
                       lookup=val_splitting_get)(), True)
         S['foo'] = 'a'
         cond = ['foo', 'rev', 'contains', [1, 'a']]
@@ -251,9 +261,9 @@ class TestComparisonOps(T):
                     ) :
             S['foo'] = a; S['bar'] = b
             print (a, b)
-            res = ( condf(tcond % 'gt', lookup=g)()
-                  , condf(tcond % 'not le', lookup=g)()
-                  , condf(tcond % 'rev lt', lookup=g)())
+            res = ( pycond(tcond % 'gt', lookup=g)()
+                  , pycond(tcond % 'not le', lookup=g)()
+                  , pycond(tcond % 'rev lt', lookup=g)())
             eq(s, *res[0:2])
             eq(s, *res[1:3])
             # we just want trues and falses
@@ -288,7 +298,7 @@ class Filtering(T):
 
     def test_filter_dicts_convenience_state_kw_arg(s):
 
-        does_match = condf('email not contains @')
+        does_match = pycond('email not contains @')
         matches = [u for u in s.users if does_match(state=u)]
 
         assert len(matches) == 1 and matches[0]['email'] == 'foobar'
@@ -300,7 +310,7 @@ class Filtering(T):
                     , 'email not contains @  or not [id lt 12]'
                     ):
 
-            matches = [u for u in s.users if condf(cond)(state=u)]
+            matches = [u for u in s.users if pycond(cond)(state=u)]
 
             for m in matches:
                 assert m['first_name'] == 'Wrong' or m['id'] > 11
@@ -310,13 +320,13 @@ class Filtering(T):
         ''' doing it w/o passing state with the condition as above '''
         cond = 'first_name eq Sal or last_name contains i'
 
-        matcher = condf(cond, lookup=lambda k, v, **kw: (S['cur'].get(k), v))
+        matcher = pycond(cond, lookup=lambda k, v, **kw: (S['cur'].get(k), v))
 
         def match(u):
             S['cur'] = u
             return matcher()
 
-        # apply condf
+        # apply pycond
         matches = [u for u in s.users if match(u)]
 
         # verify correctness:
@@ -327,12 +337,12 @@ class Filtering(T):
 
     def test_space(s):
         cond = 'first_name eq "have space"'
-        matches = [u for u in s.users if condf(cond)(state=u)]
+        matches = [u for u in s.users if pycond(cond)(state=u)]
         assert len(matches) == 1 and matches[0]['first_name'] == 'have space'
 
     def test_autoconv(s):
         cond = 'nr lt 5'
-        matches = [u for u in s.users if condf(cond, autoconv_lookups=True)(
+        matches = [u for u in s.users if pycond(cond, autoconv_lookups=True)(
             state=u)]
         assert len(matches) == 4
 
@@ -349,7 +359,7 @@ class OperatorHooks(T):
             return f_op(a, b)
         run_all_ops_thru(hk)
         S.update({'a': 1, 'b': 2, 'c': 3})
-        f = condf('a gt 0 and b lt 3 and not c gt 4')
+        f = pycond('a gt 0 and b lt 3 and not c gt 4')
         assert l == []
         assert f() == True
         expected_log = [  ('gt', 1, 0.0)
@@ -374,9 +384,9 @@ class OperatorHooks(T):
         def myhk(f_op, a, b):
             return True
         S['a'] = 1
-        f = condf('a eq 2')
+        f = pycond('a eq 2')
         assert f() == False
-        f = condf('a eq 2', ops_thru=myhk)
+        f = pycond('a eq 2', ops_thru=myhk)
         assert f() == True
 
 
@@ -413,7 +423,7 @@ class Perf(T):
         for t in f, ffast:
             eq(s, t(), True)
         # now the biiig expression must be false in total:
-        S['k12'] = 0
+        S['k1'] = 0
         for t in f, ffast:
             eq(s, t(), False)
 
@@ -442,11 +452,11 @@ class Perf(T):
 
         # on py3 it is a bit slower, factor here nearly 3
         # also I see out of stack memory errors on the pure python exprssion
-        # when I go to levels = 100 but no probs on condf
-        print('condf time / raw single func. python eval time:', dt1 / dt2)
+        # when I go to levels = 100 but no probs on pycond
+        print('pycond time / raw single func. python eval time:', dt1 / dt2)
         print('With fast lookup function:', dt1fast / dt2)
 
-        msg = 'One condf run of %s levels deeply nested conditions: %.4fs '
+        msg = 'One pycond run of %s levels deeply nested conditions: %.4fs '
         print (msg % (levels, dt1 / levels))
         assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (dt1/dt2)
 
