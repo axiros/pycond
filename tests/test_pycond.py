@@ -366,8 +366,8 @@ class OperatorHooks(T):
         assert l == expected_log * 3
 
         # revert hook:
-	OPS.clear()
-	OPS.update(orig)
+        OPS.clear()
+        OPS.update(orig)
 
 
     def test_cond_local_hook(s):
