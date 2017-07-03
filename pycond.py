@@ -41,7 +41,7 @@ OPS['truthy'] = truthy
 # if val in these we deliver False:
 FALSES = (None, False, '', 0, {}, [], ())
 
-# default lookup of keys here - no module does NOT need to have state.
+# default lookup of keys here - no, module does NOT need to have state.
 # its a convenience thing, see tests:
 State = {}
 def state_get(key, val, cfg, state=State, **kw):
@@ -76,18 +76,9 @@ COMB_OPS = {
 # those from user space are also replaced at tokenizing time:
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
-def py_type(v):
-    if not is_str(v):
-        return v
-    def _(v):
-        # returns a str(v) if float and int do not work:
-        for t in float, int, str:
-            try: return t(v)
-            except: pass
-    return ( True if v == 'true' else False if v == 'false' else
-             None if v == 'None' else _(v) )
 
 def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
+    ''' walk throug a single string expression '''
     # '[[ a' -> '[ [ a', then split
     esc, escaped, have_apo_seps = [], [], False
 
@@ -340,5 +331,16 @@ def run_all_ops_thru(f_hook):
     for k in ops:
         OPS[k] = partial(ops_wrapper, OPS[k], f_hook)
     OPS_HK_APPLIED = f_hook
+
+def py_type(v):
+    if not is_str(v):
+        return v
+    def _(v):
+        # returns a str(v) if float and int do not work:
+        for t in float, int, str:
+            try: return t(v)
+            except: pass
+    return ( True if v == 'true' else False if v == 'false' else
+             None if v == 'None' else _(v) )
 
 

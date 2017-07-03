@@ -96,6 +96,7 @@ model = {'joe': {'last_host': 'somehost'}}
 def my_lu(k, v, req, user, model=model):
      log('user check', user, k, v)
      return ( model.get(user) or {} ).get(k), req[v]
+
 f = pycond('last_host eq host', lookup=my_lu)
 
 req = {'host': 'somehost'}
@@ -143,6 +144,13 @@ OPS['maybe'] = lambda a, b: random.choice((True, False))
 'a maybe b' # valid expression now.
 ```
 
+> This way you can have math symbols instead operator names, e.g.:
+
+```
+OPS['='] = OPS['eq']
+OPS['<='] = OPS['le']
+```
+
 
 #### Negation `not`
 
@@ -152,9 +160,6 @@ Negates the result of the condition operator:
 S['foo'] = 'abc'; pycond('foo eq abc')()            # True
 S['foo'] = 'abc'; pycond('foo not eq abc')()        # False
 ```
-
-
-
 
 #### Reversal `rev`
 
@@ -167,6 +172,41 @@ S['foo'] = 'a'  ; pycond('foo rev contains abc')()  # True
 
 > `rev` and `not` can be combined in any order.
 
+##### Wrapping Condition Operators
+
+##### Global Wrapping
+You may globally wrap all evaluation time condition operations through a custom function:
+
+```python
+def hk(f_op, a, b, l=l):
+     l.append((getattr(f_op, '__name__', ''), a, b))
+     return f_op(a, b)
+
+pycon.run_all_ops_thru(hk) # globally wrap the operators
+
+S.update({'a': 1, 'b': 2, 'c': 3})
+f = pycond('a gt 0 and b lt 3 and not c gt 4')
+assert l == []
+f()
+expected_log = [  ('gt', 1, 0.0)
+                 , ('lt', 2, 3.0)
+                 , ('gt', 3, 4.0)]
+assert l == expected_log
+```
+You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
+
+##### Condition Local Wrapping
+
+This is done through the `ops_thru` parameter as shown:
+```python
+def myhk(f_op, a, b):
+    return True
+S['a'] = 1
+f = pycond('a eq 2')
+assert f() == False
+f = pycond('a eq 2', ops_thru=myhk)
+assert f() == True
+```
 
 ### Combining Operations
 
@@ -186,3 +226,70 @@ The combining functions are stored in `pycond.COMB_OPS` dict and may be extended
 Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 > Via the `brkts` config parameter you may change those to other separators at build time.
+
+
+## Tokenizing
+### Bypassing
+
+You can bypass the tokenizer by passing an already tokenized list to pycond, e.g. `pycond(['a', 'eq', 42])`.
+
+> Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
+
+### Functioning
+
+The tokenizers job is to take apart expression strings for the builder.
+
+#### Separator `sep`
+
+Separates the different parts of an expression. Default is ' '.
+
+```python
+py_cond('a.eq.42', sep='.')
+```
+> sep can be a any single character including binary.
+
+Bracket characters do not need to be separated, the tokenizer will do:
+
+```
+# equal:
+py_cond('[[a eq 42] and b]')
+py_cond('[ [ a eq 42 ] and b ]')
+```
+
+#### Apostrophes
+
+By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
+
+```
+py_cond('a eq "Hello World"')
+```
+
+
+
+#### Escaping
+
+Tell the tokenizer to not interpret the next character:
+
+```
+py_cond('a eq Hello\ World')
+```
+
+
+## Building
+
+### Autoconv: Casting of values into python simple types
+
+Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
+
+This can be prevented by setting the `autoconv` parameter to `False` or by using Apostrophes:
+
+```
+py_cond('a eq "42"') # compared as string now
+py_cond('a eq 42', autoconv=False) # compared as string now
+```
+
+If you do not want to provide a custom lookup function (where you can do what you want) but want to have looked up keys autoconverted then use:
+
+```
+py_cond('id lt 42', autoconv_lookups=True) # True if S['id'] in ('1', 1, ...)
+```
