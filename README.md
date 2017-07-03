@@ -43,6 +43,16 @@ with roughly the same performance (factor 2-3) than the handcrafted python.
 
 # Why
 
+When the developer can decide upon the filters to apply on data he'll certainly
+use Python's excellent expressive possibilities directly, e.g. as shown above
+through list comprehensions.   
+But what if the filtering conditions are based on decisions outside of the program's
+control? I.e. from an end user, hitting the program via the network, in a somehow serialized form, which is rarely directly evaluatable Python.
+
+This is the main use case for this module.  
+
+But why yet another tool for such a standard job?  
+
 There is a massive list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
 
 I just needed a very slim tool for only the parsing into functions - but this pretty customizable.
