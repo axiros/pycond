@@ -112,7 +112,9 @@ f(req=req, user='sally')  # False
 
 Combine atomic conditions with boolean operators and nesting brackets like:
 
+```
 [  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
+```
 
 ### Atomic Conditions
 
