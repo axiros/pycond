@@ -55,7 +55,9 @@ But why yet another tool for such a standard job?
 
 There is a massive list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
 
-I just needed a very slim tool for only the parsing into functions - but this pretty customizable.
+## pycond Reasons to exist
+
+`1.` I just needed a very **slim** tool for only the parsing into functions - but this pretty transparent and customizable
 
 pycond allows to customize
 - the list of condition operators
@@ -67,9 +69,13 @@ pycond allows to customize
 
 and ships as zero dependency single module.
 
-All evaluation is done via [partials](https://stackoverflow.com/a/3252425/4583360) and not lambdas, i.e. operations can be introspected and debugged very simple.
+All evaluation is done via [partials](https://stackoverflow.com/a/3252425/4583360) and not lambdas, i.e. operations can be introspected and debugged very simply, through breakpoints or custom logging operator or lookup wrappers.
 
-Performance is good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY).
+`2.` Simplicity of the grammar: Easy to type directly, readable by non
+programmers but also synthesisable from structured data, e.g. from a web framework.
+
+
+`3.` Performance: Good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY). With the current feature set we are (only) a factor 2-3 slower, compared to handcrafted list comprehensions.
 
 
 # Mechanics
