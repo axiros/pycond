@@ -30,7 +30,7 @@ foo_users = [ u for u in users
 or you have this module assemble a condition function from a declaration like:
 
 ```python
-from py_cond import pycond
+from pycond import pycond
 cond = 'email contains .de and gender eq Male or last_name eq Scott'
 is_foo = pycond(cond)
 ```
