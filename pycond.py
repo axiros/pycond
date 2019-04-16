@@ -1,4 +1,4 @@
-'''
+"""
 Condition parser
 
 See README.
@@ -8,7 +8,7 @@ DEV Notes:
 
     f_xyz denotes a function (we work a lot with lambdas and partials)
 
-'''
+"""
 
 from __future__ import print_function
 import operator, sys
@@ -16,25 +16,31 @@ import inspect
 from functools import partial
 
 PY2 = sys.version_info[0] == 2
-#is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
+# is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
 if PY2:
-    is_str   = lambda s: isinstance(s, basestring)
+    is_str = lambda s: isinstance(s, basestring)
     sig_args = lambda f: inspect.getargspec(f).args
 else:
-    is_str   = lambda s: isinstance(s, (bytes, str))
+    is_str = lambda s: isinstance(s, (bytes, str))
     sig_args = lambda f: list(inspect.signature(f).parameters.keys())
 
 
+KV_DELIM = ' '  # default seperator for strings
 
-KV_DELIM = ' ' # default seperator for strings
-
-OPS = dict([(k, getattr(operator, k)) for k in dir(operator)
-            if not k.startswith('_') and '(a, b)' in getattr(operator, k).__doc__])
+OPS = dict(
+    [
+        (k, getattr(operator, k))
+        for k in dir(operator)
+        if not k.startswith('_') and '(a, b)' in getattr(operator, k).__doc__
+    ]
+)
 # see api below for these:
 OPS_HK_APPLIED = False
 
+
 def truthy(k, v=None):
     return True if k else False
+
 
 OPS['truthy'] = truthy
 
@@ -44,9 +50,12 @@ FALSES = (None, False, '', 0, {}, [], ())
 # default lookup of keys here - no, module does NOT need to have state.
 # its a convenience thing, see tests:
 State = {}
+
+
 def state_get(key, val, cfg, state=State, **kw):
     # a lookup function can modify key AND value, i.e. returns both:
-    return state.get(key), val # default k, v access function
+    return state.get(key), val  # default k, v access function
+
 
 def dbg_get(key, val, cfg, state=State, *a, **kw):
     res = state_get(key, val, cfg, state, *a, **kw)
@@ -54,23 +63,31 @@ def dbg_get(key, val, cfg, state=State, *a, **kw):
     out('Lookup:', key, val, '->', res[0])
     return res
 
-out= lambda *m: print(' '.join([str(s) for s in m]))
+
+out = lambda *m: print(' '.join([str(s) for s in m]))
 
 # Combining operators:
 # NO! spaces in the keys. User may have spaces in the expression though.
 # better no lambdas:
-def or_not(a, b)             : return a or not b
-def and_not(a, b)            : return a and not b
-def combine(f_op, f, g, **kw): return f_op(f(**kw), g(**kw))
+def or_not(a, b):
+    return a or not b
+
+
+def and_not(a, b):
+    return a and not b
+
+
+def combine(f_op, f, g, **kw):
+    return f_op(f(**kw), g(**kw))
+
 
 COMB_OPS = {
-         'or'     : operator.or_
-        ,'and'    : operator.and_
-        ,'or_not' : or_not
-        ,'and_not': and_not
-        ,'xor'    : operator.xor
-        } # extensible
-
+    'or': operator.or_,
+    'and': operator.and_,
+    'or_not': or_not,
+    'and_not': and_not,
+    'xor': operator.xor,
+}  # extensible
 
 
 # those from user space are also replaced at tokenizing time:
@@ -78,7 +95,7 @@ NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
 
 def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
-    ''' walk throug a single string expression '''
+    """ walk throug a single string expression """
     # '[[ a' -> '[ [ a', then split
     esc, escaped, have_apo_seps = [], [], False
 
@@ -161,23 +178,22 @@ def find_closing_brack(cond, openbrkt, closebrkt):
     f, op, n = cond[1:i], None, None
     if i < len(cond) - 1:
         op = cond[i + 1]
-        n = cond[i + 2:]
+        n = cond[i + 2 :]
     return f, op, n
 
 
-
-def _parse_cond( cond, cfg, nfo ):
-    '''Recursively scanning through a tokenized expression and building the
+def _parse_cond(cond, cfg, nfo):
+    """Recursively scanning through a tokenized expression and building the
     condition function step by step
-    '''
+    """
     openbrkt, closebrkt = cfg['brkts']
-    strct = nfo['strct'] # structure of lambdas to return. not relevant.
+    strct = nfo['strct']  # structure of lambdas to return. not relevant.
     expr1 = None
     # ----------------------------------------------- Handle nesting recursions
-    if cond and cond[0] == openbrkt: # [
+    if cond and cond[0] == openbrkt:  # [
         idx = find_closing_brack(cond, openbrkt, closebrkt)
         expr1, strct1 = _parse_cond(cond[1:idx], cfg, nfo)
-        cond = cond[idx + 1:]
+        cond = cond[idx + 1 :]
     if not cond:
         return expr1, [strct1]
 
@@ -191,11 +207,11 @@ def _parse_cond( cond, cfg, nfo ):
         i += 1
 
         if part == openbrkt:
-            break # all well, brackets given
+            break  # all well, brackets given
 
         if is_str(part) and part in COMB_OPS:
             c.insert(0, openbrkt)
-            [ c.append(v) for v in (closebrkt, part, openbrkt) ]
+            [c.append(v) for v in (closebrkt, part, openbrkt)]
             c.extend(cond[i:])
             c.append(closebrkt)
             return _parse_cond(c, cfg, nfo)
@@ -205,12 +221,12 @@ def _parse_cond( cond, cfg, nfo ):
 
     # now we have the first expression in brkts parsed and do the next one
     # after a combining operator:
-    f_op = COMB_OPS.get(cond[0]) # f_op: combining-operator function
+    f_op = COMB_OPS.get(cond[0])  # f_op: combining-operator function
     if f_op:
         op_n, nxt = cond[0], 1
         # we recurse into the second part, first we have
         expr2, strct2 = _parse_cond(cond[nxt:], cfg, nfo)
-        #strct = [strct1, "COMB_OPS['%s']" % op_n, strct2]
+        # strct = [strct1, "COMB_OPS['%s']" % op_n, strct2]
         return partial(combine, f_op, expr1, expr2), strct
 
     # ------------------------------------------------ Handle atomic conditions
@@ -223,7 +239,6 @@ def _parse_cond( cond, cfg, nfo ):
 
     nfo['keys'].add(key)
 
-
     # prefixes infront of the operator: not and rev - in any combi:
     # if sep was spc we replaced them at tokenizing with e.g. not_rev
     not_, rev_ = False, False
@@ -233,7 +248,6 @@ def _parse_cond( cond, cfg, nfo ):
             nr = cond.pop(0)
             not_ = True if 'not' in nr else not_
             rev_ = True if 'rev' in nr else rev_
-
 
     op = cond.pop(0)
     f_op = OPS.get(op)
@@ -250,8 +264,10 @@ def _parse_cond( cond, cfg, nfo ):
     if str(val).startswith('str:'):
         val = str(val[4:])
     else:
-        if cfg.get('autoconv', True): # can do this in the build phase already:
-            val = py_type(val) # '42' -> 42
+        if cfg.get(
+            'autoconv', True
+        ):  # can do this in the build phase already:
+            val = py_type(val)  # '42' -> 42
 
     f_lookup = cfg['lookup']
     # we do what we can in the building not the evaluation phase:
@@ -264,17 +280,19 @@ def _parse_cond( cond, cfg, nfo ):
     # try save stackframes and evaluations for the eval phase:
     if any((acl, rev_, not_)):
         f_res = partial(
-                f_atomic_arn, f_op, fp_lookup, key, val, not_, rev_, acl)
+            f_atomic_arn, f_op, fp_lookup, key, val, not_, rev_, acl
+        )
     else:
         # normal case:
         f_res = partial(f_atomic, f_op, fp_lookup, key, val)
     return f_res, strct
 
     ## document what we did:
-    #strct = [ "%s('%s', '%s')" % (lookup.__name__, key, val),
+    # strct = [ "%s('%s', '%s')" % (lookup.__name__, key, val),
     #          "OPS['%s']"% op, val ]
-    #if not_:
+    # if not_:
     #    strct.insert(1, 'not')
+
 
 # ------------------------------------------------------------ Evaluation Phase
 # we do these two versions for with cfg and w/o to safe a stackframe
@@ -286,20 +304,22 @@ def f_atomic(f_op, fp_lookup, key, val, **kw):
     # normal case - be fast:
     return f_op(*fp_lookup(**kw))
 
+
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
     # when some switches are set in cfg:
     k, v = fp_lookup(**kw)
-    if acl  is True: k = py_type(k)
-    if rev_ is True: k, v = v, k
+    if acl is True:
+        k = py_type(k)
+    if rev_ is True:
+        k, v = v, k
     return not f_op(k, v) if not_ == True else f_op(k, v)
 
 
-
 # ------------------------------------------------------------------ Public API
-def parse_cond( cond, lookup=state_get, **cfg ):
-    ''' Main function.
+def parse_cond(cond, lookup=state_get, **cfg):
+    """ Main function.
         see tests
-    '''
+    """
 
     cfg['brkts'] = brkts = cfg.get('brkts', '[]')
 
@@ -316,31 +336,43 @@ def parse_cond( cond, lookup=state_get, **cfg ):
 
 
 def pycond(cond, *a, **cfg):
-    ''' condition function - for those who don't need meta infos '''
+    """ condition function - for those who don't need meta infos """
     return parse_cond(cond, *a, **cfg)[0]
 
 
 def run_all_ops_thru(f_hook):
-    ''' wraps ALL operator evals within a custom function'''
+    """ wraps ALL operator evals within a custom function"""
     global OPS_HK_APPLIED
     if OPS_HK_APPLIED == f_hook:
         return
+
     def ops_wrapper(f_op, f_hook, a, b):
         return f_hook(f_op, a, b)
-    ops= OPS.keys()
+
+    ops = OPS.keys()
     for k in ops:
         OPS[k] = partial(ops_wrapper, OPS[k], f_hook)
     OPS_HK_APPLIED = f_hook
 
+
 def py_type(v):
     if not is_str(v):
         return v
+
     def _(v):
         # returns a str(v) if float and int do not work:
         for t in float, int, str:
-            try: return t(v)
-            except: pass
-    return ( True if v == 'true' else False if v == 'false' else
-             None if v == 'None' else _(v) )
+            try:
+                return t(v)
+            except:
+                pass
 
-
+    return (
+        True
+        if v == 'true'
+        else False
+        if v == 'false'
+        else None
+        if v == 'None'
+        else _(v)
+    )
