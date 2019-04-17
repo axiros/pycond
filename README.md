@@ -185,53 +185,53 @@ All boolean [standardlib operators](https://docs.python.org/2/library/operator.h
 
 ```python
 
-from pytest_to_md import md_table  # just markdown table gen.
+from pytest_to_md import html_table as tbl  # just a table gen.
 from pycond import get_ops
 
 for k in 'nr', 'str':
-    p = md_table(get_ops()[k], k + ' operator', 'alias', summary=k)
-    print(p)
+    print(tbl(get_ops()[k], k + ' operator', 'alias', summary=k))
 ```
 
 
 <details>
         <summary>nr</summary>
-         | nr operator | alias | 
- | - | - | 
- | add | + | 
- | and_ | & | 
- | eq | == | 
- | floordiv | // | 
- | ge | >= | 
- | gt | > | 
- | iadd | += | 
- | iand | &= | 
- | ifloordiv | //= | 
- | ilshift | <<= | 
- | imod | %= | 
- | imul | *= | 
- | ior | |= | 
- | ipow | **= | 
- | irshift | >>= | 
- | is_ | is | 
- | is_not | is | 
- | isub | -= | 
- | itruediv | /= | 
- | ixor | ^= | 
- | le | <= | 
- | lshift | << | 
- | lt | < | 
- | mod | % | 
- | mul | * | 
- | ne | != | 
- | or_ | | | 
- | pow | ** | 
- | rshift | >> | 
- | sub | - | 
- | truediv | / | 
- | xor | ^ | 
- | itemgetter |  | 
- | length_hint |  | 
+        <table>
+<tr><td>nr operator</td><td>alias</td></tr>
+<tr><td>add</td><td>+</td></tr>
+<tr><td>and_</td><td>&</td></tr>
+<tr><td>eq</td><td>==</td></tr>
+<tr><td>floordiv</td><td>//</td></tr>
+<tr><td>ge</td><td>>=</td></tr>
+<tr><td>gt</td><td>></td></tr>
+<tr><td>iadd</td><td>+=</td></tr>
+<tr><td>iand</td><td>&=</td></tr>
+<tr><td>ifloordiv</td><td>//=</td></tr>
+<tr><td>ilshift</td><td><<=</td></tr>
+<tr><td>imod</td><td>%=</td></tr>
+<tr><td>imul</td><td>*=</td></tr>
+<tr><td>ior</td><td>|=</td></tr>
+<tr><td>ipow</td><td>**=</td></tr>
+<tr><td>irshift</td><td>>>=</td></tr>
+<tr><td>is_</td><td>is</td></tr>
+<tr><td>is_not</td><td>is</td></tr>
+<tr><td>isub</td><td>-=</td></tr>
+<tr><td>itruediv</td><td>/=</td></tr>
+<tr><td>ixor</td><td>^=</td></tr>
+<tr><td>le</td><td><=</td></tr>
+<tr><td>lshift</td><td><<</td></tr>
+<tr><td>lt</td><td><</td></tr>
+<tr><td>mod</td><td>%</td></tr>
+<tr><td>mul</td><td>*</td></tr>
+<tr><td>ne</td><td>!=</td></tr>
+<tr><td>or_</td><td>|</td></tr>
+<tr><td>pow</td><td>**</td></tr>
+<tr><td>rshift</td><td>>></td></tr>
+<tr><td>sub</td><td>-</td></tr>
+<tr><td>truediv</td><td>/</td></tr>
+<tr><td>xor</td><td>^</td></tr>
+<tr><td>itemgetter</td><td></td></tr>
+<tr><td>length_hint</td><td></td></tr>
+</table>
         </details>
         
 
@@ -239,15 +239,16 @@ for k in 'nr', 'str':
 
 <details>
         <summary>str</summary>
-         | str operator | alias | 
- | - | - | 
- | attrgetter |  | 
- | concat | + | 
- | contains |  | 
- | countOf |  | 
- | iconcat | += | 
- | indexOf |  | 
- | methodcaller |  | 
+        <table>
+<tr><td>str operator</td><td>alias</td></tr>
+<tr><td>attrgetter</td><td></td></tr>
+<tr><td>concat</td><td>+</td></tr>
+<tr><td>contains</td><td></td></tr>
+<tr><td>countOf</td><td></td></tr>
+<tr><td>iconcat</td><td>+=</td></tr>
+<tr><td>indexOf</td><td></td></tr>
+<tr><td>methodcaller</td><td></td></tr>
+</table>
         </details>
         
 

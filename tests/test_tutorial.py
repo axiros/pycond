@@ -126,12 +126,11 @@ class Test1:
         """
 
         def f4_1():
-            from pytest_to_md import md_table  # just markdown table gen.
+            from pytest_to_md import html_table as tbl  # just a table gen.
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                p = md_table(get_ops()[k], k + ' operator', 'alias', summary=k)
-                print(p)
+                print(tbl(get_ops()[k], k + ' operator', 'alias', summary=k))
 
         """
 
