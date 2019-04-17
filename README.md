@@ -168,7 +168,8 @@ assert f(req=req, user='joe') == False
 assert f(req=req, user='eve') == True
 ```
 Output:
-```user check joe last_host host
+```
+user check eve last_host host
 
 ```
 ## Building Conditions
@@ -496,4 +497,4 @@ for id in '1', 1:
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/e7a0f2aff2c970c7c5dd3282e80d667cc26fad81/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/55eba0856a26a768a779b9de2e007a1411aa8601/tests/test_tutorial.py
