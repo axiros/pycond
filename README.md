@@ -258,28 +258,23 @@ for k in 'nr', 'str':
 
 By default pycond uses text style operators.
 
-`ops_use_symbolic` switches processwide to symbolic style only.
-`ops_use_both` switches processwide to both notations allowed.
+- `ops_use_symbolic` switches processwide to symbolic style only.
+- `ops_use_both` switches processwide to both notations allowed.
 
 ```python
 
-from pycond import (
-    pycond as p,
-    State as S,
-    ops_use_symbolic,
-    ops_use_both,
-)
+import pycond as pc
 
-ops_use_symbolic()
-S['foo'] = 'bar'
-assert p('foo == bar')() == True
+pc.ops_use_symbolic()
+pc.State['foo'] = 'bar'
+assert pc.pycond('foo == bar')() == True
 try:
     # this raises now, text ops not known anymore:
-    p('foo eq bar')
+    pc.pycond('foo eq bar')
 except:
-    ops_use_both()
-    assert p('foo eq bar')() == True
-    assert p('foo != baz')() == True
+    pc.ops_use_both()
+    assert pc.pycond('foo eq bar')() == True
+    assert pc.pycond('foo != baz')() == True
 ```
 
 > Operator namespace(s) should be assigned at process start, they are global.
