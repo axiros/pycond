@@ -6,6 +6,8 @@
 
 Lightweight condition expression parsing and building of evaluation functions.
 
+[TOC]
+
 # What
 
 You have a bunch of data...
