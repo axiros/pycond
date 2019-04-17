@@ -3,7 +3,9 @@
 import unittest, sys, os
 import operator
 import time
-pth = os.path.abspath(__file__).rsplit('/', 2)[0]
+
+d = os.path.dirname
+pth = d(d(os.path.abspath(__file__)))
 sys.path.insert(0, pth)
 
 from pycond import pycond, state_get, dbg_get, OPS, COMB_OPS
@@ -14,31 +16,30 @@ keys = []
 
 eq = lambda _, k, v: _.assertEqual(k, v)
 
+
 def parse(cond, *a, **kw):
-    ''' do the parsing with a debugging getter '''
-    #kw['lookup'] = kw.get('lookup', dbg_get)
+    """ do the parsing with a debugging getter """
+    # kw['lookup'] = kw.get('lookup', dbg_get)
     print('Parsing', cond)
     return parse_cond(cond, *a, **kw)
 
 
 class T(unittest.TestCase):
     def setUp(s):
-        ''' clearing state and keys '''
-        while keys: keys.pop()
+        """ clearing state and keys """
+        while keys:
+            keys.pop()
         S.clear()
 
 
 class Mechanics(T):
-
-
     def test_test(s):
         return 'pass'
 
-
     def test_auto_cond(s, cond='foo'):
-        '''key only -> we act like python's if val:...
+        """key only -> we act like python's if val:...
         and insert the 'truthy' operator
-        '''
+        """
 
         f, m = parse(cond)
         # shortcut of you don't want meta:
@@ -46,7 +47,7 @@ class Mechanics(T):
 
         eq(s, m['keys'], ['foo'])
 
-        eq(s, f(), False) # when unset
+        eq(s, f(), False)  # when unset
         for v in 0, [], (), {}, False, None, '':
             S['foo'] = v
             eq(s, f(), False)
@@ -54,7 +55,6 @@ class Mechanics(T):
         for v in 1, [1], (1,), {'a': 1}, True, 's':
             S['foo'] = v
             eq(s, f(), True)
-
 
     def test_simple_cond(s, cond='foo eq bar'):
 
@@ -66,7 +66,6 @@ class Mechanics(T):
 
         S['foo'] = 'x'
         eq(s, f(), False)
-
 
     def test_simple_comb(s, cond='foo eq bar and baz eq 1'):
 
@@ -80,7 +79,6 @@ class Mechanics(T):
         S['foo'] = 'x'
         eq(s, f(), False)
 
-
     def test_apo_space(s):
         S['foo'] = 'b a r'
         eq(s, pycond('foo eq "b a r"')(), True)
@@ -88,13 +86,13 @@ class Mechanics(T):
         eq(s, pycond("foo eq 'b \\a r'")(), False)
         eq(s, pycond("foo eq 'b\ a r'")(), False)
 
-
     def test_tokenize_brackets(s):
         S['k1'] = 1
-        conds =( '[[ k1 eq 1 ] and [ k2 gt 1 ]]'
-                , '[[k1 eq 1] and [ k2 gt 1 ]]'
-                , '[ k1 eq 1] and [ k2 gt 1 ]'
-               )
+        conds = (
+            '[[ k1 eq 1 ] and [ k2 gt 1 ]]',
+            '[[k1 eq 1] and [ k2 gt 1 ]]',
+            '[ k1 eq 1] and [ k2 gt 1 ]',
+        )
 
         for b, v in ((True, 2), (False, 1)):
             S['k2'] = v
@@ -104,9 +102,8 @@ class Mechanics(T):
                 eq(s, f(), b)
                 eq(s, m['keys'], ['k1', 'k2'])
 
-
     def test_auto_brackets(s):
-        ''' you don't need to bracket expr between combining ops'''
+        """ you don't need to bracket expr between combining ops"""
         # we auto bracket from left to right:
         # i.e.: 'False and True or True' -> False and [ True or True] = False
         # and not [False and True ] or True = True
@@ -119,12 +116,12 @@ class Mechanics(T):
         f, m = parse('[k1 and k2] or k3')
         eq(s, f(), True)
 
-
         S['k1'] = 1
-        conds =( 'k1 eq 1 and k2 gt 1'
-                ,'[k1 eq 1] and k2 gt 1'
-                ,'k1 eq 1 and [k2 gt 1]'
-               )
+        conds = (
+            'k1 eq 1 and k2 gt 1',
+            '[k1 eq 1] and k2 gt 1',
+            'k1 eq 1 and [k2 gt 1]',
+        )
 
         for b, v in ((True, 2), (False, 1)):
             S['k2'] = v
@@ -134,7 +131,6 @@ class Mechanics(T):
                 eq(s, f(), b)
                 eq(s, m['keys'], ['k1', 'k2'])
 
-
     def test_round_brackets(s, cond='(k1 and k2) or k3'):
         S['k1'] = False
         S['k2'] = True
@@ -142,7 +138,6 @@ class Mechanics(T):
         f, m = parse(cond, brkts='()')
         eq(s, f(), True)
         eq(s, m['keys'], ['k1', 'k2', 'k3'])
-
 
     def test_custom_lookup(s):
         def my_lu(k, v):
@@ -156,14 +151,15 @@ class Mechanics(T):
 
     def test_custom_lookup2(s):
         model = {'joe': {'last_host': 'somehost'}, 'foo': {'last_host': 'x'}}
+
         def my_lu(k, v, req, user, model=model):
             return model[user][k], req[v]
+
         f = pycond('last_host eq host', lookup=my_lu)
 
         req = {'host': 'somehost'}
         assert f(req=req, user='joe') == True
         assert f(req=req, user='foo') == False
-
 
     def test_custom_sep(s, cond='[[foo.eq.b ar]and not.bar.eq.foo]'):
         S['foo'] = 'b ar'
@@ -171,12 +167,10 @@ class Mechanics(T):
         n = '\x01'
         eq(s, parse(cond.replace('.', n), sep=n)[0](), True)
 
-
     def test_escape(s, cond='[[foo eq b\ ar] and b\.r eq fo\ o]'):
         S['foo'] = 'b ar'
         S['b.r'] = 'fo o'
         eq(s, parse(cond)[0](), True)
-
 
     def test_autoconv(s):
         S['foo'] = 42
@@ -196,7 +190,6 @@ class Mechanics(T):
 
 
 class TestCombiningOps(T):
-
     def test_all(s, cond='k1 %s k2'):
 
         # that minimum we just need to have:
@@ -217,59 +210,60 @@ class TestCombiningOps(T):
                 eq(s, parse(cnd_under)[0](), exp)
 
 
-
 val_splitting_get = lambda k, v: (S.get(k), v.split(','))
 
 
-
 class TestComparisonOps(T):
-
     def test_contains(s, cond='foo contains bar'):
         S['foo'] = 'abara'
         eq(s, parse(cond)[0](), True)
-        S['foo'] = [1,2,3, 'bar']
+        S['foo'] = [1, 2, 3, 'bar']
         eq(s, parse(cond)[0](), True)
         S['foo'] = 'bar'
 
     def test_rev_and_negation(s):
         S['foo'] = 'b'
-        eq(s, pycond('foo rev not contains "abc"') ( ), False)
+        eq(s, pycond('foo rev not contains "abc"')(), False)
         S['foo'] = 'bar'
-        eq(s, pycond('foo contains a'            ) ( ) , True  )
-        eq(s, pycond('foo contains x'            ) ( ) , False )
-        eq(s, pycond('foo rev contains abara'    ) ( ) , True  )
-        eq(s, pycond('foo rev contains abxra'    ) ( ) , False )
-        eq(s, pycond('foo rev not contains axra' ) ( ) , True  )
-        eq(s, pycond('foo rev contains axra'     ) ( ) , False )
-        eq(s, pycond('foo rev contains 1,2,3,bar',
-                      lookup=val_splitting_get)(), True)
+        eq(s, pycond('foo contains a')(), True)
+        eq(s, pycond('foo contains x')(), False)
+        eq(s, pycond('foo rev contains abara')(), True)
+        eq(s, pycond('foo rev contains abxra')(), False)
+        eq(s, pycond('foo rev not contains axra')(), True)
+        eq(s, pycond('foo rev contains axra')(), False)
+        eq(
+            s,
+            pycond('foo rev contains 1,2,3,bar', lookup=val_splitting_get)(),
+            True,
+        )
         S['foo'] = 'a'
         cond = ['foo', 'rev', 'contains', [1, 'a']]
         eq(s, parse(cond)[0](), True)
-
 
     def test_gt_eq_not_le_and_rev_lt(s, tcond='foo %s bar'):
         # we look up v as well for this test, so foo AND bar from S:
         def g(k, v, state=S):
             return state[k], state[v]
 
-        for a, b in ( (1, 2                )
-                    , (1 / 10000., 1/10001 )
-                    , ('a', 'b'            )
-                    , ([1,2], [1, 2]       )
-                    , ([1,2], [2, 3]       )
-                    ) :
-            S['foo'] = a; S['bar'] = b
-            print (a, b)
-            res = ( pycond(tcond % 'gt', lookup=g)()
-                  , pycond(tcond % 'not le', lookup=g)()
-                  , pycond(tcond % 'rev lt', lookup=g)())
+        for a, b in (
+            (1, 2),
+            (1 / 10000.0, 1 / 10001),
+            ('a', 'b'),
+            ([1, 2], [1, 2]),
+            ([1, 2], [2, 3]),
+        ):
+            S['foo'] = a
+            S['bar'] = b
+            print(a, b)
+            res = (
+                pycond(tcond % 'gt', lookup=g)(),
+                pycond(tcond % 'not le', lookup=g)(),
+                pycond(tcond % 'rev lt', lookup=g)(),
+            )
             eq(s, *res[0:2])
             eq(s, *res[1:3])
             # we just want trues and falses
             assert all([q in (True, False) for q in res])
-
-
 
 
 class Filtering(T):
@@ -291,10 +285,12 @@ class Filtering(T):
     """.strip().splitlines()
     # argh.. py3 fails, would not find h w/o that, fuck.
     globals()['h'] = users[0].split(',')
-    users = [(dict([(h[i], u.split(',')[i]) for i in range(len(h))]))
-                                            for u in users[1:]]
-    for u in users: u['id'] = int(u['id'])
-
+    users = [
+        (dict([(h[i], u.split(',')[i]) for i in range(len(h))]))
+        for u in users[1:]
+    ]
+    for u in users:
+        u['id'] = int(u['id'])
 
     def test_filter_dicts_convenience_state_kw_arg(s):
 
@@ -303,21 +299,20 @@ class Filtering(T):
 
         assert len(matches) == 1 and matches[0]['email'] == 'foobar'
 
-
     def test_filter_dicts_convenient_compl(s):
-        for cond in ('[email not contains @] or [id not lt 12]'
-                    , 'email not contains @  or id gt 11'
-                    , 'email not contains @  or not [id lt 12]'
-                    ):
+        for cond in (
+            '[email not contains @] or [id not lt 12]',
+            'email not contains @  or id gt 11',
+            'email not contains @  or not [id lt 12]',
+        ):
 
             matches = [u for u in s.users if pycond(cond)(state=u)]
 
             for m in matches:
                 assert m['first_name'] == 'Wrong' or m['id'] > 11
 
-
     def test_filter_dicts(s):
-        ''' doing it w/o passing state with the condition as above '''
+        """ doing it w/o passing state with the condition as above """
         cond = 'first_name eq Sal or last_name contains i'
 
         matcher = pycond(cond, lookup=lambda k, v, **kw: (S['cur'].get(k), v))
@@ -334,7 +329,6 @@ class Filtering(T):
             assert m['first_name'] == 'Sal' or 'i' in m['last_name']
         assert len(m) < len(s.users)
 
-
     def test_space(s):
         cond = 'first_name eq "have space"'
         matches = [u for u in s.users if pycond(cond)(state=u)]
@@ -342,29 +336,29 @@ class Filtering(T):
 
     def test_autoconv(s):
         cond = 'nr lt 5'
-        matches = [u for u in s.users if pycond(cond, autoconv_lookups=True)(
-            state=u)]
+        matches = [
+            u for u in s.users if pycond(cond, autoconv_lookups=True)(state=u)
+        ]
         assert len(matches) == 4
 
 
 class OperatorHooks(T):
-
     def test_global_hk(s):
-        ''' globally changing the OPS '''
+        """ globally changing the OPS """
         orig = {}
         orig.update(OPS)
         l = []
+
         def hk(f_op, a, b, l=l):
             l.append((getattr(f_op, '__name__', ''), a, b))
             return f_op(a, b)
+
         run_all_ops_thru(hk)
         S.update({'a': 1, 'b': 2, 'c': 3})
         f = pycond('a gt 0 and b lt 3 and not c gt 4')
         assert l == []
         assert f() == True
-        expected_log = [  ('gt', 1, 0.0)
-                        , ('lt', 2, 3.0)
-                        , ('gt', 3, 4.0)]
+        expected_log = [('gt', 1, 0.0), ('lt', 2, 3.0), ('gt', 3, 4.0)]
         assert l == expected_log
         f()
         assert l == expected_log * 2
@@ -379,10 +373,10 @@ class OperatorHooks(T):
         OPS.clear()
         OPS.update(orig)
 
-
     def test_cond_local_hook(s):
         def myhk(f_op, a, b):
             return True
+
         S['a'] = 1
         f = pycond('a eq 2')
         assert f() == False
@@ -390,17 +384,14 @@ class OperatorHooks(T):
         assert f() == True
 
 
-
-
 class Perf(T):
-
     def test_perf(s):
-        '''
+        """
         We assemble a deeply nested condition string and parse it into
         the lambda funcs. At the same time we assemble an executable python
         expression, w/o function lookups.
         then we compare runtime of both
-        '''
+        """
         levels = 60
         S['foo'] = 'a'
         py = 'S.get("foo") == "a"'
@@ -410,13 +401,13 @@ class Perf(T):
             key = 'k' + str(lev)
             S[key] = key
             cond = '[%s and [%s eq %s]]' % (cond, key, key)
-            py   = '[%s and [S["%s"] == "%s"]]' % (py, key, key)
+            py = '[%s and [S["%s"] == "%s"]]' % (py, key, key)
 
         def fast_lu(k, v):
             # no cfg pasing, not .get:
             return S[k], v
 
-        f, m      = parse(cond, lookup=state_get)
+        f, m = parse(cond, lookup=state_get)
         ffast, m2 = parse(cond, lookup=fast_lu)
 
         # all set up correct?
@@ -429,7 +420,7 @@ class Perf(T):
 
         assert all(['k' + str(lev) in m['keys'] for lev in range(levels)])
         py = 'def py_ev(): return %s' % py
-        exec (py, {'S': S}, globals())
+        exec(py, {'S': S}, globals())
 
         r = range(1000)
         t1 = time.time()
@@ -457,13 +448,12 @@ class Perf(T):
         print('With fast lookup function:', dt1fast / dt2)
 
         msg = 'One pycond run of %s levels deeply nested conditions: %.4fs '
-        print (msg % (levels, dt1 / levels))
-        assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (dt1/dt2)
+        print(msg % (levels, dt1 / levels))
+        assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (
+            dt1 / dt2
+        )
 
 
 if __name__ == '__main__':
     # tests/test_pycond.py PyCon.test_auto_brackets
     unittest.main()
-
-
-

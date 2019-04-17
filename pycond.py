@@ -26,20 +26,73 @@ else:
 
 
 KV_DELIM = ' '  # default seperator for strings
+# fmt:off
+# from dir(operator):
+_ops = {
+    'nr': [
+        ['add'        , '+'   ] ,
+        ['and_'       , '&'   ] ,
+        ['eq'         , '=='  ] ,
+        ['floordiv'   , '//'  ] ,
+        ['ge'         , '>='  ] ,
+        ['gt'         , '>'   ] ,
+        ['iadd'       , '+='  ] ,
+        ['iand'       , '&='  ] ,
+        ['ifloordiv'  , '//=' ] ,
+        ['ilshift'    , '<<=' ] ,
+        ['imod'       , '%='  ] ,
+        ['imul'       , '*='  ] ,
+        ['ior'        , '|='  ] ,
+        ['ipow'       , '**=' ] ,
+        ['irshift'    , '>>=' ] ,
+        ['is_'        , 'is'  ] ,
+        ['is_not'     , 'is'  ] ,
+        ['isub'       , '-='  ] ,
+        ['itruediv'   , '/='  ] ,
+        ['ixor'       , '^='  ] ,
+        ['le'         , '<='  ] ,
+        ['lshift'     , '<<'  ] ,
+        ['lt'         , '<'   ] ,
+        ['mod'        , '%'   ] ,
+        ['mul'        , '*'   ] ,
+        ['ne'         , '!='  ] ,
+        ['or_'        , '|'   ] ,
+        ['pow'        , '**'  ] ,
+        ['rshift'     , '>>'  ] ,
+        ['sub'        , '-'   ] ,
+        ['truediv'    , '/'   ] ,
+        ['xor'        , '^'   ] ,
+        ['itemgetter' , ''    ] , # 'itemgetter(item, ...) --> itemgetter object\n\nReturn a callable object that fetches the given item(s) from its operand.\nAfter f = itemgetter(2), the call f(r) returns r[2].\nAfter g = itemgetter(2, 5, 3), the call g(r) returns (r[2], r[5], r[3])',
+        ['length_hint', ''    ] , #'Return an estimate of the number of items in obj.\n\nThis is useful for presizing containers when building from an iterable.\n\nIf the object supports len(), the result will be exact.\nOtherwise, it may over- or under-estimate by an arbitrary amount.\nThe result will be an integer >= 0.',
+    ],
+    'str': [
+        ['attrgetter' , ''    ] , # "attrgetter(attr, ...) --> attrgetter object\n\nReturn a callable object that fetches the given attribute(s) from its operand.\nAfter f = attrgetter('name') , the call f(r) returns r.name.\nAfter g = attrgetter('name' , 'date') , the call g(r) returns (r.name , r.date).\nAfter h = attrgetter('name.first' , 'name.last') , the call h(r) returns\n(r.name.first , r.name.last)." ,
+        ['concat'     , '+'   ] ,
+        ['contains'   , ''    ] , # 'Same as b in a (note reversed operands).']  ,
+        ['countOf'    , ''    ] , #'Return the number of times b occurs in a.'] ,
+        ['iconcat'    , '+='  ] ,
+        ['indexOf'    , ''    ] , #'Return the first index of b in a.']         ,
+        ['methodcaller', ''   ] , #  "methodcaller(name, ...) --> methodcaller object\n\nReturn a callable object that calls the given method on its operand.\nAfter f = methodcaller('name'), the call f(r) returns r.name().\nAfter g = methodcaller('name', 'date', foo=1), the call g(r) returns\nr.name('date', foo=1).",
+        ],
+}
+# fmt:on
+OPS = {}
+OPS_ALIASES = {}
+for t in 'str', 'nr':
+    for k, alias in _ops[t]:
+        f = getattr(operator, k, None)
+        # the list is python3.7 - not all have all:
+        if f:
+            OPS[k] = f
+            if alias:
+                OPS_ALIASES[alias] = f
 
-OPS = dict(
-    [
-        (k, getattr(operator, k))
-        for k in dir(operator)
-        if not k.startswith('_') and '(a, b)' in getattr(operator, k).__doc__
-    ]
-)
 # see api below for these:
 OPS_HK_APPLIED = False
 
 
 def truthy(k, v=None):
-    return True if k else False
+    return operator.truth(k)
 
 
 OPS['truthy'] = truthy
