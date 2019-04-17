@@ -121,7 +121,18 @@ class Test1:
 
         #### Condition Operators
 
-        All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default.
+        All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default:
+
+        """
+
+        def f4_1():
+            import pprint
+            from pycond import get_ops
+
+            print(pprint.pformat(get_ops()))
+
+        """
+
 
         ##### Extending Condition Operators
 
@@ -135,9 +146,9 @@ class Test1:
 
             assert p('a maybe b')() in (True, False)  # valid expression now.
 
-        ptm.md_from_source_code()
+        """
 
-        t = """
+        #### Symbolic Operator Names
 
         > This way you can have math symbols instead operator names, e.g.:
 
@@ -289,6 +300,8 @@ class Test1:
         py_cond('id lt 42', autoconv_lookups=True) # True if S['id'] in ('1', 1, ...)
         ```
         """
+
+        ptm.md_from_source_code()
 
     def test_insert_tutorial_into_readme(self):
         """addd the new version of the rendered tutorial into the main readme"""

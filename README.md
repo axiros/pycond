@@ -182,7 +182,61 @@ assert p('[ foo and bar and not baz]')() == True
 
 #### Condition Operators
 
-All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default.
+All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default:
+
+```python
+
+import pprint
+from pycond import get_ops
+
+print(pprint.pformat(get_ops()))
+```
+Output:
+```
+{'nr': [['add', '+'],
+        ['and_', '&'],
+        ['eq', '=='],
+        ['floordiv', '//'],
+        ['ge', '>='],
+        ['gt', '>'],
+        ['iadd', '+='],
+        ['iand', '&='],
+        ['ifloordiv', '//='],
+        ['ilshift', '<<='],
+        ['imod', '%='],
+        ['imul', '*='],
+        ['ior', '|='],
+        ['ipow', '**='],
+        ['irshift', '>>='],
+        ['is_', 'is'],
+        ['is_not', 'is'],
+        ['isub', '-='],
+        ['itruediv', '/='],
+        ['ixor', '^='],
+        ['le', '<='],
+        ['lshift', '<<'],
+        ['lt', '<'],
+        ['mod', '%'],
+        ['mul', '*'],
+        ['ne', '!='],
+        ['or_', '|'],
+        ['pow', '**'],
+        ['rshift', '>>'],
+        ['sub', '-'],
+        ['truediv', '/'],
+        ['xor', '^'],
+        ['itemgetter', ''],
+        ['length_hint', '']],
+ 'str': [['attrgetter', ''],
+         ['concat', '+'],
+         ['contains', ''],
+         ['countOf', ''],
+         ['iconcat', '+='],
+         ['indexOf', ''],
+         ['methodcaller', '']]}
+
+```
+
 
 ##### Extending Condition Operators
 

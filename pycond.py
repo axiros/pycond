@@ -77,16 +77,45 @@ _ops = {
 }
 # fmt:on
 OPS = {}
-OPS_ALIASES = {}
-for t in 'str', 'nr':
-    for k, alias in _ops[t]:
-        f = getattr(operator, k, None)
-        # the list is python3.7 - not all have all:
-        if f:
-            OPS[k] = f
-            if alias:
-                OPS_ALIASES[alias] = f
+OPS_SYMBOLIC = {}
 
+
+def get_ops():
+    return _ops
+
+
+def clear_ops():
+    OPS.clear()
+    OPS_SYMBOLIC.clear()
+
+
+def parse_ops():
+    clear_ops()
+    for t in 'str', 'nr':
+        for k, alias in _ops[t]:
+            f = getattr(operator, k, None)
+            # the list is python3.7 - not all have all:
+            if f:
+                OPS[k] = f
+                if alias:
+                    OPS_SYMBOLIC[alias] = f
+
+
+def ops_use_symbolic():
+    OPS.clear()
+    OPS.update(OPS_SYMBOLIC)
+
+
+def ops_use_both():
+    parse_ops()
+    OPS.update(OPS_SYMBOLIC)
+
+
+def ops_use_txt():
+    parse_ops()
+
+
+ops_use_txt()
 # see api below for these:
 OPS_HK_APPLIED = False
 
