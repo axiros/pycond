@@ -130,7 +130,7 @@ class Test1:
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                s = 'Default supported ' + k + ' operators...'
+                s = 'Default supported ' + k + ' operators...(click to extend)'
                 print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
 
         """
@@ -298,9 +298,15 @@ class Test1:
 
         Separates the different parts of an expression. Default is ' '.
 
-        ```python
-        py_cond('a.eq.42', sep='.')
-        ```
+        """
+
+        def f9_1():
+            import pycond as pc
+
+            pc.State['a'] = 42
+            assert pc.pycond('a.eq.42', sep='.')() == True
+
+        """
         > sep can be a any single character including binary.
 
         Bracket characters do not need to be separated, the tokenizer will do:
@@ -308,15 +314,17 @@ class Test1:
         """
 
         def f10():
-            # equal:
             import pycond as pc
 
+            # equal:
             assert (
                 pc.pycond('[[a eq 42] and b]')()
                 == pc.pycond('[ [ a eq 42 ] and b ]')()
             )
 
         """
+        > The condition functions themselves do not evaluate equal - those
+        > had been assembled two times.
 
         #### Apostrophes
 
@@ -339,9 +347,15 @@ class Test1:
 
         Tell the tokenizer to not interpret the next character:
 
-        ```
-        py_cond('a eq Hello\ World')
-        ```
+        """
+
+        def f12():
+            import pycond as pc
+
+            pc.State['b'] = 'Hello World'
+            assert pc.pycond('b eq Hello\ World')() == True
+
+        """
 
 
         ## Building
@@ -352,20 +366,31 @@ class Test1:
 
         This can be prevented by setting the `autoconv` parameter to `False` or by using Apostrophes:
 
-        ```
-        py_cond('a eq "42"') # compared as string now
-        py_cond('a eq 42', autoconv=False) # compared as string now
-        ```
-
-        If you do not want to provide a custom lookup function (where you can do what you want) but want to have looked up keys autoconverted then use:
-
-        ```
-        py_cond('id lt 42', autoconv_lookups=True) # True if S['id'] in ('1', 1, ...)
-        ```
         """
 
-        ptm.md_from_source_code()
+        def f13():
+            import pycond as pc
 
-    def test_insert_tutorial_into_readme(self):
-        """addd the new version of the rendered tutorial into the main readme"""
-        ptm.write_readme()
+            pc.State['a'] = '42'
+            assert pc.pycond('a eq 42')() == False
+            # compared as string now
+            assert pc.pycond('a eq "42"')() == True
+            # compared as string now
+            assert pc.pycond('a eq 42', autoconv=False)() == True
+
+        """
+
+        If you do not want to provide a custom lookup function (where you can do what you want)
+        but want to have looked up keys autoconverted then use:
+
+        """
+
+        def f14():
+            import pycond as pc
+
+            for id in '1', 1:
+                pc.State['id'] = id
+                assert pc.pycond('id lt 42', autoconv_lookups=True)
+
+        ptm.md_from_source_code()
+        ptm.write_readme(with_source_ref=True)
