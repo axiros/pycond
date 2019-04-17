@@ -526,4 +526,4 @@ for id in '1', 1:
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/7d9f298c05d7817e677ae8159d872d839d7d2736/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/f6de169ec0af99c162166f562b8016a4ddc1a9b2/tests/test_tutorial.py
