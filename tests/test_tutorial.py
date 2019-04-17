@@ -1,7 +1,7 @@
 """
 Creates Readme
 """
-import pytest_to_md as ptm
+import pytest2md as ptm
 import pytest, json, os, time
 from functools import partial
 from uuid import uuid4
@@ -125,12 +125,12 @@ class Test1:
         """
 
         def f4_1():
-            from pytest_to_md import html_table as tbl  # just a table gen.
+            from pytest2md import html_table as tbl  # just a table gen.
             from pycond import get_ops
 
             for k in 'nr', 'str':
                 s = 'Default supported ' + k + ' operators...(click to extend)'
-                print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
+                print(tbl(get_ops()[k], [k + ' operator', 'alias'], summary=s))
 
         """
 

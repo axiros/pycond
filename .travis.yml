@@ -9,7 +9,7 @@ python:
 
 before_script:
   - "echo 'starting'"
-  - 'pip install pytest_to_md'
+  - 'pip install pytest2md'
 
 
 script:
