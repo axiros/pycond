@@ -1,3 +1,35 @@
+
+- [pycond](#pycond)
+- [What](#what)
+- [Why](#why)
+    - [pycond Reasons to exist](#pycond-reasons-to-exist)
+- [Mechanics](#mechanics)
+    - [Parsing](#parsing)
+    - [Building](#building)
+    - [Evaluation](#evaluation)
+        - [Default Lookup](#default-lookup)
+        - [Custom Lookup & Value Passing](#custom-lookup-value-passing)
+    - [Building Conditions](#building-conditions)
+        - [Grammar](#grammar)
+        - [Atomic Conditions](#atomic-conditions)
+            - [Condition Operators](#condition-operators)
+                - [Using Symbolic Operators](#using-symbolic-operators)
+                - [Extending Condition Operators](#extending-condition-operators)
+            - [Negation `not`](#negation-not)
+            - [Reversal `rev`](#reversal-rev)
+                - [Wrapping Condition Operators](#wrapping-condition-operators)
+                - [Global Wrapping](#global-wrapping)
+                - [Condition Local Wrapping](#condition-local-wrapping)
+        - [Combining Operations](#combining-operations)
+        - [Nesting](#nesting)
+    - [Tokenizing](#tokenizing)
+        - [Bypassing](#bypassing)
+        - [Functioning](#functioning)
+            - [Separator `sep`](#separator-sep)
+            - [Apostrophes](#apostrophes)
+            - [Escaping](#escaping)
+    - [Building](#building)
+        - [Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
 # pycond
 
 
@@ -493,4 +525,4 @@ for id in '1', 1:
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/f44fff08239810a83988aa2bbdf555dbf4508f21/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/10d27dbf5345872baf8603b7b83ae98a18fa3c1e/tests/test_tutorial.py
