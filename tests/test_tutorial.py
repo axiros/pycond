@@ -126,13 +126,45 @@ class Test1:
         """
 
         def f4_1():
-            from pytest_to_md import md_table  # just a markdown formatter
+            from pytest_to_md import md_table  # just markdown table gen.
             from pycond import get_ops
 
             for k in 'nr', 'str':
                 print(md_table(get_ops()[k], k + ' operator', 'alias'))
 
         """
+
+        ##### Using Symbolic Operators
+
+        By default pycond uses text style operators.
+
+        `ops_use_symbolic` switches processwide to symbolic style only.
+        `ops_use_both` switches processwide to both notations allowed.
+
+        """
+
+        def f4_2():
+            from pycond import (
+                pycond as p,
+                State as S,
+                ops_use_symbolic,
+                ops_use_both,
+            )
+
+            ops_use_symbolic()
+            S['foo'] = 'bar'
+            assert p('foo == bar')() == True
+            try:
+                # this raises now, text ops not known anymore:
+                p('foo eq bar')
+            except:
+                ops_use_both()
+                assert p('foo eq bar')() == True
+                assert p('foo != baz')() == True
+
+        """
+
+        > Operator namespace(s) should be assigned at process start, they are global.
 
 
         ##### Extending Condition Operators
@@ -149,24 +181,20 @@ class Test1:
 
         """
 
-        #### Symbolic Operator Names
-
-        > This way you can have math symbols instead operator names, e.g.:
-
-        ```
-        OPS['='] = OPS['eq']
-        OPS['<='] = OPS['le']
-        ```
-
-
         #### Negation `not`
 
         Negates the result of the condition operator:
 
-        ```python
-        S['foo'] = 'abc'; pycond('foo eq abc')()            # True
-        S['foo'] = 'abc'; pycond('foo not eq abc')()        # False
-        ```
+        """
+
+        from pycond import pycond, State as S
+
+        def f6():
+            S['foo'] = 'abc'
+            pycond('foo eq abc')()  # True
+            pycond('foo not eq abc')()  # False
+
+        """
 
         #### Reversal `rev`
 

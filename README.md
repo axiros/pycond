@@ -185,7 +185,7 @@ All boolean [standardlib operators](https://docs.python.org/2/library/operator.h
 
 ```python
 
-from pytest_to_md import md_table  # just a markdown formatter
+from pytest_to_md import md_table  # just markdown table gen.
 from pycond import get_ops
 
 for k in 'nr', 'str':
@@ -243,6 +243,36 @@ for k in 'nr', 'str':
  | methodcaller |  | 
 
 
+##### Using Symbolic Operators
+
+By default pycond uses text style operators.
+
+`ops_use_symbolic` switches processwide to symbolic style only.
+`ops_use_both` switches processwide to both notations allowed.
+
+```python
+
+from pycond import (
+    pycond as p,
+    State as S,
+    ops_use_symbolic,
+    ops_use_both,
+)
+
+ops_use_symbolic()
+S['foo'] = 'bar'
+assert p('foo == bar')() == True
+try:
+    # this raises now, text ops not known anymore:
+    p('foo eq bar')
+except:
+    ops_use_both()
+    assert p('foo eq bar')() == True
+    assert p('foo != baz')() == True
+```
+
+> Operator namespace(s) should be assigned at process start, they are global.
+
 
 ##### Extending Condition Operators
 
@@ -254,5 +284,16 @@ from pycond import pycond as p, OPS
 OPS['maybe'] = lambda a, b: int(time.time()) % 2
 
 assert p('a maybe b')() in (True, False)  # valid expression now.
+```
+
+#### Negation `not`
+
+Negates the result of the condition operator:
+
+```python
+
+S['foo'] = 'abc'
+pycond('foo eq abc')()  # True
+pycond('foo not eq abc')()  # False
 ```
 <!-- autogen tutorial -->
