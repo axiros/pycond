@@ -191,7 +191,8 @@ from pycond import get_ops
 for k in 'nr', 'str':
     print(md_table(get_ops()[k], 'operator', 'alias'))
 ```
-```
+
+
  | operator | alias | 
  | _ | _ | 
  | add | + | 
@@ -228,9 +229,9 @@ for k in 'nr', 'str':
  | xor | ^ | 
  | itemgetter |  | 
  | length_hint |  | 
-```
 
-```
+
+
  | operator | alias | 
  | _ | _ | 
  | attrgetter |  | 
@@ -240,7 +241,6 @@ for k in 'nr', 'str':
  | iconcat | += | 
  | indexOf |  | 
  | methodcaller |  | 
-```
 
 
 
