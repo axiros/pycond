@@ -143,8 +143,7 @@ assert f(req=req, user='joe') == False
 assert f(req=req, user='eve') == True
 ```
 Output:
-```
-user check joe last_host host
+```user check joe last_host host
 user check eve last_host host
 
 ```
@@ -189,12 +188,12 @@ All boolean [standardlib operators](https://docs.python.org/2/library/operator.h
 from pytest_to_md import md_table  # just a markdown formatter
 from pycond import get_ops
 
-print(md_table(get_ops()['nr']))
+for k in 'nr', 'str':
+    print(md_table(get_ops()[k], 'operator', 'alias'))
 ```
-Output:
 ```
- |  | 
- |  | 
+ | operator | alias | 
+ | _ | _ | 
  | add | + | 
  | and_ | & | 
  | eq | == | 
@@ -229,8 +228,20 @@ Output:
  | xor | ^ | 
  | itemgetter |  | 
  | length_hint |  | 
+```
 
 ```
+ | operator | alias | 
+ | _ | _ | 
+ | attrgetter |  | 
+ | concat | + | 
+ | contains |  | 
+ | countOf |  | 
+ | iconcat | += | 
+ | indexOf |  | 
+ | methodcaller |  | 
+```
+
 
 
 ##### Extending Condition Operators

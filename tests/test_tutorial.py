@@ -129,7 +129,8 @@ class Test1:
             from pytest_to_md import md_table  # just a markdown formatter
             from pycond import get_ops
 
-            print(md_table(get_ops()['nr']))
+            for k in 'nr', 'str':
+                print(md_table(get_ops()[k], 'operator', 'alias'))
 
         """
 
