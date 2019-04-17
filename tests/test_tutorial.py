@@ -12,9 +12,8 @@ breakpoint = ptm.breakpoint
 
 here, fn = ptm.setup(__file__, fn_target_md='../README.md')
 
-# parametrizing the shell run results:
-run = partial(ptm.bash_run, no_cmd_path=True)
-md = ptm.md
+# parametrizing the shell run results (not required here):
+# run = partial(ptm.bash_run, no_cmd_path=True)
 
 
 class Test1:
@@ -393,4 +392,4 @@ class Test1:
                 assert pc.pycond('id lt 42', autoconv_lookups=True)
 
         ptm.md_from_source_code()
-        ptm.write_readme(with_source_ref=True)
+        ptm.write_readme(with_source_ref=True, make_toc=True)
