@@ -80,6 +80,10 @@ OPS = {}
 OPS_SYMBOLIC = {}
 
 
+def truthy(k, v=None):
+    return operator.truth(k)
+
+
 def get_ops():
     return _ops
 
@@ -99,11 +103,13 @@ def parse_ops():
                 OPS[k] = f
                 if alias:
                     OPS_SYMBOLIC[alias] = f
+    OPS['truthy'] = truthy
 
 
 def ops_use_symbolic():
     OPS.clear()
     OPS.update(OPS_SYMBOLIC)
+    OPS['truthy'] = truthy
 
 
 def ops_use_both():
@@ -119,12 +125,6 @@ ops_use_txt()
 # see api below for these:
 OPS_HK_APPLIED = False
 
-
-def truthy(k, v=None):
-    return operator.truth(k)
-
-
-OPS['truthy'] = truthy
 
 # if val in these we deliver False:
 FALSES = (None, False, '', 0, {}, [], ())

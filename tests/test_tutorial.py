@@ -126,10 +126,10 @@ class Test1:
         """
 
         def f4_1():
-            import pprint
+            from pytest_to_md import md_table  # just a markdown formatter
             from pycond import get_ops
 
-            print(pprint.pformat(get_ops()))
+            print(md_table(get_ops()['nr']))
 
         """
 
