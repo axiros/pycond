@@ -194,7 +194,7 @@ for k in 'nr', 'str':
 
 
  | operator | alias | 
- | _ | _ | 
+ | - | - | 
  | add | + | 
  | and_ | & | 
  | eq | == | 
@@ -233,7 +233,7 @@ for k in 'nr', 'str':
 
 
  | operator | alias | 
- | _ | _ | 
+ | - | - | 
  | attrgetter |  | 
  | concat | + | 
  | contains |  | 
