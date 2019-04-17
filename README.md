@@ -193,7 +193,42 @@ print(md_table(get_ops()['nr']))
 ```
 Output:
 ```
- |  |  |  |  | add | + |  | and_ | & |  | eq | == |  | floordiv | // |  | ge | >= |  | gt | > |  | iadd | += |  | iand | &= |  | ifloordiv | //= |  | ilshift | <<= |  | imod | %= |  | imul | *= |  | ior | |= |  | ipow | **= |  | irshift | >>= |  | is_ | is |  | is_not | is |  | isub | -= |  | itruediv | /= |  | ixor | ^= |  | le | <= |  | lshift | << |  | lt | < |  | mod | % |  | mul | * |  | ne | != |  | or_ | | |  | pow | ** |  | rshift | >> |  | sub | - |  | truediv | / |  | xor | ^ |  | itemgetter |  |  | length_hint |  | 
+ |  | 
+ |  | 
+ | add | + | 
+ | and_ | & | 
+ | eq | == | 
+ | floordiv | // | 
+ | ge | >= | 
+ | gt | > | 
+ | iadd | += | 
+ | iand | &= | 
+ | ifloordiv | //= | 
+ | ilshift | <<= | 
+ | imod | %= | 
+ | imul | *= | 
+ | ior | |= | 
+ | ipow | **= | 
+ | irshift | >>= | 
+ | is_ | is | 
+ | is_not | is | 
+ | isub | -= | 
+ | itruediv | /= | 
+ | ixor | ^= | 
+ | le | <= | 
+ | lshift | << | 
+ | lt | < | 
+ | mod | % | 
+ | mul | * | 
+ | ne | != | 
+ | or_ | | | 
+ | pow | ** | 
+ | rshift | >> | 
+ | sub | - | 
+ | truediv | / | 
+ | xor | ^ | 
+ | itemgetter |  | 
+ | length_hint |  | 
 
 ```
 
