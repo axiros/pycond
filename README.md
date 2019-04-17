@@ -189,11 +189,11 @@ from pytest_to_md import md_table  # just a markdown formatter
 from pycond import get_ops
 
 for k in 'nr', 'str':
-    print(md_table(get_ops()[k], 'operator', 'alias'))
+    print(md_table(get_ops()[k], k + ' operator', 'alias'))
 ```
 
 
- | operator | alias | 
+ | nr operator | alias | 
  | - | - | 
  | add | + | 
  | and_ | & | 
@@ -232,7 +232,7 @@ for k in 'nr', 'str':
 
 
 
- | operator | alias | 
+ | str operator | alias | 
  | - | - | 
  | attrgetter |  | 
  | concat | + | 

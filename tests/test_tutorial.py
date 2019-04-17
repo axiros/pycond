@@ -130,7 +130,7 @@ class Test1:
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                print(md_table(get_ops()[k], 'operator', 'alias'))
+                print(md_table(get_ops()[k], k + ' operator', 'alias'))
 
         """
 
