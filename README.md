@@ -43,6 +43,7 @@ Lightweight condition expression parsing and building of evaluation functions.
 You have a bunch of data...
 
 ```csv
+id,first_name,last_name,email,gender,ip_address
 1,Rufe,Morstatt,rmorstatt0@newsvine.de,Male,216.70.69.120
 2,Kaela,Scott,scott@opera.com,Female,73.248.145.44,2
 (...)
@@ -53,6 +54,7 @@ You have a bunch of data...
 You can do it imperatively:
 
 ```python
+foo_users = [ u for u in users
               if ([u['gender'] == 'Male' or u['last_name'] == 'Scott') and
                   '@' in u['email']) ]
 ```
@@ -60,6 +62,7 @@ You can do it imperatively:
 or you have this module assemble a condition function from a declaration like:
 
 ```python
+from pycond import parse_cond
 cond = 'email contains .de and gender eq Male or last_name eq Scott'
 is_foo = parse_cond(cond)
 ```
@@ -67,6 +70,7 @@ is_foo = parse_cond(cond)
 and then apply as often as you need, against varying state / facts / models (...):
 
 ```
+foo_users = [ u for u in users if is_foo(state=u) ]
 ```
 with roughly the same performance (factor 2-3) than the handcrafted python.
 
@@ -123,6 +127,7 @@ The functions are partials, i.e. not yet evaluated but information about the nec
 available:
 
 ```python
+
 from pycond import parse_cond
 
 f, meta = parse_cond('foo eq bar')
@@ -138,6 +143,7 @@ How state is evaluated is customizable at build and run time.
 The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
 
 ```python
+
 from pycond import pycond, State as S
 
 f = pycond('foo eq bar')
@@ -152,6 +158,7 @@ assert f() == True
 ### Custom Lookup & Value Passing
 
 ```python
+
 from pycond import pycond
 
 # must return a (key, value) tuple:
@@ -169,6 +176,7 @@ assert f(req=req, user='eve') == True
 ```
 Output:
 ```
+user check joe last_host host
 user check eve last_host host
 
 ```
@@ -179,21 +187,25 @@ user check eve last_host host
 Combine atomic conditions with boolean operators and nesting brackets like:
 
 ```
+[  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
 ```
 
 ### Atomic Conditions
 
 ```
+<lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
 ```
 When just `lookup_key` given then `co` is set to the `truthy` function:
 
 ```python
+def truthy(key, val=None):
     return operatur.truth(k)
 ```
 
 so such an expression is valid and True:
 
 ```python
+
 from pycond import pycond as p, State as S
 
 S.update({'foo': 1, 'bar': 'a', 'baz': []})
@@ -205,6 +217,7 @@ assert p('[ foo and bar and not baz]')() == True
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default:
 
 ```python
+
 from pytest_to_md import html_table as tbl  # just a table gen.
 from pycond import get_ops
 
@@ -216,6 +229,7 @@ for k in 'nr', 'str':
 
 <details>
         <summary>Default supported nr operators...(click to extend)</summary>
+        <table>
 <tr><td>nr operator</td><td>alias</td></tr>
 <tr><td>add</td><td>+</td></tr>
 <tr><td>and_</td><td>&</td></tr>
@@ -253,11 +267,13 @@ for k in 'nr', 'str':
 <tr><td>length_hint</td><td></td></tr>
 </table>
         </details>
+        
 
 
 
 <details>
         <summary>Default supported str operators...(click to extend)</summary>
+        <table>
 <tr><td>str operator</td><td>alias</td></tr>
 <tr><td>attrgetter</td><td></td></tr>
 <tr><td>concat</td><td>+</td></tr>
@@ -268,6 +284,7 @@ for k in 'nr', 'str':
 <tr><td>methodcaller</td><td></td></tr>
 </table>
         </details>
+        
 
 
 ##### Using Symbolic Operators
@@ -278,6 +295,7 @@ By default pycond uses text style operators.
 - `ops_use_both` switches processwide to both notations allowed.
 
 ```python
+
 import pycond as pc
 
 pc.ops_use_symbolic()
@@ -298,6 +316,7 @@ except:
 ##### Extending Condition Operators
 
 ```python
+
 import time
 from pycond import pycond as p, OPS
 
@@ -311,6 +330,7 @@ assert p('a maybe b')() in (True, False)  # valid expression now.
 Negates the result of the condition operator:
 
 ```python
+
 S['foo'] = 'abc'
 assert pycond('foo eq abc')() == True
 assert pycond('foo not eq abc')() == False
@@ -320,6 +340,7 @@ assert pycond('foo not eq abc')() == False
 
 Reverses the arguments before calling the operator
 ```python
+
 
 S['foo'] = 'abc'
 assert pycond('foo contains a')() == True
@@ -335,6 +356,7 @@ You may globally wrap all evaluation time condition operations through a custom 
 
 
 ```python
+
 import pycond as pc
 
 l = []
@@ -361,6 +383,7 @@ You may compose such wrappers via repeated application of the `run_all_ops_thru`
 This is done through the `ops_thru` parameter as shown:
 
 ```python
+
 import pycond as pc
 
 def myhk(f_op, a, b):
@@ -414,6 +437,7 @@ The tokenizers job is to take apart expression strings for the builder.
 Separates the different parts of an expression. Default is ' '.
 
 ```python
+
 import pycond as pc
 
 pc.State['a'] = 42
@@ -424,6 +448,7 @@ assert pc.pycond('a.eq.42', sep='.')() == True
 Bracket characters do not need to be separated, the tokenizer will do:
 
 ```python
+
 import pycond as pc
 
 # equal:
@@ -440,6 +465,7 @@ assert (
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
 
 ```python
+
 import pycond as pc
 
 pc.State['a'] = 'Hello World'
@@ -454,6 +480,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 Tell the tokenizer to not interpret the next character:
 
 ```python
+
 import pycond as pc
 
 pc.State['b'] = 'Hello World'
@@ -470,6 +497,7 @@ Expression string values are automatically cast into bools and numbers via the p
 This can be prevented by setting the `autoconv` parameter to `False` or by using Apostrophes:
 
 ```python
+
 import pycond as pc
 
 pc.State['a'] = '42'
@@ -484,6 +512,7 @@ If you do not want to provide a custom lookup function (where you can do what yo
 but want to have looked up keys autoconverted then use:
 
 ```python
+
 import pycond as pc
 
 for id in '1', 1:
@@ -497,4 +526,4 @@ for id in '1', 1:
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/55eba0856a26a768a779b9de2e007a1411aa8601/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/31aa7c2cae95764fa48e4ae63849a3c8f5b91a5d/tests/test_tutorial.py
