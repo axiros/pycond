@@ -103,6 +103,7 @@ f, meta = parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
 
+
 ## Evaluation
 
 The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
@@ -121,8 +122,8 @@ S['foo'] = 'bar'
 assert f() == True
 ```
 
-(`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
+(`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
 ### Custom Lookup & Value Passing
@@ -149,5 +150,37 @@ Output:
 user check joe last_host host
 user check sally last_host host
 
+```
+
+## Building Conditions
+
+### Grammar
+
+Combine atomic conditions with boolean operators and nesting brackets like:
+
+```
+[  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
+```
+
+### Atomic Conditions
+
+```
+<lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
+```
+When just `lookup_key` given then `co` is set to the `truthy` function:
+
+```python
+def truthy(key, val=None):
+    return operatur.truth(k)
+```
+
+so such an expression is valid and True:
+
+```python
+
+from pycond import pycond as p, State as S
+
+S.update({'foo': 1, 'bar': 'a', 'baz': []})
+assert p('[ foo and bar and not baz]')() == True
 ```
 <!-- autogen tutorial -->

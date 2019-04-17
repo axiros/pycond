@@ -19,21 +19,8 @@ md = ptm.md
 
 class Test1:
     def test_mechanics(self):
-        def f1():
-            from pycond import parse_cond
-
-            f, meta = parse_cond('foo eq bar')
-            assert meta['keys'] == ['foo']
-
-        def f2():
-            from pycond import pycond, State as S
-
-            f = pycond('foo eq bar')
-            assert f() == False
-            S['foo'] = 'bar'
-            assert f() == True
-
-        t = """
+        t = ''
+        t += """
 
         ## Parsing
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
@@ -46,6 +33,15 @@ class Test1:
         available:
 
         pyrun: f1
+        """
+
+        def f1():
+            from pycond import parse_cond
+
+            f, meta = parse_cond('foo eq bar')
+            assert meta['keys'] == ['foo']
+
+        t += """
 
         ## Evaluation
 
@@ -56,11 +52,25 @@ class Test1:
         The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
 
         pyrun: f2
+        """
+
+        def f2():
+            from pycond import pycond, State as S
+
+            f = pycond('foo eq bar')
+            assert f() == False
+            S['foo'] = 'bar'
+            assert f() == True
+
+        t += """
 
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
+
+        ### Custom Lookup & Value Passing
+
+        pyrun: f3
         """
-        md(t)
 
         def f3():
             from pycond import pycond
@@ -78,14 +88,7 @@ class Test1:
             f(req=req, user='joe')  # True
             f(req=req, user='sally')  # False
 
-        t = """
-
-        ### Custom Lookup & Value Passing
-
-        pyrun: f3
-        """
-        md(t)
-        t = """
+        t += """
         ## Building Conditions
 
         ### Grammar
@@ -108,7 +111,20 @@ class Test1:
             return operatur.truth(k)
         ```
 
-        so such an expression is valid `[ foo and bar and not baz]` and True e.g. for `S={'foo': 1, 'bar': 'a', 'baz': []}`
+        so such an expression is valid and True:
+
+        pyrun: f4
+        """
+
+        def f4():
+            from pycond import pycond as p, State as S
+
+            S.update({'foo': 1, 'bar': 'a', 'baz': []})
+            assert p('[ foo and bar and not baz]')() == True
+
+        md(t)
+
+        t = """
 
         #### Condition Operators
 
