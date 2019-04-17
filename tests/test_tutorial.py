@@ -19,8 +19,7 @@ md = ptm.md
 
 class Test1:
     def test_mechanics(self):
-        t = ''
-        t += """
+        """
 
         ## Parsing
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
@@ -32,7 +31,6 @@ class Test1:
         The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
         available:
 
-        pyrun: f1
         """
 
         def f1():
@@ -41,7 +39,7 @@ class Test1:
             f, meta = parse_cond('foo eq bar')
             assert meta['keys'] == ['foo']
 
-        t += """
+        """
 
         ## Evaluation
 
@@ -51,7 +49,6 @@ class Test1:
         ### Default Lookup
         The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
 
-        pyrun: f2
         """
 
         def f2():
@@ -62,21 +59,20 @@ class Test1:
             S['foo'] = 'bar'
             assert f() == True
 
-        t += """
+        """
 
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
         ### Custom Lookup & Value Passing
 
-        pyrun: f3
         """
 
         def f3():
             from pycond import pycond
 
             # must return a (key, value) tuple:
-            model = {'joe': {'last_host': 'somehost'}}
+            model = {'eve': {'last_host': 'somehost'}}
 
             def my_lu(k, v, req, user, model=model):
                 print('user check', user, k, v)
@@ -85,10 +81,10 @@ class Test1:
             f = pycond('last_host eq host', lookup=my_lu)
 
             req = {'host': 'somehost'}
-            f(req=req, user='joe')  # True
-            f(req=req, user='sally')  # False
+            assert f(req=req, user='joe') == False
+            assert f(req=req, user='eve') == True
 
-        t += """
+        """
         ## Building Conditions
 
         ### Grammar
@@ -113,7 +109,6 @@ class Test1:
 
         so such an expression is valid and True:
 
-        pyrun: f4
         """
 
         def f4():
@@ -122,9 +117,7 @@ class Test1:
             S.update({'foo': 1, 'bar': 'a', 'baz': []})
             assert p('[ foo and bar and not baz]')() == True
 
-        md(t)
-
-        t = """
+        """
 
         #### Condition Operators
 
@@ -132,12 +125,20 @@ class Test1:
 
         ##### Extending Condition Operators
 
-        ```python
-        from pycond import OPS
-        OPS['maybe'] = lambda a, b: random.choice((True, False))
+        """
 
-        'a maybe b' # valid expression now.
-        ```
+        def f5():
+            from time import time
+            from pycond import OPS, pycond as p
+
+            now = lambda: int(time())
+            OPS['maybe'] = lambda a, b: now() % 2
+
+            print(now(), p('a maybe b')())  # valid expression now.
+
+        ptm.md_from_source_code()
+
+        t = """
 
         > This way you can have math symbols instead operator names, e.g.:
 

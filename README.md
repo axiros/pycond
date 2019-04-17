@@ -84,7 +84,6 @@ programmers but also synthesisable from structured data, e.g. from a web framewo
 <!-- md_links_for: github -->
 <!-- autogen tutorial -->
 
-
 ## Parsing
 pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
 The result of the tokenizer is given to the builder.
@@ -102,7 +101,6 @@ from pycond import parse_cond
 f, meta = parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
-
 
 ## Evaluation
 
@@ -122,7 +120,6 @@ S['foo'] = 'bar'
 assert f() == True
 ```
 
-
 (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
@@ -133,7 +130,7 @@ assert f() == True
 from pycond import pycond
 
 # must return a (key, value) tuple:
-model = {'joe': {'last_host': 'somehost'}}
+model = {'eve': {'last_host': 'somehost'}}
 
 def my_lu(k, v, req, user, model=model):
     print('user check', user, k, v)
@@ -142,16 +139,15 @@ def my_lu(k, v, req, user, model=model):
 f = pycond('last_host eq host', lookup=my_lu)
 
 req = {'host': 'somehost'}
-f(req=req, user='joe')  # True
-f(req=req, user='sally')  # False
+assert f(req=req, user='joe') == False
+assert f(req=req, user='eve') == True
 ```
 Output:
 ```
 user check joe last_host host
-user check sally last_host host
+user check eve last_host host
 
 ```
-
 ## Building Conditions
 
 ### Grammar
@@ -182,5 +178,27 @@ from pycond import pycond as p, State as S
 
 S.update({'foo': 1, 'bar': 'a', 'baz': []})
 assert p('[ foo and bar and not baz]')() == True
+```
+
+#### Condition Operators
+
+All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default.
+
+##### Extending Condition Operators
+
+```python
+
+from time import time
+from pycond import OPS, pycond as p
+
+now = lambda: int(time())
+OPS['maybe'] = lambda a, b: now() % 2
+
+print(now(), p('a maybe b')())  # valid expression now.
+```
+Output:
+```
+1555520392 0
+
 ```
 <!-- autogen tutorial -->
