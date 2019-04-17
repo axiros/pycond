@@ -189,11 +189,14 @@ from pytest_to_md import md_table  # just markdown table gen.
 from pycond import get_ops
 
 for k in 'nr', 'str':
-    print(md_table(get_ops()[k], k + ' operator', 'alias'))
+    p = md_table(get_ops()[k], k + ' operator', 'alias', summary=k)
+    print(p)
 ```
 
 
- | nr operator | alias | 
+<details>
+        <summary>nr</summary>
+         | nr operator | alias | 
  | - | - | 
  | add | + | 
  | and_ | & | 
@@ -229,10 +232,14 @@ for k in 'nr', 'str':
  | xor | ^ | 
  | itemgetter |  | 
  | length_hint |  | 
+        </details>
+        
 
 
 
- | str operator | alias | 
+<details>
+        <summary>str</summary>
+         | str operator | alias | 
  | - | - | 
  | attrgetter |  | 
  | concat | + | 
@@ -241,6 +248,8 @@ for k in 'nr', 'str':
  | iconcat | += | 
  | indexOf |  | 
  | methodcaller |  | 
+        </details>
+        
 
 
 ##### Using Symbolic Operators
@@ -293,7 +302,7 @@ Negates the result of the condition operator:
 ```python
 
 S['foo'] = 'abc'
-pycond('foo eq abc')()  # True
-pycond('foo not eq abc')()  # False
+assert pycond('foo eq abc')() == True
+assert pycond('foo not eq abc')() == False
 ```
 <!-- autogen tutorial -->

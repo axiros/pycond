@@ -130,7 +130,8 @@ class Test1:
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                print(md_table(get_ops()[k], k + ' operator', 'alias'))
+                p = md_table(get_ops()[k], k + ' operator', 'alias', summary=k)
+                print(p)
 
         """
 
@@ -191,8 +192,8 @@ class Test1:
 
         def f6():
             S['foo'] = 'abc'
-            pycond('foo eq abc')()  # True
-            pycond('foo not eq abc')()  # False
+            assert pycond('foo eq abc')() == True
+            assert pycond('foo not eq abc')() == False
 
         """
 
