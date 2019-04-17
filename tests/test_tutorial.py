@@ -128,13 +128,12 @@ class Test1:
         """
 
         def f5():
-            from time import time
-            from pycond import OPS, pycond as p
+            import time
+            from pycond import pycond as p, OPS
 
-            now = lambda: int(time())
-            OPS['maybe'] = lambda a, b: now() % 2
+            OPS['maybe'] = lambda a, b: int(time.time()) % 2
 
-            print(now(), p('a maybe b')())  # valid expression now.
+            assert p('a maybe b')() in (True, False)  # valid expression now.
 
         ptm.md_from_source_code()
 
