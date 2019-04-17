@@ -189,12 +189,13 @@ from pytest_to_md import html_table as tbl  # just a table gen.
 from pycond import get_ops
 
 for k in 'nr', 'str':
-    print(tbl(get_ops()[k], k + ' operator', 'alias', summary=k))
+    s = k.upper() + ' Operators...'
+    print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
 ```
 
 
 <details>
-        <summary>nr</summary>
+        <summary>NR Operators...</summary>
         <table>
 <tr><td>nr operator</td><td>alias</td></tr>
 <tr><td>add</td><td>+</td></tr>
@@ -238,7 +239,7 @@ for k in 'nr', 'str':
 
 
 <details>
-        <summary>str</summary>
+        <summary>STR Operators...</summary>
         <table>
 <tr><td>str operator</td><td>alias</td></tr>
 <tr><td>attrgetter</td><td></td></tr>

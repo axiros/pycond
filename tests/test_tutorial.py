@@ -130,7 +130,8 @@ class Test1:
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                print(tbl(get_ops()[k], k + ' operator', 'alias', summary=k))
+                s = k.upper() + ' Operators...'
+                print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
 
         """
 
