@@ -130,7 +130,7 @@ class Test1:
             from pycond import get_ops
 
             for k in 'nr', 'str':
-                s = k.upper() + ' Operators...'
+                s = 'Default supported ' + k + ' operators...'
                 print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
 
         """
@@ -195,11 +195,15 @@ class Test1:
         #### Reversal `rev`
 
         Reverses the arguments before calling the operator
+        """
 
-        ```python
-        S['foo'] = 'abc'; pycond('foo contains a')()        # True
-        S['foo'] = 'a'  ; pycond('foo rev contains abc')()  # True
-        ```
+        def f7():
+
+            S['foo'] = 'abc'
+            assert pycond('foo contains a')() == True
+            assert pycond('foo rev contains abc')() == True
+
+        """
 
         > `rev` and `not` can be combined in any order.
 
@@ -208,36 +212,55 @@ class Test1:
         ##### Global Wrapping
         You may globally wrap all evaluation time condition operations through a custom function:
 
-        ```python
-        def hk(f_op, a, b, l=l):
-            l.append((getattr(f_op, '__name__', ''), a, b))
-            return f_op(a, b)
 
-        pycon.run_all_ops_thru(hk) # globally wrap the operators
+        """
 
-        S.update({'a': 1, 'b': 2, 'c': 3})
-        f = pycond('a gt 0 and b lt 3 and not c gt 4')
-        assert l == []
-        f()
-        expected_log = [  ('gt', 1, 0.0)
-                        , ('lt', 2, 3.0)
-                        , ('gt', 3, 4.0)]
-        assert l == expected_log
-        ```
+        def f8():
+            import pycond as pc
+
+            l = []
+
+            def hk(f_op, a, b, l=l):
+                l.append((getattr(f_op, '__name__', ''), a, b))
+                return f_op(a, b)
+
+            pc.run_all_ops_thru(hk)  # globally wrap the operators
+
+            pc.State.update({'a': 1, 'b': 2, 'c': 3})
+            f = pc.pycond('a gt 0 and b lt 3 and not c gt 4')
+            assert l == []
+            f()
+            expected_log = [('gt', 1, 0.0), ('lt', 2, 3.0), ('gt', 3, 4.0)]
+            assert l == expected_log
+            pc.ops_use_both()
+
+        """
+
         You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
         ##### Condition Local Wrapping
 
         This is done through the `ops_thru` parameter as shown:
-        ```python
-        def myhk(f_op, a, b):
-            return True
-        S['a'] = 1
-        f = pycond('a eq 2')
-        assert f() == False
-        f = pycond('a eq 2', ops_thru=myhk)
-        assert f() == True
-        ```
+
+        """
+
+        def f9():
+            import pycond as pc
+
+            def myhk(f_op, a, b):
+                return True
+
+            pc.State['a'] = 1
+            f = pc.pycond('a eq 2')
+            assert f() == False
+            f = pc.pycond('a eq 2', ops_thru=myhk)
+            assert f() == True
+
+        """
+
+        > Using `ops_thru` is a good way to debug unexpected results, since you
+        > can add breakpoints or loggers there.
+
 
         ### Combining Operations
 
@@ -260,6 +283,7 @@ class Test1:
 
 
         ## Tokenizing
+
         ### Bypassing
 
         You can bypass the tokenizer by passing an already tokenized list to pycond, e.g. `pycond(['a', 'eq', 42])`.
@@ -281,19 +305,33 @@ class Test1:
 
         Bracket characters do not need to be separated, the tokenizer will do:
 
-        ```
-        # equal:
-        py_cond('[[a eq 42] and b]')
-        py_cond('[ [ a eq 42 ] and b ]')
-        ```
+        """
+
+        def f10():
+            # equal:
+            import pycond as pc
+
+            assert (
+                pc.pycond('[[a eq 42] and b]')()
+                == pc.pycond('[ [ a eq 42 ] and b ]')()
+            )
+
+        """
 
         #### Apostrophes
 
         By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
 
-        ```
-        py_cond('a eq "Hello World"')
-        ```
+        """
+
+        def f11():
+            import pycond as pc
+
+            pc.State['a'] = 'Hello World'
+
+            assert pc.pycond('a eq "Hello World"')() == True
+
+        """
 
 
 

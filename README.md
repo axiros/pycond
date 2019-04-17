@@ -189,13 +189,13 @@ from pytest_to_md import html_table as tbl  # just a table gen.
 from pycond import get_ops
 
 for k in 'nr', 'str':
-    s = k.upper() + ' Operators...'
+    s = 'Default supported ' + k + ' operators...'
     print(tbl(get_ops()[k], k + ' operator', 'alias', summary=s))
 ```
 
 
 <details>
-        <summary>NR Operators...</summary>
+        <summary>Default supported nr operators...</summary>
         <table>
 <tr><td>nr operator</td><td>alias</td></tr>
 <tr><td>add</td><td>+</td></tr>
@@ -239,7 +239,7 @@ for k in 'nr', 'str':
 
 
 <details>
-        <summary>STR Operators...</summary>
+        <summary>Default supported str operators...</summary>
         <table>
 <tr><td>str operator</td><td>alias</td></tr>
 <tr><td>attrgetter</td><td></td></tr>
@@ -301,5 +301,136 @@ Negates the result of the condition operator:
 S['foo'] = 'abc'
 assert pycond('foo eq abc')() == True
 assert pycond('foo not eq abc')() == False
+```
+
+#### Reversal `rev`
+
+Reverses the arguments before calling the operator
+```python
+
+
+S['foo'] = 'abc'
+assert pycond('foo contains a')() == True
+assert pycond('foo rev contains abc')() == True
+```
+
+> `rev` and `not` can be combined in any order.
+
+##### Wrapping Condition Operators
+
+##### Global Wrapping
+You may globally wrap all evaluation time condition operations through a custom function:
+
+
+```python
+
+import pycond as pc
+
+l = []
+
+def hk(f_op, a, b, l=l):
+    l.append((getattr(f_op, '__name__', ''), a, b))
+    return f_op(a, b)
+
+pc.run_all_ops_thru(hk)  # globally wrap the operators
+
+pc.State.update({'a': 1, 'b': 2, 'c': 3})
+f = pc.pycond('a gt 0 and b lt 3 and not c gt 4')
+assert l == []
+f()
+expected_log = [('gt', 1, 0.0), ('lt', 2, 3.0), ('gt', 3, 4.0)]
+assert l == expected_log
+pc.ops_use_both()
+```
+
+You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
+
+##### Condition Local Wrapping
+
+This is done through the `ops_thru` parameter as shown:
+
+```python
+
+import pycond as pc
+
+def myhk(f_op, a, b):
+    return True
+
+pc.State['a'] = 1
+f = pc.pycond('a eq 2')
+assert f() == False
+f = pc.pycond('a eq 2', ops_thru=myhk)
+assert f() == True
+```
+
+> Using `ops_thru` is a good way to debug unexpected results, since you
+> can add breakpoints or loggers there.
+
+
+### Combining Operations
+
+You can combine single conditions with
+- `and`
+- `and not`
+- `or`
+- `or not`
+- `xor` by default.
+
+The combining functions are stored in `pycond.COMB_OPS` dict and may be extended.
+
+> Do not use spaces for the names of combining operators. The user may use them but they are replaced at before tokenizing time, like `and not` -> `and_not`.
+
+### Nesting
+
+Combined conditions may be arbitrarily nested using brackets "[" and "]".
+
+> Via the `brkts` config parameter you may change those to other separators at build time.
+
+
+## Tokenizing
+
+### Bypassing
+
+You can bypass the tokenizer by passing an already tokenized list to pycond, e.g. `pycond(['a', 'eq', 42])`.
+
+> Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
+
+### Functioning
+
+The tokenizers job is to take apart expression strings for the builder.
+
+#### Separator `sep`
+
+Separates the different parts of an expression. Default is ' '.
+
+```python
+py_cond('a.eq.42', sep='.')
+```
+> sep can be a any single character including binary.
+
+Bracket characters do not need to be separated, the tokenizer will do:
+
+```python
+
+# equal:
+import pycond as pc
+
+assert (
+    pc.pycond('[[a eq 42] and b]')()
+    == pc.pycond('[ [ a eq 42 ] and b ]')()
+)
+```
+
+#### Apostrophes
+
+By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
+
+```python
+
+import pycond as pc
+
+pc.State['a'] = 'Hello World'
+
+assert pc.pycond('a eq "Hello World"')() == True
 ```
 <!-- autogen tutorial -->
