@@ -365,6 +365,7 @@ def complete_ctx_data(keys, provider):
             if v != nil:
                 continue
             ctx[k] = getattr(provider, k)(ctx)
+        return ctx
 
     return partial(_getter, keys=keys, provider=provider)
 
