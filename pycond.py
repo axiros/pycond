@@ -149,10 +149,6 @@ FALSES = (None, False, '', 0, {}, [], ())
 State = {}
 
 
-def builder_get(key, val, cfg, func, state=State, **kw):
-    breakpoint()
-
-
 def state_get(key, val, cfg, state=State, **kw):
     # a lookup function can modify key AND value, i.e. returns both:
     return state.get(key), val  # default k, v access function
@@ -311,7 +307,13 @@ def f_atomic(f_op, fp_lookup, key, val, **kw):
     try:
         return f_op(*fp_lookup(**kw))
     except Exception as ex:
-        raise Exception('%s. key: %s, compare val: %s' % (str(ex), key, val))
+        msg = ''
+        if fp_lookup != state_get:
+            msg = '. Note: A custom lookup function must return two values:'
+            msg += ' The cur. value for key from state plus the compare value.'
+        raise Exception(
+            '%s. key: %s, compare val: %s%s' % (str(ex), key, val, msg)
+        )
 
 
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
@@ -329,6 +331,9 @@ def parse_cond(cond, lookup=state_get, **cfg):
     """ Main function.
         see tests
     """
+    lp = cfg.get('lookup_provider')
+    if lp:
+        lookup = lookup_from_provider(provider=lp)
 
     cfg['brkts'] = brkts = cfg.get('brkts', '[]')
 
@@ -344,24 +349,34 @@ def parse_cond(cond, lookup=state_get, **cfg):
     cfg['lookup_args'] = sig_args(lookup)
     cond = parse_struct_cond_after_deep_copy(cond, cfg, nfo)
     nfo['keys'] = sorted(list(nfo['keys']))
-    builder = cfg.get('build_ctx_from')
-    if builder:
-        nfo['make_ctx'] = get_ctx_data(nfo['keys'], builder=builder)
+    provider = cfg.get('ctx_provider')
+    if provider:
+        nfo['complete_ctx'] = complete_ctx_data(nfo['keys'], provider=provider)
     return cond, nfo
 
 
 nil = '\x01'
 
 
-def get_ctx_data(keys, builder):
-    def _getter(ctx, keys, builder):
+def complete_ctx_data(keys, provider):
+    def _getter(ctx, keys, provider):
         for k in keys:
             v = ctx.get(k, nil)
             if v != nil:
                 continue
-            ctx[k] = getattr(builder, k)(ctx)
+            ctx[k] = getattr(provider, k)(ctx)
 
-    return partial(_getter, keys=keys, builder=builder)
+    return partial(_getter, keys=keys, provider=provider)
+
+
+def lookup_from_provider(provider):
+    def _lookup(k, v, state, provider):
+        kv = state.get(k, nil)
+        if kv == nil:
+            kv = state[k] = getattr(builder, k)(ctx)
+        return kv, v
+
+    return partial(_lookup, provider=provider)
 
 
 def pycond(cond, *a, **cfg):

@@ -53,7 +53,18 @@ class Test1:
             assert meta['keys'] == ['foo']
 
         """
+        # Structured Conditions
 
+        Other processes may deliver condition structures via serializable formats (e.g. json).
+        If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+
+        """
+
+        def f1_1():
+            cond = [['a', 'eq', 'b'], 'or', ['c', 'in', ['foo', 'bar']]]
+            assert pc.pycond(cond)(state={'a': 'b'}) == True
+
+        """
         ## Evaluation
 
         The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
@@ -88,6 +99,10 @@ class Test1:
 
         ### Custom Lookup & Value Passing
 
+        You can supply your own function for value acquisition.
+        - Signature: See example.
+        - Returns: The value for the key from the current state plus the
+          compare value for the operator function.
         """
 
         def f3():
@@ -95,7 +110,7 @@ class Test1:
             model = {'eve': {'last_host': 'somehost'}}
 
             def my_lu(k, v, req, user, model=model):
-                print('user check', user, k, v)
+                print('user check. locals:', dict(locals()))
                 return (model.get(user) or {}).get(k), req[v]
 
             f = pc.pycond('last_host eq host', lookup=my_lu)
@@ -105,7 +120,47 @@ class Test1:
             assert f(req=req, user='eve') == True
 
         """
-        ## Building Conditions
+        > as you can see in the example, the state parameter is just a convention
+        for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get]<SRC>
+        function.
+
+        ### Lazy Evaluation
+
+        This is avoiding unnecessary calculations in many cases:
+
+        When an evaluation branch contains an "and" or "and_not" combinator, then
+        at runtime we evaluate the first expression - and stop if it is already
+        False. That way expensive deep branch evaluations are omitted or, when
+        the lookup is done lazy, the values won't be even fetched:
+
+        """
+
+        def f3_1():
+            evaluated = []
+
+            def myget(key, val, cfg, state=None, **kw):
+                evaluated.append(key)
+                # lets say we are false - always:
+                return False, True
+
+            f = pc.pycond(
+                '[a eq b] or foo eq bar and baz eq bar', lookup=myget
+            )
+            f()
+            # the value for "baz" is not even fetched and the whole (possibly
+            # deep) branch after the last and is ignored:
+            assert evaluated == ['a', 'foo']
+            print(evaluated)
+
+        """
+        ## Building Conditions From Text
+
+        Condition functions are created internally from structured expressions -
+        but those are [hard to type](#lazy-dynamic-context-assembly),
+        involving many apostropies.
+
+        The text based condition syntax is intended for situations when end users
+        type them into text boxes directly.
 
         ### Grammar
 
@@ -120,7 +175,7 @@ class Test1:
         ```
         <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
         ```
-        When just `lookup_key` given then `co` is set to the `truthy` function:
+        When just `lookup_key` is given, then `co` is set to the `truthy` function:
 
         ```python
         def truthy(key, val=None):
@@ -139,7 +194,8 @@ class Test1:
 
         #### Condition Operators
 
-        All boolean [standardlib operators](https://docs.python.org/2/library/operator.html) are available by default:
+        All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
+        are available by default:
 
         """
 
@@ -386,29 +442,21 @@ class Test1:
                 assert pc.pycond('id lt 42', autoconv_lookups=True)
 
         """
-        # Conditions via the Web
+        ## Context On Demand / Lazy Evaluation
 
-        E.g. processes may deliver condition structures via serializable formats (e.g. json).
-        If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+        Often the conditions are in user space, applied on data streams under
+        the developer's control only at development time.
 
-        """
-
-        def f15():
-            cond = ['a', 'eq', 'b']
-            assert pc.pycond(cond)(state={'a': 'b'}) == True
-
-        """
-        # Dynamic Context Assembly: `ctx_builder`
-
-        Sometimes the conditions themselves are in user space, applied on data streams under
-        the developer's control.
         The end user might pick only a few keys from many offered within an API.
-        pycond's `ctx_builder` is comming handy for that.
 
-        You hand over a namespace for functions which are offered to build the ctx
+        pycond's `ctx_builder` allows to only calculate those keys at runtime,
+        the user decided to base conditions upon:
+        At condition build time hand over a namespace for *all* functions which
+        are available to build the ctx.
 
-        `pycon` will return a context builder function for you, calculating only those value
-        which the condition actually requires:
+        `pycon` will return a context builder function for you, calling only those functions
+        which the condition actually requires.
+
         """
 
         def f15_1():
@@ -449,8 +497,11 @@ class Test1:
                 ],
             ]
 
-            # API offered to the user, involving potentially expensive to fetch
-            # context delivery functions:
+            # Getters for API keys offered to the user, involving potentially
+            # expensive to fetch context delivery functions:
+            # (in Py2 make these static or instantiate)
+            # Signature must provide minimum a positional for the current
+            # state:
             class ApiCtxFuncs:
                 def expensive_but_not_needed_here(ctx):
                     raise Exception("Won't run with cond. from above")
@@ -461,28 +512,67 @@ class Test1:
                     )
 
                 def cur_q(ctx):
+                    print('Calculating cur_q')
                     return 0.1
 
                 def cur_hour(ctx):
+                    print('Calculating cur_hour')
                     return 4
 
                 def dt_last_enforce(ctx):
+                    print('Calculating dt_last_enforce')
                     return 10000000
 
                 def delta_q(ctx):
+                    print('Calculating delta_q')
+                    time.sleep(0.1)
                     return 1
 
                 def clients(ctx):
+                    print('Calculating clients')
                     return 0
 
-            f, nfos = pc.parse_cond(cond, build_ctx_from=ApiCtxFuncs)
-            make_ctx = nfos['make_ctx']
+            f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
+            # this key stores the context builder function
+            make_ctx = nfos['complete_ctx']
+
             # now we get (incomplete) data..
             data = {'group_type': 'lab'}
+
             make_ctx(data)
             print('Completed data:', data)
+
             # will now work:
+            t0 = time.time()
             assert pc.pycond(cond)(state=data) == True
+            print('Calc.Time', round(time.time() - t0, 4))
+            return cond, ApiCtxFuncs
+
+        cond, ApiCtxFuncs = f15_1()
+        """
+
+        But we can do better - we still calculated values for keys which might be
+        only needed in dead ends of a lazily evaluated condition.
+
+        Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-function) feature.
+
+
+        > pycond does generate such a custom lookup function readily for you,
+        > if you pass a getter namespace as `lookup_provider`:
+
+        """
+
+        def f15_2():
+            f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
+            t0 = time.time()
+            assert f(state={'group_type': 'xxx'}) == False
+            print('Calc.Time', round(time.time() - t0, 4))
+
+        assert 'Calculating' not in str(p2m.Printed.stdout)
+
+        """
+        The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
+        """
 
         p2m.md_from_source_code()
         p2m.write_readme(with_source_ref=True, make_toc=True)

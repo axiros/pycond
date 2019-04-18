@@ -49,7 +49,11 @@ and then apply as often as you need, against varying state / facts / models (...
 ```
 foo_users = [ u for u in users if is_foo(state=u) ]
 ```
+
 with roughly the same performance (factor 2-3) than the handcrafted python.
+
+> In real life performance is often better then using imperative code, due to
+`pycond's` [lazy evaluation](#lazy-evaluation) feature. 
 
 # Why
 
