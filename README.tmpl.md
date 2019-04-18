@@ -12,12 +12,6 @@
 
 [TOC]
 
-# TODO
-
-- `safe_eval` option, wrapping atomic eval
-- lazy
-- single_eq
-
 
 # What
 
