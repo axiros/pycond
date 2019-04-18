@@ -97,7 +97,7 @@ class Test1:
 
         """
 
-        ### Custom Lookup & Value Passing
+        ### Custom Lookup And Value Passing
 
         You can supply your own function for value acquisition.
         - Signature: See example.
@@ -442,7 +442,7 @@ class Test1:
                 assert pc.pycond('id lt 42', autoconv_lookups=True)
 
         """
-        ## Context On Demand / Lazy Evaluation
+        ## Context On Demand And Lazy Evaluation
 
         Often the conditions are in user space, applied on data streams under
         the developer's control only at development time.
@@ -536,15 +536,13 @@ class Test1:
             # this key stores the context builder function
             make_ctx = nfos['complete_ctx']
 
-            t0 = time.time()
             # now we get (incomplete) data..
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
 
+            t0 = time.time()
             for event, expected in data1, data2:
-                make_ctx(event)
-                print('Completed data:', event)
-                assert pc.pycond(cond)(state=event) == expected
+                assert pc.pycond(cond)(state=make_ctx(event)) == expected
 
             print('Calc.Time', round(time.time() - t0, 4))
             return cond, ApiCtxFuncs
@@ -555,7 +553,8 @@ class Test1:
         But we can do better - we still calculated values for keys which might be
         only needed in dead ends of a lazily evaluated condition.
 
-        Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-function) feature.
+        Lets avoid calculating these values, remembering the
+        [custom lookup function](#custom-lookup-and-value-passing) feature.
 
 
         > pycond does generate such a custom lookup function readily for you,
@@ -568,11 +567,11 @@ class Test1:
             # we let pycond generate the lookup function now:
             f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
 
-            t0 = time.time()
-            # now we get (incomplete) data..
+            # Same events as above:
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
 
+            t0 = time.time()
             for event, expected in data1, data2:
                 # we will lookup only once:
                 assert f(state=event) == expected
