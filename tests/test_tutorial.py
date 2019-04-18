@@ -1,13 +1,14 @@
 """
 Creates Readme
 """
-import pytest2md as p2m
 import pytest, json, os, time
 from functools import partial
+import pytest2md as p2m  # this is our markdown tutorial generation tool
 from uuid import uuid4
+import pycond as pc  # the tested module:
 import time
-import pycond as pc
 import json
+import sys
 
 # py2.7 compat:
 breakpoint = p2m.breakpoint
@@ -499,7 +500,6 @@ class Test1:
 
             # Getters for API keys offered to the user, involving potentially
             # expensive to fetch context delivery functions:
-            # (in Py2 make these static or instantiate)
             # Signature must provide minimum a positional for the current
             # state:
             class ApiCtxFuncs:
@@ -531,6 +531,10 @@ class Test1:
                 def clients(ctx):
                     print('Calculating clients')
                     return 0
+
+            if sys.version_info[0] < 3:
+                # we don't think it is a good idea to make the getter API stateful:
+                p2m.convert_to_staticmethods(ApiCtxFuncs)
 
             f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
             # this key stores the context builder function

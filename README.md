@@ -644,7 +644,6 @@ cond = [
 
 # Getters for API keys offered to the user, involving potentially
 # expensive to fetch context delivery functions:
-# (in Py2 make these static or instantiate)
 # Signature must provide minimum a positional for the current
 # state:
 class ApiCtxFuncs:
@@ -677,6 +676,10 @@ class ApiCtxFuncs:
         print('Calculating clients')
         return 0
 
+if sys.version_info[0] < 3:
+    # we don't think it is a good idea to make the getter API stateful:
+    p2m.convert_to_staticmethods(ApiCtxFuncs)
+
 f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
 # this key stores the context builder function
 make_ctx = nfos['complete_ctx']
@@ -703,7 +706,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2016
+Calc.Time 0.2042
 
 ```
 
@@ -744,7 +747,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1005
+Calc.Time (only one expensive calculation): 0.1004
 
 ```
 
@@ -754,4 +757,4 @@ Calc.Time (only one expensive calculation): 0.1005
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/09eace5f0d3e82944013844c24c9e8a5ee8fe871/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/dc35940b65ff2012f82548726a20fb29a7bf3bf0/tests/test_tutorial.py
