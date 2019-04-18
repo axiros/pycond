@@ -226,8 +226,8 @@ assert f(req=req, user='eve') == True
 ```
 Output:
 ```
-user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'}, 'user': 'joe', 'model': {'eve': {'last_host': 'somehost'}}}
-user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'}, 'user': 'eve', 'model': {'eve': {'last_host': 'somehost'}}}
+('user check. locals:', {'k': 'last_host', 'req': {'host': 'somehost'}, 'v': 'host', 'model': {'eve': {'last_host': 'somehost'}}, 'user': 'joe'})
+('user check. locals:', {'k': 'last_host', 'req': {'host': 'somehost'}, 'v': 'host', 'model': {'eve': {'last_host': 'somehost'}}, 'user': 'eve'})
 
 ```
 > as you can see in the example, the state parameter is just a convention
@@ -706,7 +706,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2073
+('Calc.Time', 0.2028)
 
 ```
 
@@ -747,7 +747,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.102
+('Calc.Time (only one expensive calculation):', 0.1007)
 
 ```
 
@@ -757,4 +757,4 @@ Calc.Time (only one expensive calculation): 0.102
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/904730daa335a419e7765d618b127b0a5288b07e/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/a3b5fc226dd060ce9b02eac30e9c5faefb69b5c3/tests/test_tutorial.py

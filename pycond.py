@@ -20,7 +20,7 @@ PY2 = sys.version_info[0] == 2
 # is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
 if PY2:
     is_str = lambda s: isinstance(s, basestring)
-    sig_args = lambda f: inspect.getargspec(f).args
+    sig_args = lambda f: inspect.getargspec(getattr(f, 'func', f)).args
 else:
     is_str = lambda s: isinstance(s, (bytes, str))
     sig_args = lambda f: list(inspect.signature(f).parameters.keys())
