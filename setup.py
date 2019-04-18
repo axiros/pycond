@@ -25,7 +25,7 @@ setup(
     long_description=md,
     long_description_content_type='text/markdown',
     install_requires=[],
-    tests_require=['pytest2md'],
+    tests_require=['pytest2md>=20190430'],
     include_package_data=True,
     url='https://github.com/axiros/pycond',
     author='gk',
