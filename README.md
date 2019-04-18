@@ -11,7 +11,9 @@
 
 
 <hr/>
+
 # Table Of Contents
+
 
 - <a name="toc1"></a>[TODO](#todo)
 - <a name="toc2"></a>[What](#what)
@@ -713,7 +715,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2025
+Calc.Time 0.2016
 
 ```
 
@@ -754,7 +756,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1004
+Calc.Time (only one expensive calculation): 0.1005
 
 ```
 
@@ -764,4 +766,4 @@ Calc.Time (only one expensive calculation): 0.1004
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/4787c33f7d6483893d7c58e91ce451da9403e62e/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/80d273f2a553c0f25dd75287df0821eb88d67b02/tests/test_tutorial.py
