@@ -20,7 +20,7 @@ with open(path.join(HERE, 'README.md')) as fd:
 
 setup(
     name='pycond',
-    version='20190415',
+    version='20190416',
     description='Lightweight condition parsing and building of evaluation expressions',
     long_description=md,
     long_description_content_type='text/markdown',

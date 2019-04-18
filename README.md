@@ -706,7 +706,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2042
+Calc.Time 0.2073
 
 ```
 
@@ -747,7 +747,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1004
+Calc.Time (only one expensive calculation): 0.102
 
 ```
 
@@ -757,4 +757,4 @@ Calc.Time (only one expensive calculation): 0.1004
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/dc35940b65ff2012f82548726a20fb29a7bf3bf0/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/904730daa335a419e7765d618b127b0a5288b07e/tests/test_tutorial.py
