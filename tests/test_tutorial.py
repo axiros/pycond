@@ -1,19 +1,21 @@
 """
 Creates Readme
 """
-import pytest2md as ptm
+import pytest2md as p2m
 import pytest, json, os, time
 from functools import partial
 from uuid import uuid4
+import time
+import pycond as pc
 import json
 
 # py2.7 compat:
-breakpoint = ptm.breakpoint
+breakpoint = p2m.breakpoint
 
-here, fn = ptm.setup(__file__, fn_target_md='../README.md')
+here, fn = p2m.setup(__file__, fn_target_md='../README.md')
 
 # parametrizing the shell run results (not required here):
-# run = partial(ptm.bash_run, no_cmd_path=True)
+# run = partial(p2m.bash_run, no_cmd_path=True)
 
 
 class Test1:
@@ -24,6 +26,20 @@ class Test1:
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
         The result of the tokenizer is given to the builder.
 
+        """
+
+        def f0():
+            import pycond as pc
+
+            cond = '[a eq b and [c lt 42 or foo eq bar]]'
+            cond = pc.to_struct(pc.tokenize(cond, sep=' ', brkts='[]'))
+            print(cond)
+            return cond
+
+        assert isinstance(f0(), list) and isinstance(f0()[0], list)
+        """
+
+
 
         ## Building
         After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
@@ -33,9 +49,7 @@ class Test1:
         """
 
         def f1():
-            from pycond import parse_cond
-
-            f, meta = parse_cond('foo eq bar')
+            f, meta = pc.parse_cond('foo eq bar')
             assert meta['keys'] == ['foo']
 
         """
@@ -51,11 +65,9 @@ class Test1:
         """
 
         def f2():
-            from pycond import pycond, State as S
-
-            f = pycond('foo eq bar')
+            f = pc.pycond('foo eq bar')
             assert f() == False
-            S['foo'] = 'bar'
+            pc.State['foo'] = 'bar'
             assert f() == True
 
         """
@@ -63,13 +75,22 @@ class Test1:
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
+        ### Passing Custom State
+
+        Use the state argument at evaluation:
+        """
+
+        def f2_1():
+            assert pc.pycond('a gt 2')(state={'a': 42}) == True
+            assert pc.pycond('a gt 2')(state={'a': -2}) == False
+
+        """
+
         ### Custom Lookup & Value Passing
 
         """
 
         def f3():
-            from pycond import pycond
-
             # must return a (key, value) tuple:
             model = {'eve': {'last_host': 'somehost'}}
 
@@ -77,7 +98,7 @@ class Test1:
                 print('user check', user, k, v)
                 return (model.get(user) or {}).get(k), req[v]
 
-            f = pycond('last_host eq host', lookup=my_lu)
+            f = pc.pycond('last_host eq host', lookup=my_lu)
 
             req = {'host': 'somehost'}
             assert f(req=req, user='joe') == False
@@ -111,10 +132,8 @@ class Test1:
         """
 
         def f4():
-            from pycond import pycond as p, State as S
-
-            S.update({'foo': 1, 'bar': 'a', 'baz': []})
-            assert p('[ foo and bar and not baz]')() == True
+            pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
+            assert pc.pycond('[ foo and bar and not baz]')() == True
 
         """
 
@@ -139,13 +158,11 @@ class Test1:
         By default pycond uses text style operators.
 
         - `ops_use_symbolic` switches processwide to symbolic style only.
-        - `ops_use_both` switches processwide to both notations allowed.
+        - `ops_use_symbolic_and_txt` switches processwide to both notations allowed.
 
         """
 
         def f4_2():
-            import pycond as pc
-
             pc.ops_use_symbolic()
             pc.State['foo'] = 'bar'
             assert pc.pycond('foo == bar')() == True
@@ -153,7 +170,9 @@ class Test1:
                 # this raises now, text ops not known anymore:
                 pc.pycond('foo eq bar')
             except:
-                pc.ops_use_both()
+                pc.ops_use_symbolic_and_txt(allow_single_eq=True)
+                assert pc.pycond('foo = bar')() == True
+                assert pc.pycond('foo == bar')() == True
                 assert pc.pycond('foo eq bar')() == True
                 assert pc.pycond('foo != baz')() == True
 
@@ -167,12 +186,9 @@ class Test1:
         """
 
         def f5():
-            import time
-            from pycond import pycond as p, OPS
-
-            OPS['maybe'] = lambda a, b: int(time.time()) % 2
-
-            assert p('a maybe b')() in (True, False)  # valid expression now.
+            pc.OPS['maybe'] = lambda a, b: int(time.time()) % 2
+            # valid expression now:
+            assert pc.pycond('a maybe b')() in (True, False)
 
         """
 
@@ -182,12 +198,10 @@ class Test1:
 
         """
 
-        from pycond import pycond, State as S
-
         def f6():
-            S['foo'] = 'abc'
-            assert pycond('foo eq abc')() == True
-            assert pycond('foo not eq abc')() == False
+            pc.State['foo'] = 'abc'
+            assert pc.pycond('foo eq abc')() == True
+            assert pc.pycond('foo not eq abc')() == False
 
         """
 
@@ -198,9 +212,9 @@ class Test1:
 
         def f7():
 
-            S['foo'] = 'abc'
-            assert pycond('foo contains a')() == True
-            assert pycond('foo rev contains abc')() == True
+            pc.State['foo'] = 'abc'
+            assert pc.pycond('foo contains a')() == True
+            assert pc.pycond('foo rev contains abc')() == True
 
         """
 
@@ -215,8 +229,6 @@ class Test1:
         """
 
         def f8():
-            import pycond as pc
-
             l = []
 
             def hk(f_op, a, b, l=l):
@@ -231,7 +243,7 @@ class Test1:
             f()
             expected_log = [('gt', 1, 0.0), ('lt', 2, 3.0), ('gt', 3, 4.0)]
             assert l == expected_log
-            pc.ops_use_both()
+            pc.ops_use_symbolic_and_txt()
 
         """
 
@@ -244,8 +256,6 @@ class Test1:
         """
 
         def f9():
-            import pycond as pc
-
             def myhk(f_op, a, b):
                 return True
 
@@ -283,9 +293,6 @@ class Test1:
 
         ## Tokenizing
 
-        ### Bypassing
-
-        You can bypass the tokenizer by passing an already tokenized list to pycond, e.g. `pycond(['a', 'eq', 42])`.
 
         > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
@@ -300,8 +307,6 @@ class Test1:
         """
 
         def f9_1():
-            import pycond as pc
-
             pc.State['a'] = 42
             assert pc.pycond('a.eq.42', sep='.')() == True
 
@@ -313,8 +318,6 @@ class Test1:
         """
 
         def f10():
-            import pycond as pc
-
             # equal:
             assert (
                 pc.pycond('[[a eq 42] and b]')()
@@ -332,10 +335,7 @@ class Test1:
         """
 
         def f11():
-            import pycond as pc
-
             pc.State['a'] = 'Hello World'
-
             assert pc.pycond('a eq "Hello World"')() == True
 
         """
@@ -349,8 +349,6 @@ class Test1:
         """
 
         def f12():
-            import pycond as pc
-
             pc.State['b'] = 'Hello World'
             assert pc.pycond('b eq Hello\ World')() == True
 
@@ -368,8 +366,6 @@ class Test1:
         """
 
         def f13():
-            import pycond as pc
-
             pc.State['a'] = '42'
             assert pc.pycond('a eq 42')() == False
             # compared as string now
@@ -385,11 +381,108 @@ class Test1:
         """
 
         def f14():
-            import pycond as pc
-
             for id in '1', 1:
                 pc.State['id'] = id
                 assert pc.pycond('id lt 42', autoconv_lookups=True)
 
-        ptm.md_from_source_code()
-        ptm.write_readme(with_source_ref=True, make_toc=True)
+        """
+        # Conditions via the Web
+
+        E.g. processes may deliver condition structures via serializable formats (e.g. json).
+        If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+
+        """
+
+        def f15():
+            cond = ['a', 'eq', 'b']
+            assert pc.pycond(cond)(state={'a': 'b'}) == True
+
+        """
+        # Dynamic Context Assembly: `ctx_builder`
+
+        Sometimes the conditions themselves are in user space, applied on data streams under
+        the developer's control.
+        The end user might pick only a few keys from many offered within an API.
+        pycond's `ctx_builder` is comming handy for that.
+
+        You hand over a namespace for functions which are offered to build the ctx
+
+        `pycon` will return a context builder function for you, calculating only those value
+        which the condition actually requires:
+        """
+
+        def f15_1():
+            pc.ops_use_symbolic_and_txt(allow_single_eq=True)
+
+            # Condition the end user configured, e.g. at program run time:
+            cond = [
+                ['group_type', 'in', ['lab', 'first1k', 'friendly', 'auto']],
+                'and',
+                [
+                    [
+                        [
+                            [
+                                ['cur_q', '<', 0.5],
+                                'and',
+                                ['delta_q', '>=', 0.15],
+                            ],
+                            'and',
+                            ['dt_last_enforce', '>', 28800],
+                        ],
+                        'and',
+                        ['cur_hour', 'in', [3, 4, 5]],
+                    ],
+                    'or',
+                    [
+                        [
+                            [
+                                ['cur_q', '<', 0.5],
+                                'and',
+                                ['delta_q', '>=', 0.15],
+                            ],
+                            'and',
+                            ['dt_last_enforce', '>', 28800],
+                        ],
+                        'and',
+                        ['clients', '=', 0],
+                    ],
+                ],
+            ]
+
+            # API offered to the user, involving potentially expensive to fetch
+            # context delivery functions:
+            class ApiCtxFuncs:
+                def expensive_but_not_needed_here(ctx):
+                    raise Exception("Won't run with cond. from above")
+
+                def group_type(ctx):
+                    raise Exception(
+                        "Won't run since contained in example data"
+                    )
+
+                def cur_q(ctx):
+                    return 0.1
+
+                def cur_hour(ctx):
+                    return 4
+
+                def dt_last_enforce(ctx):
+                    return 10000000
+
+                def delta_q(ctx):
+                    return 1
+
+                def clients(ctx):
+                    return 0
+
+            f, nfos = pc.parse_cond(cond, build_ctx_from=ApiCtxFuncs)
+            make_ctx = nfos['make_ctx']
+            # now we get (incomplete) data..
+            data = {'group_type': 'lab'}
+            make_ctx(data)
+            print('Completed data:', data)
+            # will now work:
+            assert pc.pycond(cond)(state=data) == True
+
+        p2m.md_from_source_code()
+        p2m.write_readme(with_source_ref=True, make_toc=True)

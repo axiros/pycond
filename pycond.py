@@ -14,18 +14,17 @@ from __future__ import print_function
 import operator, sys
 import inspect
 from functools import partial
+from copy import deepcopy
 
 PY2 = sys.version_info[0] == 2
 # is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
 if PY2:
-    is_str = lambda s: isinstance(s, basestring)
+    is_str = lambda s: isinstance(s, string)
     sig_args = lambda f: inspect.getargspec(f).args
 else:
     is_str = lambda s: isinstance(s, (bytes, str))
     sig_args = lambda f: list(inspect.signature(f).parameters.keys())
 
-
-KV_DELIM = ' '  # default seperator for strings
 # fmt:off
 # from dir(operator):
 _ops = {
@@ -79,13 +78,22 @@ _ops = {
 OPS = {}
 OPS_SYMBOLIC = {}
 
-
+# extending operators with those:
 def truthy(k, v=None):
     return operator.truth(k)
 
 
+def _in(a, b):
+    return a in b
+
+
 def get_ops():
     return _ops
+
+
+def add_built_in_ops():
+    OPS['truthy'] = truthy
+    OPS['in'] = _in
 
 
 def clear_ops():
@@ -94,6 +102,7 @@ def clear_ops():
 
 
 def parse_ops():
+    """Sets up OPs from scratch, using txt opts only"""
     clear_ops()
     for t in 'str', 'nr':
         for k, alias in _ops[t]:
@@ -103,23 +112,29 @@ def parse_ops():
                 OPS[k] = f
                 if alias:
                     OPS_SYMBOLIC[alias] = f
-    OPS['truthy'] = truthy
+    add_built_in_ops()
 
 
-def ops_use_symbolic():
+def ops_use_symbolic(allow_single_eq=False):
     OPS.clear()
     OPS.update(OPS_SYMBOLIC)
-    OPS['truthy'] = truthy
+    add_built_in_ops()
+    if allow_single_eq:
+        OPS['='] = OPS['==']
 
 
-def ops_use_both():
+def ops_use_symbolic_and_txt(allow_single_eq=False):
     parse_ops()
     OPS.update(OPS_SYMBOLIC)
+    if allow_single_eq:
+        OPS['='] = OPS['==']
 
 
-def ops_use_txt():
+def ops_reset():
     parse_ops()
 
+
+ops_use_txt = ops_reset
 
 ops_use_txt()
 # see api below for these:
@@ -132,6 +147,10 @@ FALSES = (None, False, '', 0, {}, [], ())
 # default lookup of keys here - no, module does NOT need to have state.
 # its a convenience thing, see tests:
 State = {}
+
+
+def builder_get(key, val, cfg, func, state=State, **kw):
+    breakpoint()
 
 
 def state_get(key, val, cfg, state=State, **kw):
@@ -160,7 +179,12 @@ def and_not(a, b):
 
 
 def combine(f_op, f, g, **kw):
-    return f_op(f(**kw), g(**kw))
+    f1 = f(**kw)
+    # lazy eval:
+    if not f1:
+        if f_op.__name__ in ('and_', 'and_not'):
+            return False
+    return f_op(f1, g(**kw))
 
 
 COMB_OPS = {
@@ -176,141 +200,47 @@ COMB_OPS = {
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
 
-def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
-    """ walk throug a single string expression """
-    # '[[ a' -> '[ [ a', then split
-    esc, escaped, have_apo_seps = [], [], False
-
-    # remove the space from the ops here, comb ops are like 'and_not':
-    for op in COMB_OPS:
-        if '_' in op:
-            cond = cond.replace(op.replace('_', ' '), op)
-    for op, repl in NEG_REV.items():
-        cond = cond.replace(op, repl)
-
-    cond = [c for c in cond]
-    r = []
-    while cond:
-        c = cond.pop(0)
-        have_apo = False
-        for apo in '"', "'":
-            if c != apo:
-                continue
-            have_apo = True
-            r += 'str:'
-            while cond and cond[0] != apo and r[-1] != '\\':
-                c = cond.pop(0)
-                if c == sep:
-                    c = '__sep__'
-                    have_apo_seps = True
-                r += c
-            if cond:
-                cond.pop(0)
-            continue
-        if have_apo:
-            continue
-
-        # esape:
-        if c == '\\':
-            c = cond.pop(0)
-            if c in escaped:
-                key = esc[escaped.index(c)]
-            else:
-                escaped.append(c)
-                key = '__esc__%s' % len(escaped)
-                esc.append(key)
-            r += key
-            continue
-
-        isbr = False
-        if c in brkts:
-            isbr = True
-            if r and r[-1] != sep:
-                r += sep
-        r += c
-        if isbr and cond and cond[0] != sep:
-            r += sep
-
-    cond = ''.join(r)
-
-    # replace back the escaped stuff:
-    if not esc:
-        # be fast:
-        res = cond.split(sep)
-    else:
-        # fastets before splitting:
-        cond = cond.replace(sep, '__ESC__')
-        for i in range(len(esc)):
-            cond = cond.replace(esc[i], escaped[i])
-        res = cond.split('__ESC__')
-    # replace back the previously excluded stuff in apostrophes:
-    if have_apo_seps:
-        res = [part.replace('__sep__', sep) for part in res]
+def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
+    res = parse_struct_cond(deepcopy(cond), cfg, nfo)
     return res
 
 
-def find_closing_brack(cond, openbrkt, closebrkt):
-    lev = 1
-    i = 0
-    for c in cond[1:]:
-        i += 1
-        lev += 1 if c == openbrkt else -1 if c == closebrkt else 0
-        if lev == 0:
-            return i
-    f, op, n = cond[1:i], None, None
-    if i < len(cond) - 1:
-        op = cond[i + 1]
-        n = cond[i + 2 :]
-    return f, op, n
-
-
-def _parse_cond(cond, cfg, nfo):
-    """Recursively scanning through a tokenized expression and building the
-    condition function step by step
+def parse_struct_cond(cond, cfg, nfo):
+    """this expects json style conditions
+    Examples:
+    a and b or c - then we map those to the truthy op
+    a eq foo and b eq bar
+    [a eq foo] and b
+    [a eq foo] and [b is baz]
     """
-    openbrkt, closebrkt = cfg['brkts']
-    strct = nfo['strct']  # structure of lambdas to return. not relevant.
-    expr1 = None
-    # ----------------------------------------------- Handle nesting recursions
-    if cond and cond[0] == openbrkt:  # [
-        idx = find_closing_brack(cond, openbrkt, closebrkt)
-        expr1, strct1 = _parse_cond(cond[1:idx], cfg, nfo)
-        cond = cond[idx + 1 :]
-    if not cond:
-        return expr1, [strct1]
-
-    # ---------------------------------------------- Handle combining operators
-    # and / or ?
-    # foo eq bar and baz..., i.e. given w/o brackets?
-    # we return then parse_cond( [ foo eq bar ] and [baz...]
-    # c i: just temp. helpers for within the checking loop:
-    c, i = [cond[0]], 1
-    for part in cond[1:]:
-        i += 1
-
-        if part == openbrkt:
-            break  # all well, brackets given
-
-        if is_str(part) and part in COMB_OPS:
-            c.insert(0, openbrkt)
-            [c.append(v) for v in (closebrkt, part, openbrkt)]
-            c.extend(cond[i:])
-            c.append(closebrkt)
-            return _parse_cond(c, cfg, nfo)
-
+    f1 = None
+    while cond:
+        key = cond.pop(0)
+        if isinstance(key, str):
+            if f1 and key in COMB_OPS:
+                # cond: b eq bar
+                return partial(
+                    combine,
+                    COMB_OPS[key],
+                    f1,
+                    parse_struct_cond(cond, cfg, nfo),
+                )
+            ac = [key]
+            while cond:
+                if isinstance(cond[0], str) and cond[0] in COMB_OPS:
+                    break
+                ac.append(cond.pop(0))
+            f1 = atomic_cond(ac, cfg, nfo)
+            # now a combinator MUST come:
         else:
-            c.append(part)
+            f1 = parse_struct_cond(key, cfg, nfo)
+    return f1
 
-    # now we have the first expression in brkts parsed and do the next one
-    # after a combining operator:
-    f_op = COMB_OPS.get(cond[0])  # f_op: combining-operator function
-    if f_op:
-        op_n, nxt = cond[0], 1
-        # we recurse into the second part, first we have
-        expr2, strct2 = _parse_cond(cond[nxt:], cfg, nfo)
-        # strct = [strct1, "COMB_OPS['%s']" % op_n, strct2]
-        return partial(combine, f_op, expr1, expr2), strct
 
+# _parse_cond = x_parse_cond
+
+
+def atomic_cond(cond, cfg, nfo):
     # ------------------------------------------------ Handle atomic conditions
     # cond like ['foo', 'not', 'le', '10']
     key = cond.pop(0)
@@ -367,13 +297,7 @@ def _parse_cond(cond, cfg, nfo):
     else:
         # normal case:
         f_res = partial(f_atomic, f_op, fp_lookup, key, val)
-    return f_res, strct
-
-    ## document what we did:
-    # strct = [ "%s('%s', '%s')" % (lookup.__name__, key, val),
-    #          "OPS['%s']"% op, val ]
-    # if not_:
-    #    strct.insert(1, 'not')
+    return f_res
 
 
 # ------------------------------------------------------------ Evaluation Phase
@@ -384,7 +308,10 @@ def _parse_cond(cond, cfg, nfo):
 # ('With fast lookup function:', 2.1161916086894787)
 def f_atomic(f_op, fp_lookup, key, val, **kw):
     # normal case - be fast:
-    return f_op(*fp_lookup(**kw))
+    try:
+        return f_op(*fp_lookup(**kw))
+    except Exception as ex:
+        raise Exception('%s. key: %s, compare val: %s' % (str(ex), key, val))
 
 
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
@@ -406,15 +333,35 @@ def parse_cond(cond, lookup=state_get, **cfg):
     cfg['brkts'] = brkts = cfg.get('brkts', '[]')
 
     sep = cfg.pop('sep', KV_DELIM)
+    nfo = {'keys': set()}
     if is_str(cond):
         cond = tokenize(cond, sep=sep, brkts=brkts)
+        cond = to_struct(cond, cfg['brkts'])
+    if cfg.get('get_struct'):
+        return cond, nfo
 
-    nfo = {'keys': set(), 'strct': []}
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
-    cond, strct = _parse_cond(cond, cfg, nfo)
+    cond = parse_struct_cond_after_deep_copy(cond, cfg, nfo)
     nfo['keys'] = sorted(list(nfo['keys']))
+    builder = cfg.get('build_ctx_from')
+    if builder:
+        nfo['make_ctx'] = get_ctx_data(nfo['keys'], builder=builder)
     return cond, nfo
+
+
+nil = '\x01'
+
+
+def get_ctx_data(keys, builder):
+    def _getter(ctx, keys, builder):
+        for k in keys:
+            v = ctx.get(k, nil)
+            if v != nil:
+                continue
+            ctx[k] = getattr(builder, k)(ctx)
+
+    return partial(_getter, keys=keys, builder=builder)
 
 
 def pycond(cond, *a, **cfg):
@@ -458,3 +405,107 @@ def py_type(v):
         if v == 'None'
         else _(v)
     )
+
+
+# -------------- Following Code Only for Parsing String Conditions Into Structs
+
+KV_DELIM = ' '  # default seperator for strings
+
+
+def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
+    """ walk throug a single string expression """
+    # '[[ a' -> '[ [ a', then split
+    esc, escaped, have_apo_seps = [], [], False
+
+    # remove the space from the ops here, comb ops are like 'and_not':
+    for op in COMB_OPS:
+        if '_' in op:
+            cond = cond.replace(op.replace('_', ' '), op)
+    for op, repl in NEG_REV.items():
+        cond = cond.replace(op, repl)
+
+    cond = [c for c in cond]
+    r = []
+    while cond:
+        c = cond.pop(0)
+        have_apo = False
+        for apo in '"', "'":
+            if c != apo:
+                continue
+            have_apo = True
+            r += 'str:'
+            while cond and cond[0] != apo:  # and r[-1] != '\\':
+                c = cond.pop(0)
+                if c == sep:
+                    c = '__sep__'
+                    have_apo_seps = True
+                r += c
+            if cond:
+                cond.pop(0)
+            continue
+        if have_apo:
+            continue
+
+        # esape:
+        if c == '\\':
+            c = cond.pop(0)
+            if c in escaped:
+                key = esc[escaped.index(c)]
+            else:
+                escaped.append(c)
+                key = '__esc__%s' % len(escaped)
+                esc.append(key)
+            r += key
+            continue
+
+        isbr = False
+        if c in brkts:
+            isbr = True
+            if r and r[-1] != sep:
+                r += sep
+        r += c
+        if isbr and cond and cond[0] != sep:
+            r += sep
+
+    cond = ''.join(r)
+
+    # replace back the escaped stuff:
+    if not esc:
+        # be fast:
+        res = cond.split(sep)
+    else:
+        # fastets before splitting:
+        cond = cond.replace(sep, '__ESC__')
+        for i in range(len(esc)):
+            cond = cond.replace(esc[i], escaped[i])
+        res = cond.split('__ESC__')
+    # replace back the previously excluded stuff in apostrophes:
+    if have_apo_seps:
+        res = [part.replace('__sep__', sep) for part in res]
+    return res
+
+
+def to_struct(cond, brackets='[]'):
+    """Recursively scanning through a tokenized expression and building the
+    condition function step by step
+    """
+    openbrkt, closebrkt = brackets
+    expr1 = None
+    res = []
+    while cond:
+        part = cond.pop(0)
+        if part == openbrkt:
+            lev = 1
+            inner = []
+            while not (lev == 1 and cond[0] == closebrkt):
+                inner.append(cond.pop(0))
+                if inner[-1] == openbrkt:
+                    lev += 1
+                elif inner[-1] == closebrkt:
+                    lev -= 1
+            cond.pop(0)
+            res.append(to_struct(inner, brackets))
+        else:
+            res.append(part)
+
+    return res

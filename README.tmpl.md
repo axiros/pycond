@@ -8,6 +8,13 @@ Lightweight condition expression parsing and building of evaluation functions.
 
 [TOC]
 
+# TODO
+
+- `safe_eval` option, wrapping atomic eval
+- lazy
+- single_eq
+
+
 # What
 
 You have a bunch of data...

@@ -81,10 +81,9 @@ class Mechanics(T):
 
     def test_apo_space(s):
         S['foo'] = 'b a r'
+        eq(s, pycond("foo eq 'b\ a r'")(), False)
         eq(s, pycond('foo eq "b a r"')(), True)
         eq(s, pycond("foo eq 'b a r'")(), True)
-        eq(s, pycond("foo eq 'b \\a r'")(), False)
-        eq(s, pycond("foo eq 'b\ a r'")(), False)
 
     def test_tokenize_brackets(s):
         S['k1'] = 1
@@ -452,6 +451,105 @@ class Perf(T):
         assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (
             dt1 / dt2
         )
+
+
+import pycond as pc
+
+
+class TokenizerToStruct(T):
+    def test_get_struct1(s):
+        c = '[foo eq bar and [ baz eq foo]]'
+        f = pc.parse_cond(c)
+        assert f[0](state={'foo': 'bar', 'baz': 'foo'}) == True
+
+        c = '[[foo eq bar and [baz eq foo]]] or k eq c'
+        s = {'foo': 'a', 'baz': 'o', 'k': 'c'}
+        f = pc.parse_cond(c, get_struct=True)
+        assert f[0] == [
+            [['foo', 'eq', 'bar', 'and', ['baz', 'eq', 'foo']]],
+            'or',
+            'k',
+            'eq',
+            'c',
+        ]
+        f = pc.parse_cond(c)
+        assert f[0](state=s) == True
+
+        c = '[[foo eq bar and baz eq foo]] or k eq c'
+        s = {'foo': 'a', 'baz': 'o', 'k': 'c'}
+        f = pc.parse_cond(c, get_struct=True)
+        assert f[0] == [
+            [['foo', 'eq', 'bar', 'and', 'baz', 'eq', 'foo']],
+            'or',
+            'k',
+            'eq',
+            'c',
+        ]
+        f = pc.parse_cond(c)
+        assert f[0](state=s) == True
+        s['k'] = 'x'
+        s['foo'] = 'bar'
+        assert f[0](state=s) == False
+        s['baz'] = 'foo'
+        assert f[0](state=s) == True
+
+        c = '[foo eq bar and [baz eq foo]]'
+        s = {'foo': 'bar', 'baz': 'foo'}
+        f = pc.parse_cond(c, get_struct=True)
+        assert f[0] == [['foo', 'eq', 'bar', 'and', ['baz', 'eq', 'foo']]]
+        f = pc.parse_cond(c)
+        assert f[0](state=s) == True
+
+        c = '[[foo eq bar] and [baz eq foo]]'
+        f = pc.parse_cond(c, get_struct=True)
+        assert f[0] == [[['foo', 'eq', 'bar'], 'and', ['baz', 'eq', 'foo']]]
+        f = pc.parse_cond(c)
+        assert f[0](state=s) == True
+
+
+class StructConditions(T):
+    def xtest_no_list_eval(s):
+        assert pc.pycond('foo', 'eq', 'bar')(state={'foo': 'bar'}) == True
+
+    def test_set_single_eval(s):
+        pc.ops_use_symbolic()
+        try:
+            pc.pycond(['foo', '=', 'bar'])(state={'foo': 'bar'}) == True
+            raise Exception('Expected Error')
+        except Exception as ex:
+            if 'Expected Error' in str(ex):
+                raise
+        pc.ops_use_symbolic(allow_single_eq=True)
+        assert pc.pycond(['foo', '=', 'bar'])(state={'foo': 'bar'}) == True
+        pc.ops_reset()
+
+    def test_multi_combinators_and_lazy_eval_and_in_operator(s):
+
+        struct_cond1 = [
+            ['foo', 'ne', 'baz'],
+            'and',
+            ['foo', 'eq', 'bar'],
+            'and',
+            ['group_type', 'in', ['lab', 'first1k', 'friendly', 'auto']],
+        ]
+
+        before = str(struct_cond1)
+        have = []
+
+        def myhk(fop, a, b):
+            have.append((a, b))
+            return fop(a, b)
+
+        c = pc.pycond(struct_cond1, ops_thru=myhk)
+        s = {'group_type': 'lab', 'foo': 'baz'}
+        assert c(state=s) == False
+        assert len(have) == 1, 'Evaled first one, False, saw "and", stopped.'
+        del have[:]
+        s = {'group_type': 'lab', 'foo': 'bar'}
+        assert c(state=s) == True
+        assert str(struct_cond1) == before
+        # evaled all:
+        assert len(have) == 3
 
 
 if __name__ == '__main__':

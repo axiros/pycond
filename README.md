@@ -6,6 +6,7 @@
 
 Lightweight condition expression parsing and building of evaluation functions.
 
+- [TODO](#todo)
 - [What](#what)
 - [Why](#why)
     - [pycond Reasons to exist](#pycond-reasons-to-exist)
@@ -14,6 +15,7 @@ Lightweight condition expression parsing and building of evaluation functions.
     - [Building](#building)
     - [Evaluation](#evaluation)
         - [Default Lookup](#default-lookup)
+        - [Passing Custom State](#passing-custom-state)
         - [Custom Lookup & Value Passing](#custom-lookup-value-passing)
     - [Building Conditions](#building-conditions)
         - [Grammar](#grammar)
@@ -29,13 +31,21 @@ Lightweight condition expression parsing and building of evaluation functions.
         - [Combining Operations](#combining-operations)
         - [Nesting](#nesting)
     - [Tokenizing](#tokenizing)
-        - [Bypassing](#bypassing)
         - [Functioning](#functioning)
             - [Separator `sep`](#separator-sep)
             - [Apostrophes](#apostrophes)
             - [Escaping](#escaping)
     - [Building](#building)
         - [Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
+- [Conditions via the Web](#conditions-via-the-web)
+- [Dynamic Context Assembly: `ctx_builder`](#dynamic-context-assembly-ctx-builder)
+
+
+# TODO
+
+- `safe_eval` option, wrapping atomic eval
+- lazy
+- single_eq
 
 
 # What
@@ -120,6 +130,21 @@ programmers but also synthesisable from structured data, e.g. from a web framewo
 pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
 The result of the tokenizer is given to the builder.
 
+```python
+
+import pycond as pc
+
+cond = '[a eq b and [c lt 42 or foo eq bar]]'
+cond = pc.to_struct(pc.tokenize(cond, sep=' ', brkts='[]'))
+print(cond)
+```
+Output:
+```
+[['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
+
+```
+
+
 
 ## Building
 After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
@@ -128,9 +153,7 @@ available:
 
 ```python
 
-from pycond import parse_cond
-
-f, meta = parse_cond('foo eq bar')
+f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
 
@@ -144,22 +167,27 @@ The default is to get lookup keys within expressions from an initially empty `St
 
 ```python
 
-from pycond import pycond, State as S
-
-f = pycond('foo eq bar')
+f = pc.pycond('foo eq bar')
 assert f() == False
-S['foo'] = 'bar'
+pc.State['foo'] = 'bar'
 assert f() == True
 ```
 
 (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
+### Passing Custom State
+
+Use the state argument at evaluation:
+```python
+
+assert pc.pycond('a gt 2')(state={'a': 42}) == True
+assert pc.pycond('a gt 2')(state={'a': -2}) == False
+```
+
 ### Custom Lookup & Value Passing
 
 ```python
-
-from pycond import pycond
 
 # must return a (key, value) tuple:
 model = {'eve': {'last_host': 'somehost'}}
@@ -168,7 +196,7 @@ def my_lu(k, v, req, user, model=model):
     print('user check', user, k, v)
     return (model.get(user) or {}).get(k), req[v]
 
-f = pycond('last_host eq host', lookup=my_lu)
+f = pc.pycond('last_host eq host', lookup=my_lu)
 
 req = {'host': 'somehost'}
 assert f(req=req, user='joe') == False
@@ -206,10 +234,8 @@ so such an expression is valid and True:
 
 ```python
 
-from pycond import pycond as p, State as S
-
-S.update({'foo': 1, 'bar': 'a', 'baz': []})
-assert p('[ foo and bar and not baz]')() == True
+pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
+assert pc.pycond('[ foo and bar and not baz]')() == True
 ```
 
 #### Condition Operators
@@ -292,11 +318,9 @@ for k in 'nr', 'str':
 By default pycond uses text style operators.
 
 - `ops_use_symbolic` switches processwide to symbolic style only.
-- `ops_use_both` switches processwide to both notations allowed.
+- `ops_use_symbolic_and_txt` switches processwide to both notations allowed.
 
 ```python
-
-import pycond as pc
 
 pc.ops_use_symbolic()
 pc.State['foo'] = 'bar'
@@ -305,7 +329,9 @@ try:
     # this raises now, text ops not known anymore:
     pc.pycond('foo eq bar')
 except:
-    pc.ops_use_both()
+    pc.ops_use_symbolic_and_txt(allow_single_eq=True)
+    assert pc.pycond('foo = bar')() == True
+    assert pc.pycond('foo == bar')() == True
     assert pc.pycond('foo eq bar')() == True
     assert pc.pycond('foo != baz')() == True
 ```
@@ -317,12 +343,9 @@ except:
 
 ```python
 
-import time
-from pycond import pycond as p, OPS
-
-OPS['maybe'] = lambda a, b: int(time.time()) % 2
-
-assert p('a maybe b')() in (True, False)  # valid expression now.
+pc.OPS['maybe'] = lambda a, b: int(time.time()) % 2
+# valid expression now:
+assert pc.pycond('a maybe b')() in (True, False)
 ```
 
 #### Negation `not`
@@ -331,9 +354,9 @@ Negates the result of the condition operator:
 
 ```python
 
-S['foo'] = 'abc'
-assert pycond('foo eq abc')() == True
-assert pycond('foo not eq abc')() == False
+pc.State['foo'] = 'abc'
+assert pc.pycond('foo eq abc')() == True
+assert pc.pycond('foo not eq abc')() == False
 ```
 
 #### Reversal `rev`
@@ -342,9 +365,9 @@ Reverses the arguments before calling the operator
 ```python
 
 
-S['foo'] = 'abc'
-assert pycond('foo contains a')() == True
-assert pycond('foo rev contains abc')() == True
+pc.State['foo'] = 'abc'
+assert pc.pycond('foo contains a')() == True
+assert pc.pycond('foo rev contains abc')() == True
 ```
 
 > `rev` and `not` can be combined in any order.
@@ -356,8 +379,6 @@ You may globally wrap all evaluation time condition operations through a custom 
 
 
 ```python
-
-import pycond as pc
 
 l = []
 
@@ -373,7 +394,7 @@ assert l == []
 f()
 expected_log = [('gt', 1, 0.0), ('lt', 2, 3.0), ('gt', 3, 4.0)]
 assert l == expected_log
-pc.ops_use_both()
+pc.ops_use_symbolic_and_txt()
 ```
 
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
@@ -383,8 +404,6 @@ You may compose such wrappers via repeated application of the `run_all_ops_thru`
 This is done through the `ops_thru` parameter as shown:
 
 ```python
-
-import pycond as pc
 
 def myhk(f_op, a, b):
     return True
@@ -422,9 +441,6 @@ Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 ## Tokenizing
 
-### Bypassing
-
-You can bypass the tokenizer by passing an already tokenized list to pycond, e.g. `pycond(['a', 'eq', 42])`.
 
 > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
@@ -438,8 +454,6 @@ Separates the different parts of an expression. Default is ' '.
 
 ```python
 
-import pycond as pc
-
 pc.State['a'] = 42
 assert pc.pycond('a.eq.42', sep='.')() == True
 ```
@@ -448,8 +462,6 @@ assert pc.pycond('a.eq.42', sep='.')() == True
 Bracket characters do not need to be separated, the tokenizer will do:
 
 ```python
-
-import pycond as pc
 
 # equal:
 assert (
@@ -466,10 +478,7 @@ By putting strings into Apostrophes you can tell the tokenizer to not further in
 
 ```python
 
-import pycond as pc
-
 pc.State['a'] = 'Hello World'
-
 assert pc.pycond('a eq "Hello World"')() == True
 ```
 
@@ -480,8 +489,6 @@ assert pc.pycond('a eq "Hello World"')() == True
 Tell the tokenizer to not interpret the next character:
 
 ```python
-
-import pycond as pc
 
 pc.State['b'] = 'Hello World'
 assert pc.pycond('b eq Hello\ World')() == True
@@ -498,8 +505,6 @@ This can be prevented by setting the `autoconv` parameter to `False` or by using
 
 ```python
 
-import pycond as pc
-
 pc.State['a'] = '42'
 assert pc.pycond('a eq 42')() == False
 # compared as string now
@@ -513,11 +518,108 @@ but want to have looked up keys autoconverted then use:
 
 ```python
 
-import pycond as pc
-
 for id in '1', 1:
     pc.State['id'] = id
     assert pc.pycond('id lt 42', autoconv_lookups=True)
+```
+# Conditions via the Web
+
+E.g. processes may deliver condition structures via serializable formats (e.g. json).
+If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+
+```python
+
+cond = ['a', 'eq', 'b']
+assert pc.pycond(cond)(state={'a': 'b'}) == True
+```
+# Dynamic Context Assembly: `ctx_builder`
+
+Sometimes the conditions themselves are in user space, applied on data streams under
+the developer's control.
+The end user might pick only a few keys from many offered within an API.
+pycond's `ctx_builder` is comming handy for that.
+
+You hand over a namespace for functions which are offered to build the ctx
+
+`pycon` will return a context builder function for you, calculating only those value
+which the condition actually requires:
+```python
+
+pc.ops_use_symbolic_and_txt(allow_single_eq=True)
+
+# condition the end user configured, e.g. at program run time:
+cond = [
+    ['group_type', 'in', ['lab', 'first1k', 'friendly', 'auto']],
+    'and',
+    [
+        [
+            [
+                [
+                    ['cur_q', '<', 0.5],
+                    'and',
+                    ['delta_q', '>=', 0.15],
+                ],
+                'and',
+                ['dt_last_enforce', '>', 28800],
+            ],
+            'and',
+            ['cur_hour', 'in', [3, 4, 5]],
+        ],
+        'or',
+        [
+            [
+                [
+                    ['cur_q', '<', 0.5],
+                    'and',
+                    ['delta_q', '>=', 0.15],
+                ],
+                'and',
+                ['dt_last_enforce', '>', 28800],
+            ],
+            'and',
+            ['clients', '=', 0],
+        ],
+    ],
+]
+
+# API offered to the user, involving potentially expensive to fetch
+# context delivery functions:
+class ApiCtxFuncs:
+    def expensive_but_not_needed_here(ctx):
+        raise Exception("Won't run with cond. from above")
+
+    def group_type(ctx):
+        raise Exception(
+            "Won't run since contained in example data"
+        )
+
+    def cur_q(ctx):
+        return 0.1
+
+    def cur_hour(ctx):
+        return 4
+
+    def dt_last_enforce(ctx):
+        return 10000000
+
+    def delta_q(ctx):
+        return 1
+
+    def clients(ctx):
+        return 0
+
+f, nfos = pc.parse_cond(cond, build_ctx_from=ApiCtxFuncs)
+make_ctx = nfos['make_ctx']
+# now we get (incomplete) data..
+data = {'group_type': 'lab'}
+make_ctx(data)
+print('Completed data:', data)
+assert pc.pycond(cond)(state=data) == True
+```
+Output:
+```
+Completed data: {'group_type': 'lab', 'clients': 0, 'cur_hour': 4, 'cur_q': 0.1, 'delta_q': 1, 'dt_last_enforce': 10000000}
+
 ```
 
 *Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [test_tutorial.py][test_tutorial.py]*
@@ -526,4 +628,4 @@ for id in '1', 1:
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/f6de169ec0af99c162166f562b8016a4ddc1a9b2/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/628e7fdd1c77fc7adf8ba71daa30918d62c61a68/tests/test_tutorial.py
