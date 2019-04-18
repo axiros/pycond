@@ -12,12 +12,6 @@
 
 [TOC]
 
-# TODO
-
-- `safe_eval` option, wrapping atomic eval
-- lazy
-- single_eq
-
 
 # What
 
@@ -56,7 +50,7 @@ foo_users = [ u for u in users if is_foo(state=u) ]
 
 with roughly the same performance (factor 2-3) than the handcrafted python.
 
-> In real life performance is often better then using imperative code, due to
+> In real life performance is often **better** then using imperative code, due to
 `pycond's` [lazy evaluation](#lazy-evaluation) feature. 
 
 # Why
@@ -69,11 +63,12 @@ control? I.e. from an end user, hitting the program via the network, in a someho
 
 This is the main use case for this module.  
 
+## Alternatives
+
 But why yet another tool for such a standard job?  
 
-There is a massive list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
+There is a list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
 
-## pycond Reasons to exist
 
 `1.` I just needed a very **slim** tool for only the parsing into functions - but this pretty transparent and customizable
 
@@ -93,7 +88,9 @@ All evaluation is done via [partials](https://stackoverflow.com/a/3252425/458336
 programmers but also synthesisable from structured data, e.g. from a web framework.
 
 
-`3.` Performance: Good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY). With the current feature set we are (only) a factor 2-3 slower, compared to handcrafted list comprehensions.
+`3.` Performance: Good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY).
+With the current feature set we are sometimes a factor 2-3 worse but (due to lazy eval) often better,
+compared with handcrafted list comprehensions.
 
 
 # Mechanics
