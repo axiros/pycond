@@ -9,6 +9,7 @@
 
 <!-- badges: http://thomas-cokelaer.info/blog/2014/08/1013/ -->
 
+[TOC]
 
 - [TODO](#todo)
 - [What](#what)
