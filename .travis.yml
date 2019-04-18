@@ -32,6 +32,8 @@ install:
 script:
   - tox
 
+env:
+  - CODECOV_TOKEN=a40daed1-41a6-4b8b-a0dd-405a3d471ca9
 
 before_install:
   - "echo 'starting'"
