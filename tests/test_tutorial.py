@@ -1,14 +1,16 @@
 """
-Creates Readme
+Creates The Tutorial Using pytest2md
 """
 import pytest, json, os, time
-from functools import partial
 import pytest2md as p2m  # this is our markdown tutorial generation tool
-from uuid import uuid4
 import pycond as pc  # the tested module:
+
+from functools import partial
+from uuid import uuid4
 import time
 import json
 import sys
+
 
 # py2.7 compat:
 breakpoint = p2m.breakpoint
@@ -54,7 +56,7 @@ class Test1:
             assert meta['keys'] == ['foo']
 
         """
-        # Structured Conditions
+        ## Structured Conditions
 
         Other processes may deliver condition structures via serializable formats (e.g. json).
         If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
@@ -71,7 +73,7 @@ class Test1:
         The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
         How state is evaluated is customizable at build and run time.
 
-        ### Default Lookup
+        ## Default Lookup
         The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
 
         """
@@ -87,7 +89,7 @@ class Test1:
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
-        ### Passing Custom State
+        ## Passing Custom State
 
         Use the state argument at evaluation:
         """
@@ -98,7 +100,7 @@ class Test1:
 
         """
 
-        ### Custom Lookup And Value Passing
+        ## Custom Lookup And Value Passing
 
         You can supply your own function for value acquisition.
         - Signature: See example.
@@ -125,7 +127,7 @@ class Test1:
         for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get]<SRC>
         function.
 
-        ### Lazy Evaluation
+        ## Lazy Evaluation
 
         This is avoiding unnecessary calculations in many cases:
 
@@ -193,7 +195,7 @@ class Test1:
 
         """
 
-        #### Condition Operators
+        ## Condition Operators
 
         All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
         are available by default:
@@ -210,7 +212,7 @@ class Test1:
 
         """
 
-        ##### Using Symbolic Operators
+        ### Using Symbolic Operators
 
         By default pycond uses text style operators.
 
@@ -238,7 +240,7 @@ class Test1:
         > Operator namespace(s) should be assigned at process start, they are global.
 
 
-        ##### Extending Condition Operators
+        ### Extending Condition Operators
 
         """
 
@@ -249,7 +251,7 @@ class Test1:
 
         """
 
-        #### Negation `not`
+        ### Negation `not`
 
         Negates the result of the condition operator:
 
@@ -262,7 +264,7 @@ class Test1:
 
         """
 
-        #### Reversal `rev`
+        ### Reversal `rev`
 
         Reverses the arguments before calling the operator
         """
@@ -277,9 +279,9 @@ class Test1:
 
         > `rev` and `not` can be combined in any order.
 
-        ##### Wrapping Condition Operators
+        ### Wrapping Condition Operators
 
-        ##### Global Wrapping
+        #### Global Wrapping
         You may globally wrap all evaluation time condition operations through a custom function:
 
 
@@ -306,7 +308,7 @@ class Test1:
 
         You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-        ##### Condition Local Wrapping
+        #### Condition Local Wrapping
 
         This is done through the `ops_thru` parameter as shown:
 
@@ -328,7 +330,7 @@ class Test1:
         > can add breakpoints or loggers there.
 
 
-        ### Combining Operations
+        ## Combining Operations
 
         You can combine single conditions with
         - `and`
@@ -348,7 +350,7 @@ class Test1:
         > Via the `brkts` config parameter you may change those to other separators at build time.
 
 
-        ## Tokenizing
+        ## Tokenizing Details
 
 
         > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
@@ -357,7 +359,7 @@ class Test1:
 
         The tokenizers job is to take apart expression strings for the builder.
 
-        #### Separator `sep`
+        ### Separator `sep`
 
         Separates the different parts of an expression. Default is ' '.
 
@@ -385,7 +387,7 @@ class Test1:
         > The condition functions themselves do not evaluate equal - those
         > had been assembled two times.
 
-        #### Apostrophes
+        ### Apostrophes
 
         By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
 
@@ -399,7 +401,7 @@ class Test1:
 
 
 
-        #### Escaping
+        ### Escaping
 
         Tell the tokenizer to not interpret the next character:
 
@@ -412,7 +414,7 @@ class Test1:
         """
 
 
-        ## Building
+        ### Building
 
         ### Autoconv: Casting of values into python simple types
 
@@ -443,7 +445,8 @@ class Test1:
                 assert pc.pycond('id lt 42', autoconv_lookups=True)
 
         """
-        ## Context On Demand And Lazy Evaluation
+
+        # Context On Demand And Lazy Evaluation
 
         Often the conditions are in user space, applied on data streams under
         the developer's control only at development time.

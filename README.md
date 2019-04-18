@@ -13,37 +13,37 @@
 - [TODO](#todo)
 - [What](#what)
 - [Why](#why)
-    - [pycond Reasons to exist](#pycond-reasons-to-exist)
+    - [Alternatives](#alternatives)
 - [Mechanics](#mechanics)
     - [Parsing](#parsing)
     - [Building](#building)
-- [Structured Conditions](#structured-conditions)
+    - [Structured Conditions](#structured-conditions)
     - [Evaluation](#evaluation)
-        - [Default Lookup](#default-lookup)
-        - [Passing Custom State](#passing-custom-state)
-        - [Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
-        - [Lazy Evaluation](#lazy-evaluation)
+    - [Default Lookup](#default-lookup)
+    - [Passing Custom State](#passing-custom-state)
+    - [Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
+    - [Lazy Evaluation](#lazy-evaluation)
     - [Building Conditions From Text](#building-conditions-from-text)
         - [Grammar](#grammar)
         - [Atomic Conditions](#atomic-conditions)
-            - [Condition Operators](#condition-operators)
-                - [Using Symbolic Operators](#using-symbolic-operators)
-                - [Extending Condition Operators](#extending-condition-operators)
-            - [Negation `not`](#negation-not)
-            - [Reversal `rev`](#reversal-rev)
-                - [Wrapping Condition Operators](#wrapping-condition-operators)
-                - [Global Wrapping](#global-wrapping)
-                - [Condition Local Wrapping](#condition-local-wrapping)
-        - [Combining Operations](#combining-operations)
+    - [Condition Operators](#condition-operators)
+        - [Using Symbolic Operators](#using-symbolic-operators)
+        - [Extending Condition Operators](#extending-condition-operators)
+        - [Negation `not`](#negation-not)
+        - [Reversal `rev`](#reversal-rev)
+        - [Wrapping Condition Operators](#wrapping-condition-operators)
+            - [Global Wrapping](#global-wrapping)
+            - [Condition Local Wrapping](#condition-local-wrapping)
+    - [Combining Operations](#combining-operations)
         - [Nesting](#nesting)
-    - [Tokenizing](#tokenizing)
+    - [Tokenizing Details](#tokenizing-details)
         - [Functioning](#functioning)
-            - [Separator `sep`](#separator-sep)
-            - [Apostrophes](#apostrophes)
-            - [Escaping](#escaping)
-    - [Building](#building)
+        - [Separator `sep`](#separator-sep)
+        - [Apostrophes](#apostrophes)
+        - [Escaping](#escaping)
+        - [Building](#building)
         - [Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-    - [Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
+- [Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
 
 
 # TODO
@@ -90,7 +90,7 @@ foo_users = [ u for u in users if is_foo(state=u) ]
 
 with roughly the same performance (factor 2-3) than the handcrafted python.
 
-> In real life performance is often better then using imperative code, due to
+> In real life performance is often **better** then using imperative code, due to
 `pycond's` [lazy evaluation](#lazy-evaluation) feature. 
 
 # Why
@@ -103,11 +103,12 @@ control? I.e. from an end user, hitting the program via the network, in a someho
 
 This is the main use case for this module.  
 
+## Alternatives
+
 But why yet another tool for such a standard job?  
 
-There is a massive list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
+There is a list of great tools and frameworks where condition parsing is a (small) part of them, e.g. [pyke](http://pyke.sourceforge.net/) or [durable](https://pypi.python.org/pypi/durable_rules) and many in the django world or from SQL statement parsers.
 
-## pycond Reasons to exist
 
 `1.` I just needed a very **slim** tool for only the parsing into functions - but this pretty transparent and customizable
 
@@ -127,7 +128,9 @@ All evaluation is done via [partials](https://stackoverflow.com/a/3252425/458336
 programmers but also synthesisable from structured data, e.g. from a web framework.
 
 
-`3.` Performance: Good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY). With the current feature set we are (only) a factor 2-3 slower, compared to handcrafted list comprehensions.
+`3.` Performance: Good enough to have "pyconditions" used within [stream filters](https://github.com/ReactiveX/RxPY).
+With the current feature set we are sometimes a factor 2-3 worse but (due to lazy eval) often better,
+compared with handcrafted list comprehensions.
 
 
 # Mechanics
@@ -165,7 +168,7 @@ available:
 f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
-# Structured Conditions
+## Structured Conditions
 
 Other processes may deliver condition structures via serializable formats (e.g. json).
 If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
@@ -180,7 +183,7 @@ assert pc.pycond(cond)(state={'a': 'b'}) == True
 The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
 How state is evaluated is customizable at build and run time.
 
-### Default Lookup
+## Default Lookup
 The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
 
 ```python
@@ -194,7 +197,7 @@ assert f() == True
 (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
-### Passing Custom State
+## Passing Custom State
 
 Use the state argument at evaluation:
 ```python
@@ -203,7 +206,7 @@ assert pc.pycond('a gt 2')(state={'a': 42}) == True
 assert pc.pycond('a gt 2')(state={'a': -2}) == False
 ```
 
-### Custom Lookup And Value Passing
+## Custom Lookup And Value Passing
 
 You can supply your own function for value acquisition.
 - Signature: See example.
@@ -234,7 +237,7 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get
 function.
 
-### Lazy Evaluation
+## Lazy Evaluation
 
 This is avoiding unnecessary calculations in many cases:
 
@@ -303,7 +306,7 @@ pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
 assert pc.pycond('[ foo and bar and not baz]')() == True
 ```
 
-#### Condition Operators
+## Condition Operators
 
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
 are available by default:
@@ -379,7 +382,7 @@ for k in 'nr', 'str':
         
 
 
-##### Using Symbolic Operators
+### Using Symbolic Operators
 
 By default pycond uses text style operators.
 
@@ -405,7 +408,7 @@ except:
 > Operator namespace(s) should be assigned at process start, they are global.
 
 
-##### Extending Condition Operators
+### Extending Condition Operators
 
 ```python
 
@@ -414,7 +417,7 @@ pc.OPS['maybe'] = lambda a, b: int(time.time()) % 2
 assert pc.pycond('a maybe b')() in (True, False)
 ```
 
-#### Negation `not`
+### Negation `not`
 
 Negates the result of the condition operator:
 
@@ -425,7 +428,7 @@ assert pc.pycond('foo eq abc')() == True
 assert pc.pycond('foo not eq abc')() == False
 ```
 
-#### Reversal `rev`
+### Reversal `rev`
 
 Reverses the arguments before calling the operator
 ```python
@@ -438,9 +441,9 @@ assert pc.pycond('foo rev contains abc')() == True
 
 > `rev` and `not` can be combined in any order.
 
-##### Wrapping Condition Operators
+### Wrapping Condition Operators
 
-##### Global Wrapping
+#### Global Wrapping
 You may globally wrap all evaluation time condition operations through a custom function:
 
 
@@ -465,7 +468,7 @@ pc.ops_use_symbolic_and_txt()
 
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-##### Condition Local Wrapping
+#### Condition Local Wrapping
 
 This is done through the `ops_thru` parameter as shown:
 
@@ -485,7 +488,7 @@ assert f() == True
 > can add breakpoints or loggers there.
 
 
-### Combining Operations
+## Combining Operations
 
 You can combine single conditions with
 - `and`
@@ -505,7 +508,7 @@ Combined conditions may be arbitrarily nested using brackets "[" and "]".
 > Via the `brkts` config parameter you may change those to other separators at build time.
 
 
-## Tokenizing
+## Tokenizing Details
 
 
 > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
@@ -514,7 +517,7 @@ Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 The tokenizers job is to take apart expression strings for the builder.
 
-#### Separator `sep`
+### Separator `sep`
 
 Separates the different parts of an expression. Default is ' '.
 
@@ -538,7 +541,7 @@ assert (
 > The condition functions themselves do not evaluate equal - those
 > had been assembled two times.
 
-#### Apostrophes
+### Apostrophes
 
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
 
@@ -550,7 +553,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 
 
 
-#### Escaping
+### Escaping
 
 Tell the tokenizer to not interpret the next character:
 
@@ -561,7 +564,7 @@ assert pc.pycond('b eq Hello\ World')() == True
 ```
 
 
-## Building
+### Building
 
 ### Autoconv: Casting of values into python simple types
 
@@ -588,7 +591,8 @@ for id in '1', 1:
     pc.State['id'] = id
     assert pc.pycond('id lt 42', autoconv_lookups=True)
 ```
-## Context On Demand And Lazy Evaluation
+
+# Context On Demand And Lazy Evaluation
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -706,7 +710,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2073
+Calc.Time 0.2021
 
 ```
 
@@ -747,7 +751,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.102
+Calc.Time (only one expensive calculation): 0.101
 
 ```
 
@@ -757,4 +761,4 @@ Calc.Time (only one expensive calculation): 0.102
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/904730daa335a419e7765d618b127b0a5288b07e/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/a3b5fc226dd060ce9b02eac30e9c5faefb69b5c3/tests/test_tutorial.py
