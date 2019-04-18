@@ -9,8 +9,6 @@
 
 <!-- badges: http://thomas-cokelaer.info/blog/2014/08/1013/ -->
 
-[TOC]
-
 - [TODO](#todo)
 - [What](#what)
 - [Why](#why)
@@ -46,12 +44,6 @@
         - [Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
 - [Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
 
-
-# TODO
-
-- `safe_eval` option, wrapping atomic eval
-- lazy
-- single_eq
 
 
 # What
