@@ -1,10 +1,14 @@
-# pycond
+# pycond: Lightweight Declarative Condition Expressions
 
+[![Build Status](https://travis-ci.org/axiros/pycond.svg?branch=master)](https://travis-ci.org/axiros/pycond) [![codecov](https://codecov.io/gh/axiros/pycond/branch/master/graph/badge.svg)](https://codecov.io/gh/axiros/pycond)[![PyPI    version][pypisvg]][pypi] [![][blacksvg]][black]
 
-[![Build Status](https://travis-ci.org/axiros/pycond.svg?branch=master)](https://travis-ci.org/axiros/pycond)
+[blacksvg]: https://img.shields.io/badge/code%20style-black-000000.svg
+[black]: https://github.com/ambv/black
+[pypisvg]: https://img.shields.io/pypi/v/pycond.svg
+[pypi]: https://badge.fury.io/py/pycond
 
+<!-- badges: http://thomas-cokelaer.info/blog/2014/08/1013/ -->
 
-Lightweight condition expression parsing and building of evaluation functions.
 
 - [TODO](#todo)
 - [What](#what)
@@ -17,7 +21,7 @@ Lightweight condition expression parsing and building of evaluation functions.
     - [Evaluation](#evaluation)
         - [Default Lookup](#default-lookup)
         - [Passing Custom State](#passing-custom-state)
-        - [Custom Lookup & Value Passing](#custom-lookup-value-passing)
+        - [Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
         - [Lazy Evaluation](#lazy-evaluation)
     - [Building Conditions From Text](#building-conditions-from-text)
         - [Grammar](#grammar)
@@ -39,7 +43,7 @@ Lightweight condition expression parsing and building of evaluation functions.
             - [Escaping](#escaping)
     - [Building](#building)
         - [Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-    - [Context On Demand / Lazy Evaluation](#context-on-demand-lazy-evaluation)
+    - [Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
 
 
 # TODO
@@ -199,7 +203,7 @@ assert pc.pycond('a gt 2')(state={'a': 42}) == True
 assert pc.pycond('a gt 2')(state={'a': -2}) == False
 ```
 
-### Custom Lookup & Value Passing
+### Custom Lookup And Value Passing
 
 You can supply your own function for value acquisition.
 - Signature: See example.
@@ -584,7 +588,7 @@ for id in '1', 1:
     pc.State['id'] = id
     assert pc.pycond('id lt 42', autoconv_lookups=True)
 ```
-## Context On Demand / Lazy Evaluation
+## Context On Demand And Lazy Evaluation
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -677,15 +681,13 @@ f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
 # this key stores the context builder function
 make_ctx = nfos['complete_ctx']
 
-t0 = time.time()
 # now we get (incomplete) data..
 data1 = {'group_type': 'xxx'}, False
 data2 = {'group_type': 'lab'}, True
 
+t0 = time.time()
 for event, expected in data1, data2:
-    make_ctx(event)
-    print('Completed data:', event)
-    assert pc.pycond(cond)(state=event) == expected
+    assert pc.pycond(cond)(state=make_ctx(event)) == expected
 
 print('Calc.Time', round(time.time() - t0, 4))
 ```
@@ -696,21 +698,20 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Completed data: {'group_type': 'xxx', 'clients': 0, 'cur_hour': 4, 'cur_q': 0.1, 'delta_q': 1, 'dt_last_enforce': 10000000}
 Calculating clients
 Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Completed data: {'group_type': 'lab', 'clients': 0, 'cur_hour': 4, 'cur_q': 0.1, 'delta_q': 1, 'dt_last_enforce': 10000000}
-Calc.Time 0.2024
+Calc.Time 0.2016
 
 ```
 
 But we can do better - we still calculated values for keys which might be
 only needed in dead ends of a lazily evaluated condition.
 
-Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-function) feature.
+Lets avoid calculating these values, remembering the
+[custom lookup function](#custom-lookup-and-value-passing) feature.
 
 
 > pycond does generate such a custom lookup function readily for you,
@@ -722,11 +723,11 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 # we let pycond generate the lookup function now:
 f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
 
-t0 = time.time()
-# now we get (incomplete) data..
+# Same events as above:
 data1 = {'group_type': 'xxx'}, False
 data2 = {'group_type': 'lab'}, True
 
+t0 = time.time()
 for event, expected in data1, data2:
     # we will lookup only once:
     assert f(state=event) == expected
@@ -743,7 +744,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1004
+Calc.Time (only one expensive calculation): 0.1005
 
 ```
 
@@ -753,4 +754,4 @@ Calc.Time (only one expensive calculation): 0.1004
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/043003aa415189d7ca90bd4099d19119890165b7/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/09eace5f0d3e82944013844c24c9e8a5ee8fe871/tests/test_tutorial.py
