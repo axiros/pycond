@@ -1,10 +1,14 @@
-# pycond
+# pycond: Lightweight Declarative Condition Expressions
 
+[![Build Status](https://travis-ci.org/axiros/pycond.svg?branch=master)](https://travis-ci.org/axiros/pycond) [![codecov](https://codecov.io/gh/axiros/pycond/branch/master/graph/badge.svg)](https://codecov.io/gh/axiros/pycond)[![PyPI    version][pypisvg]][pypi] [![][blacksvg]][black]
 
-[![Build Status](https://travis-ci.org/axiros/pycond.svg?branch=master)](https://travis-ci.org/axiros/pycond)
+[blacksvg]: https://img.shields.io/badge/code%20style-black-000000.svg
+[black]: https://github.com/ambv/black
+[pypisvg]: https://img.shields.io/pypi/v/pycond.svg
+[pypi]: https://badge.fury.io/py/pycond
 
+<!-- badges: http://thomas-cokelaer.info/blog/2014/08/1013/ -->
 
-Lightweight condition expression parsing and building of evaluation functions.
 
 [TOC]
 
