@@ -21,7 +21,7 @@
 
 # What
 
-You have a bunch of data...
+You have a bunch of data, possibly streaming...
 
 ```csv
 id,first_name,last_name,email,gender,ip_address
