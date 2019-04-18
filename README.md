@@ -665,7 +665,7 @@ class ApiCtxFuncs:
         return 10000000
 
     def delta_q(ctx):
-        print('Calculating delta_q')
+        print('Calculating (expensive) delta_q')
         time.sleep(0.1)
         return 1
 
@@ -677,15 +677,16 @@ f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
 # this key stores the context builder function
 make_ctx = nfos['complete_ctx']
 
-# now we get (incomplete) data..
-data = {'group_type': 'lab'}
-
-make_ctx(data)
-print('Completed data:', data)
-
-# will now work:
 t0 = time.time()
-assert pc.pycond(cond)(state=data) == True
+# now we get (incomplete) data..
+data1 = {'group_type': 'xxx'}, False
+data2 = {'group_type': 'lab'}, True
+
+for event, expected in data1, data2:
+    make_ctx(event)
+    print('Completed data:', event)
+    assert pc.pycond(cond)(state=event) == expected
+
 print('Calc.Time', round(time.time() - t0, 4))
 ```
 Output:
@@ -693,10 +694,16 @@ Output:
 Calculating clients
 Calculating cur_hour
 Calculating cur_q
-Calculating delta_q
+Calculating (expensive) delta_q
+Calculating dt_last_enforce
+Completed data: {'group_type': 'xxx', 'clients': 0, 'cur_hour': 4, 'cur_q': 0.1, 'delta_q': 1, 'dt_last_enforce': 10000000}
+Calculating clients
+Calculating cur_hour
+Calculating cur_q
+Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Completed data: {'group_type': 'lab', 'clients': 0, 'cur_hour': 4, 'cur_q': 0.1, 'delta_q': 1, 'dt_last_enforce': 10000000}
-Calc.Time 0.0005
+Calc.Time 0.2024
 
 ```
 
@@ -711,14 +718,32 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 ```python
 
+
+# we let pycond generate the lookup function now:
 f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
+
 t0 = time.time()
-assert f(state={'group_type': 'xxx'}) == False
-print('Calc.Time', round(time.time() - t0, 4))
+# now we get (incomplete) data..
+data1 = {'group_type': 'xxx'}, False
+data2 = {'group_type': 'lab'}, True
+
+for event, expected in data1, data2:
+    # we will lookup only once:
+    assert f(state=event) == expected
+
+print(
+    'Calc.Time (only one expensive calculation):',
+    round(time.time() - t0, 4),
+)
 ```
 Output:
 ```
-Calc.Time 0.0
+Calculating cur_q
+Calculating (expensive) delta_q
+Calculating dt_last_enforce
+Calculating cur_hour
+Calculating clients
+Calc.Time (only one expensive calculation): 0.1004
 
 ```
 
@@ -728,4 +753,4 @@ Calc.Time 0.0
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/b5193ea11978c556838d186d1766e7ab50b15335/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/043003aa415189d7ca90bd4099d19119890165b7/tests/test_tutorial.py

@@ -524,7 +524,7 @@ class Test1:
                     return 10000000
 
                 def delta_q(ctx):
-                    print('Calculating delta_q')
+                    print('Calculating (expensive) delta_q')
                     time.sleep(0.1)
                     return 1
 
@@ -536,15 +536,16 @@ class Test1:
             # this key stores the context builder function
             make_ctx = nfos['complete_ctx']
 
-            # now we get (incomplete) data..
-            data = {'group_type': 'lab'}
-
-            make_ctx(data)
-            print('Completed data:', data)
-
-            # will now work:
             t0 = time.time()
-            assert pc.pycond(cond)(state=data) == True
+            # now we get (incomplete) data..
+            data1 = {'group_type': 'xxx'}, False
+            data2 = {'group_type': 'lab'}, True
+
+            for event, expected in data1, data2:
+                make_ctx(event)
+                print('Completed data:', event)
+                assert pc.pycond(cond)(state=event) == expected
+
             print('Calc.Time', round(time.time() - t0, 4))
             return cond, ApiCtxFuncs
 
@@ -563,12 +564,23 @@ class Test1:
         """
 
         def f15_2():
-            f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
-            t0 = time.time()
-            assert f(state={'group_type': 'xxx'}) == False
-            print('Calc.Time', round(time.time() - t0, 4))
 
-        assert 'Calculating' not in str(p2m.Printed.stdout)
+            # we let pycond generate the lookup function now:
+            f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
+
+            t0 = time.time()
+            # now we get (incomplete) data..
+            data1 = {'group_type': 'xxx'}, False
+            data2 = {'group_type': 'lab'}, True
+
+            for event, expected in data1, data2:
+                # we will lookup only once:
+                assert f(state=event) == expected
+
+            print(
+                'Calc.Time (only one expensive calculation):',
+                round(time.time() - t0, 4),
+            )
 
         """
         The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.

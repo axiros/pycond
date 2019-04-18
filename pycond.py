@@ -373,7 +373,7 @@ def lookup_from_provider(provider):
     def _lookup(k, v, state, provider):
         kv = state.get(k, nil)
         if kv == nil:
-            kv = state[k] = getattr(builder, k)(ctx)
+            kv = state[k] = getattr(provider, k)(state)
         return kv, v
 
     return partial(_lookup, provider=provider)
