@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 190422
+version: 190423
 
 ---
 
@@ -167,7 +167,6 @@ Output:
 
 
 
-
 ## <a href="#toc6">Building</a>
 After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
 The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
@@ -248,9 +247,6 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'}, 'user': 'eve', 'model': {'eve': {'last_host': 'somehost'}}}
 ```
 
-
-
-
 > as you can see in the example, the state parameter is just a convention
 for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get]<SRC>
 function.
@@ -287,9 +283,6 @@ Output:
 ```
 ['a', 'foo']
 ```
-
-
-[a eq b] or foo eq bar and baz eq bar', lookup=myge  
 
 ## <a href="#toc13">Building Conditions From Text</a>
 
@@ -404,7 +397,6 @@ for k in 'nr', 'str':
 
 
 
-
 ### <a href="#toc17">Using Symbolic Operators</a>
 
 By default pycond uses text style operators.
@@ -465,7 +457,6 @@ assert pc.pycond('foo rev contains abc')() == True
 ```
 
 
-
 > `rev` and `not` can be combined in any order.
 
 ### <a href="#toc21">Wrapping Condition Operators</a>
@@ -494,9 +485,6 @@ pc.ops_use_symbolic_and_txt()
 ```
 
 
-
-
-
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
 #### <a href="#toc23">Condition Local Wrapping</a>
@@ -514,7 +502,6 @@ assert f() == False
 f = pc.pycond('a eq 2', ops_thru=myhk)
 assert f() == True
 ```
-
 
 
 > Using `ops_thru` is a good way to debug unexpected results, since you
@@ -751,30 +738,8 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2053
+Calc.Time 0.2015
 ```
-
-and'  
-and'  
-and'  
-and'  
-or'  
-and'  
-and'  
-and'  
-
-
-Won't run since contained in example data  
-
-
-
-
-
-
-
-
-
-
 
 
 But we can do better - we still calculated values for keys which might be
@@ -814,13 +779,8 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.104
+Calc.Time (only one expensive calculation): 0.1021
 ```
-
-
-
-
-Calc.Time (only one expensive calculation):'  
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
 
