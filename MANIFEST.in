@@ -1,0 +1,4 @@
+include README.md
+include .README.tmpl.md
+include LICENSE
+include licenses/*

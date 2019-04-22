@@ -17,10 +17,15 @@ HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.md')) as fd:
     md = fd.read()
 
+for f in (HERE + '/.README.tmpl.md',):
+    with open(f) as fd:
+        version = fd.read().split('version:', 1)[1].split('\n', 1)[0]
+        version = version.strip()
+
 
 setup(
     name='pycond',
-    version='20190417',
+    version=version,
     description='Lightweight Condition Parsing and Building of Evaluation Expressions',
     long_description=md,
     long_description_content_type='text/markdown',

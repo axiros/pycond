@@ -13,9 +13,8 @@ import sys
 
 
 # py2.7 compat:
-breakpoint = p2m.breakpoint
 
-here, fn = p2m.setup(__file__, fn_target_md='../README.md')
+p2m = p2m.P2M(__file__, fn_target_md='README.md')
 
 # parametrizing the shell run results (not required here):
 # run = partial(p2m.bash_run, no_cmd_path=True)
@@ -593,4 +592,4 @@ class Test1:
         """
 
         p2m.md_from_source_code()
-        p2m.write_readme(with_source_ref=True, make_toc=True)
+        p2m.write_markdown(with_source_ref=True, make_toc=True)

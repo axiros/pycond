@@ -1,3 +1,11 @@
+---
+
+author: gk
+version: 190422
+
+---
+
+
 # pycond: Lightweight Declarative Condition Expressions
 
 [![Build Status](https://travis-ci.org/axiros/pycond.svg?branch=master)](https://travis-ci.org/axiros/pycond) [![codecov](https://codecov.io/gh/axiros/pycond/branch/master/graph/badge.svg)](https://codecov.io/gh/axiros/pycond)[![PyPI    version][pypisvg]][pypi] [![][blacksvg]][black]
@@ -10,10 +18,9 @@
 <!-- badges: http://thomas-cokelaer.info/blog/2014/08/1013/ -->
 
 
-<hr/>
+<!-- TOC -->
 
 # Table Of Contents
-
 
 - <a name="toc1"></a>[What](#what)
 - <a name="toc2"></a>[Why](#why)
@@ -49,11 +56,12 @@
         - <a name="toc32"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
 - <a name="toc33"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
 
+<!-- TOC -->
 
 
 # <a href="#toc1">What</a>
 
-You have a bunch of data...
+You have a bunch of data, possibly streaming...
 
 ```csv
 id,first_name,last_name,email,gender,ip_address
@@ -136,23 +144,27 @@ compared with handcrafted list comprehensions.
 <!-- md_links_for: github -->
 <!-- autogen tutorial -->
 
+
 ## <a href="#toc5">Parsing</a>
 pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
 The result of the tokenizer is given to the builder.
+  
 
 ```python
-
 import pycond as pc
 
 cond = '[a eq b and [c lt 42 or foo eq bar]]'
 cond = pc.to_struct(pc.tokenize(cond, sep=' ', brkts='[]'))
 print(cond)
+return cond
 ```
 Output:
-```
-[['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
 
 ```
+[['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
+```
+
+
 
 
 
@@ -160,22 +172,24 @@ Output:
 After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
 The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
 available:
+  
 
 ```python
-
 f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
+
 ## <a href="#toc7">Structured Conditions</a>
 
 Other processes may deliver condition structures via serializable formats (e.g. json).
 If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+  
 
 ```python
-
 cond = [['a', 'eq', 'b'], 'or', ['c', 'in', ['foo', 'bar']]]
 assert pc.pycond(cond)(state={'a': 'b'}) == True
 ```
+
 ## <a href="#toc8">Evaluation</a>
 
 The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
@@ -183,35 +197,37 @@ How state is evaluated is customizable at build and run time.
 
 ## <a href="#toc9">Default Lookup</a>
 The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
+  
 
 ```python
-
 f = pc.pycond('foo eq bar')
 assert f() == False
 pc.State['foo'] = 'bar'
 assert f() == True
 ```
 
+
 (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
 ## <a href="#toc10">Passing Custom State</a>
 
-Use the state argument at evaluation:
-```python
+Use the state argument at evaluation:  
 
+```python
 assert pc.pycond('a gt 2')(state={'a': 42}) == True
 assert pc.pycond('a gt 2')(state={'a': -2}) == False
 ```
+
 
 ## <a href="#toc11">Custom Lookup And Value Passing</a>
 
 You can supply your own function for value acquisition.
 - Signature: See example.
 - Returns: The value for the key from the current state plus the
-  compare value for the operator function.
-```python
+  compare value for the operator function.  
 
+```python
 # must return a (key, value) tuple:
 model = {'eve': {'last_host': 'somehost'}}
 
@@ -226,13 +242,17 @@ assert f(req=req, user='joe') == False
 assert f(req=req, user='eve') == True
 ```
 Output:
+
 ```
 user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'}, 'user': 'joe', 'model': {'eve': {'last_host': 'somehost'}}}
 user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'}, 'user': 'eve', 'model': {'eve': {'last_host': 'somehost'}}}
-
 ```
+
+
+
+
 > as you can see in the example, the state parameter is just a convention
-for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get
+for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get]<SRC>
 function.
 
 ## <a href="#toc12">Lazy Evaluation</a>
@@ -243,9 +263,9 @@ When an evaluation branch contains an "and" or "and_not" combinator, then
 at runtime we evaluate the first expression - and stop if it is already
 False. That way expensive deep branch evaluations are omitted or, when
 the lookup is done lazy, the values won't be even fetched:
+  
 
 ```python
-
 evaluated = []
 
 def myget(key, val, cfg, state=None, **kw):
@@ -263,10 +283,14 @@ assert evaluated == ['a', 'foo']
 print(evaluated)
 ```
 Output:
-```
-['a', 'foo']
 
 ```
+['a', 'foo']
+```
+
+
+[a eq b] or foo eq bar and baz eq bar', lookup=myge  
+
 ## <a href="#toc13">Building Conditions From Text</a>
 
 Condition functions are created internally from structured expressions -
@@ -297,20 +321,21 @@ def truthy(key, val=None):
 ```
 
 so such an expression is valid and True:
+  
 
 ```python
-
 pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
 assert pc.pycond('[ foo and bar and not baz]')() == True
 ```
+
 
 ## <a href="#toc16">Condition Operators</a>
 
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
 are available by default:
+  
 
 ```python
-
 from pytest2md import html_table as tbl  # just a table gen.
 from pycond import get_ops
 
@@ -318,7 +343,6 @@ for k in 'nr', 'str':
     s = 'Default supported ' + k + ' operators...(click to extend)'
     print(tbl(get_ops()[k], [k + ' operator', 'alias'], summary=s))
 ```
-
 
 <details>
         <summary>Default supported nr operators...(click to extend)</summary>
@@ -363,7 +387,6 @@ for k in 'nr', 'str':
         
 
 
-
 <details>
         <summary>Default supported str operators...(click to extend)</summary>
         <table>
@@ -380,15 +403,17 @@ for k in 'nr', 'str':
         
 
 
+
+
 ### <a href="#toc17">Using Symbolic Operators</a>
 
 By default pycond uses text style operators.
 
 - `ops_use_symbolic` switches processwide to symbolic style only.
 - `ops_use_symbolic_and_txt` switches processwide to both notations allowed.
+  
 
 ```python
-
 pc.ops_use_symbolic()
 pc.State['foo'] = 'bar'
 assert pc.pycond('foo == bar')() == True
@@ -403,39 +428,43 @@ except:
     assert pc.pycond('foo != baz')() == True
 ```
 
+
 > Operator namespace(s) should be assigned at process start, they are global.
 
 
 ### <a href="#toc18">Extending Condition Operators</a>
+  
 
 ```python
-
 pc.OPS['maybe'] = lambda a, b: int(time.time()) % 2
 # valid expression now:
 assert pc.pycond('a maybe b')() in (True, False)
 ```
 
+
 ### <a href="#toc19">Negation `not`</a>
 
 Negates the result of the condition operator:
+  
 
 ```python
-
 pc.State['foo'] = 'abc'
 assert pc.pycond('foo eq abc')() == True
 assert pc.pycond('foo not eq abc')() == False
 ```
 
+
 ### <a href="#toc20">Reversal `rev`</a>
 
-Reverses the arguments before calling the operator
+Reverses the arguments before calling the operator  
+
 ```python
-
-
 pc.State['foo'] = 'abc'
 assert pc.pycond('foo contains a')() == True
 assert pc.pycond('foo rev contains abc')() == True
 ```
+
+
 
 > `rev` and `not` can be combined in any order.
 
@@ -444,9 +473,9 @@ assert pc.pycond('foo rev contains abc')() == True
 #### <a href="#toc22">Global Wrapping</a>
 You may globally wrap all evaluation time condition operations through a custom function:
 
+  
 
 ```python
-
 l = []
 
 def hk(f_op, a, b, l=l):
@@ -464,14 +493,18 @@ assert l == expected_log
 pc.ops_use_symbolic_and_txt()
 ```
 
+
+
+
+
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
 #### <a href="#toc23">Condition Local Wrapping</a>
 
 This is done through the `ops_thru` parameter as shown:
+  
 
 ```python
-
 def myhk(f_op, a, b):
     return True
 
@@ -481,6 +514,8 @@ assert f() == False
 f = pc.pycond('a eq 2', ops_thru=myhk)
 assert f() == True
 ```
+
+
 
 > Using `ops_thru` is a good way to debug unexpected results, since you
 > can add breakpoints or loggers there.
@@ -518,48 +553,52 @@ The tokenizers job is to take apart expression strings for the builder.
 ### <a href="#toc28">Separator `sep`</a>
 
 Separates the different parts of an expression. Default is ' '.
+  
 
 ```python
-
 pc.State['a'] = 42
 assert pc.pycond('a.eq.42', sep='.')() == True
 ```
+
 > sep can be a any single character including binary.
 
 Bracket characters do not need to be separated, the tokenizer will do:
+  
 
 ```python
-
 # equal:
 assert (
     pc.pycond('[[a eq 42] and b]')()
     == pc.pycond('[ [ a eq 42 ] and b ]')()
 )
 ```
+
 > The condition functions themselves do not evaluate equal - those
 > had been assembled two times.
 
 ### <a href="#toc29">Apostrophes</a>
 
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
+  
 
 ```python
-
 pc.State['a'] = 'Hello World'
 assert pc.pycond('a eq "Hello World"')() == True
 ```
 
 
 
+
 ### <a href="#toc30">Escaping</a>
 
 Tell the tokenizer to not interpret the next character:
+  
 
 ```python
-
 pc.State['b'] = 'Hello World'
 assert pc.pycond('b eq Hello\ World')() == True
 ```
+
 
 
 ### <a href="#toc31">Building</a>
@@ -569,9 +608,9 @@ assert pc.pycond('b eq Hello\ World')() == True
 Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
 
 This can be prevented by setting the `autoconv` parameter to `False` or by using Apostrophes:
+  
 
 ```python
-
 pc.State['a'] = '42'
 assert pc.pycond('a eq 42')() == False
 # compared as string now
@@ -580,15 +619,17 @@ assert pc.pycond('a eq "42"')() == True
 assert pc.pycond('a eq 42', autoconv=False)() == True
 ```
 
+
 If you do not want to provide a custom lookup function (where you can do what you want)
 but want to have looked up keys autoconverted then use:
+  
 
 ```python
-
 for id in '1', 1:
     pc.State['id'] = id
     assert pc.pycond('id lt 42', autoconv_lookups=True)
 ```
+
 
 # <a href="#toc33">Context On Demand And Lazy Evaluation</a>
 
@@ -604,9 +645,9 @@ are available to build the ctx.
 
 `pycon` will return a context builder function for you, calling only those functions
 which the condition actually requires.
+  
 
 ```python
-
 pc.ops_use_symbolic_and_txt(allow_single_eq=True)
 
 # Condition the end user configured, e.g. at program run time:
@@ -695,22 +736,46 @@ for event, expected in data1, data2:
     assert pc.pycond(cond)(state=make_ctx(event)) == expected
 
 print('Calc.Time', round(time.time() - t0, 4))
+return cond, ApiCtxFuncs
 ```
 Output:
-```
-Calculating clients
-Calculating cur_hour
-Calculating cur_q
-Calculating (expensive) delta_q
-Calculating dt_last_enforce
-Calculating clients
-Calculating cur_hour
-Calculating cur_q
-Calculating (expensive) delta_q
-Calculating dt_last_enforce
-Calc.Time 0.2017
 
 ```
+Calculating clients
+Calculating cur_hour
+Calculating cur_q
+Calculating (expensive) delta_q
+Calculating dt_last_enforce
+Calculating clients
+Calculating cur_hour
+Calculating cur_q
+Calculating (expensive) delta_q
+Calculating dt_last_enforce
+Calc.Time 0.2053
+```
+
+and'  
+and'  
+and'  
+and'  
+or'  
+and'  
+and'  
+and'  
+
+
+Won't run since contained in example data  
+
+
+
+
+
+
+
+
+
+
+
 
 But we can do better - we still calculated values for keys which might be
 only needed in dead ends of a lazily evaluated condition.
@@ -721,10 +786,9 @@ Lets avoid calculating these values, remembering the
 
 > pycond does generate such a custom lookup function readily for you,
 > if you pass a getter namespace as `lookup_provider`:
+  
 
 ```python
-
-
 # we let pycond generate the lookup function now:
 f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
 
@@ -743,20 +807,24 @@ print(
 )
 ```
 Output:
+
 ```
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1005
-
+Calc.Time (only one expensive calculation): 0.104
 ```
 
-*Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [test_tutorial.py][test_tutorial.py]*
+
+
+
+Calc.Time (only one expensive calculation):'  
+
+The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
+
+
+*Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [test_tutorial.py]<SRC>*
 
 <!-- autogen tutorial -->
-
-
-<!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/a2de4bd5557e7cc2370fa6d14446bedf338f1318/tests/test_tutorial.py
