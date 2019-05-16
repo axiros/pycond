@@ -210,19 +210,21 @@ class Test1:
             assert pc.pycond('[ foo and bar and not baz]')() == True
 
         """
-        - When `not lookup_key` is given, then `co` is set to `eq`
-          function and `value` to `None`:
-
+        - When `not lookup_key` is given, then `co` is set to the `falsy`
+          function:
 
         """
 
         def f4_11():
-            m = {'x': 'y'}
+            m = {'x': 'y', 'falsy_val': {}}
+            # normal way
             assert pc.pycond(['foo', 'eq', None])(state=m) == True
-            assert pc.pycond(['not', 'foo'])(state=m) == True
+            # using "not" as prefix:
             assert pc.pycond('not foo')(state=m) == True
+            assert pc.pycond(['not', 'foo'])(state=m) == True
+            assert pc.pycond('not falsy_val')(state=m) == True
             assert pc.pycond('x and not foo')(state=m) == True
-            assert pc.pycond('y and not foo')(state=m) == False
+            assert pc.pycond('y and not falsy_val')(state=m) == False
 
         """
         ## Condition Operators

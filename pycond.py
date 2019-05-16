@@ -83,6 +83,9 @@ def truthy(k, v=None):
     return operator.truth(k)
 
 
+falsy = lambda k, v=None: not truthy(k, v)
+
+
 def _in(a, b):
     return a in b
 
@@ -93,6 +96,7 @@ def get_ops():
 
 def add_built_in_ops():
     OPS['truthy'] = truthy
+    OPS['falsy'] = falsy
     OPS['in'] = _in
 
 
@@ -268,8 +272,8 @@ def atomic_cond(cond, cfg, nfo):
         cond.insert(0, 'truthy')
     elif len(cond) == 1 and key == 'not':
         key = cond.pop(0)
-        cond.insert(0, None)
-        cond.insert(0, 'eq')
+        cond.insert(0, 0)
+        cond.insert(0, 'falsy')
 
     nfo['keys'].add(key)
 

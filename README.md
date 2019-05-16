@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 190519
+version: 190520
 
 ---
 
@@ -338,18 +338,20 @@ pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
 assert pc.pycond('[ foo and bar and not baz]')() == True
 ```
 
-- When `not lookup_key` is given, then `co` is set to `eq`
-  function and `value` to `None`:
-
+- When `not lookup_key` is given, then `co` is set to the `falsy`
+  function:
   
 
 ```python
-m = {'x': 'y'}
+m = {'x': 'y', 'falsy_val': {}}
+# normal way
 assert pc.pycond(['foo', 'eq', None])(state=m) == True
-assert pc.pycond(['not', 'foo'])(state=m) == True
+# using "not" as prefix:
 assert pc.pycond('not foo')(state=m) == True
+assert pc.pycond(['not', 'foo'])(state=m) == True
+assert pc.pycond('not falsy_val')(state=m) == True
 assert pc.pycond('x and not foo')(state=m) == True
-assert pc.pycond('y and not foo')(state=m) == False
+assert pc.pycond('y and not falsy_val')(state=m) == False
 ```
 
 ## <a href="#toc17">Condition Operators</a>
@@ -768,7 +770,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2047
+Calc.Time 0.2076
 ```
 
 
@@ -821,4 +823,4 @@ The output demonstrates that we did not even call the value provider functions f
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/464c1da433fb8a2c61c8c3d82c95e65d54994b62/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/8dd15f29d800f42b46105291b8802fed76b59852/tests/test_tutorial.py
