@@ -98,6 +98,24 @@ class Test1:
             assert pc.pycond('a gt 2')(state={'a': -2}) == False
 
         """
+        ## Deep Lookup / Nested State
+
+        You may supply a path seperator for diving into nested structures like so:
+
+        """
+
+        def f2_2():
+            m = {'a': {'b': [{'c': 1}]}}
+            assert (
+                pc.pycond([('a', 'b', 0, 'c'), 'eq', 1], deep='.')(state=m)
+                == True
+            )
+
+            assert pc.pycond('a.b.0.c', deep='.')(state=m) == True
+            assert pc.pycond('a.b.1.c', deep='.')(state=m) == False
+            assert pc.pycond('a.b.0.c eq 1', deep='.')(state=m) == True
+
+        """
 
         ## Custom Lookup And Value Passing
 
@@ -175,10 +193,9 @@ class Test1:
         ### Atomic Conditions
 
         ```
-        <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
+        [not] <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
         ```
-        When just `lookup_key` is given, then `co` is set to the `truthy` function:
-
+        - When just `lookup_key` is given, then `co` is set to the `truthy` function:
         ```python
         def truthy(key, val=None):
             return operatur.truth(k)
@@ -193,7 +210,21 @@ class Test1:
             assert pc.pycond('[ foo and bar and not baz]')() == True
 
         """
+        - When `not lookup_key` is given, then `co` is set to `eq`
+          function and `value` to `None`:
 
+
+        """
+
+        def f4_11():
+            m = {'x': 'y'}
+            assert pc.pycond(['foo', 'eq', None])(state=m) == True
+            assert pc.pycond(['not', 'foo'])(state=m) == True
+            assert pc.pycond('not foo')(state=m) == True
+            assert pc.pycond('x and not foo')(state=m) == True
+            assert pc.pycond('y and not foo')(state=m) == False
+
+        """
         ## Condition Operators
 
         All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)

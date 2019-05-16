@@ -149,9 +149,31 @@ FALSES = (None, False, '', 0, {}, [], ())
 State = {}
 
 
+def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
+    # key maybe already path tuple - or string with deep as seperator:
+    parts = key.split(deep) if isinstance(key, str) else list(key)
+    while parts:
+        part = parts.pop(0)
+        try:
+            state = state.get(part)
+        except AttributeError as ex:
+            try:
+                state = state[int(part)]
+            except:
+                return None, val
+        if not state:
+            break
+    return state, val
+
+
 def state_get(key, val, cfg, state=State, **kw):
     # a lookup function can modify key AND value, i.e. returns both:
-    return state.get(key), val  # default k, v access function
+    if key == 'gkfoo':
+        breakpoint()
+    if isinstance(key, tuple):
+        return state_get_deep(key, val, cfg, state, **kw)
+    else:
+        return state.get(key), val  # default k, v access function
 
 
 def dbg_get(key, val, cfg, state=State, *a, **kw):
@@ -212,7 +234,7 @@ def parse_struct_cond(cond, cfg, nfo):
     f1 = None
     while cond:
         key = cond.pop(0)
-        if isinstance(key, str):
+        if isinstance(key, (str, tuple)):
             if f1 and key in COMB_OPS:
                 # cond: b eq bar
                 return partial(
@@ -244,6 +266,10 @@ def atomic_cond(cond, cfg, nfo):
     if len(cond) == 0:
         cond.insert(0, 0)
         cond.insert(0, 'truthy')
+    elif len(cond) == 1 and key == 'not':
+        key = cond.pop(0)
+        cond.insert(0, None)
+        cond.insert(0, 'eq')
 
     nfo['keys'].add(key)
 
@@ -334,6 +360,9 @@ def parse_cond(cond, lookup=state_get, **cfg):
     lp = cfg.get('lookup_provider')
     if lp:
         lookup = lookup_from_provider(provider=lp)
+    else:
+        if cfg.get('deep'):
+            lookup = partial(state_get_deep, deep=cfg['deep'])
 
     cfg['brkts'] = brkts = cfg.get('brkts', '[]')
 
