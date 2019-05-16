@@ -172,8 +172,6 @@ def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
 
 def state_get(key, val, cfg, state=State, **kw):
     # a lookup function can modify key AND value, i.e. returns both:
-    if key == 'gkfoo':
-        breakpoint()
     if isinstance(key, tuple):
         return state_get_deep(key, val, cfg, state, **kw)
     else:
