@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 190521
+version: 190522
 
 ---
 
@@ -234,6 +234,8 @@ assert (
 assert pc.pycond('a.b.0.c', deep='.')(state=m) == True
 assert pc.pycond('a.b.1.c', deep='.')(state=m) == False
 assert pc.pycond('a.b.0.c eq 1', deep='.')(state=m) == True
+# convencience argument for string conditions:
+assert pc.pycond('deep: a.b.0.c')(state=m) == True
 ```
 
 
@@ -770,7 +772,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.206
+Calc.Time 0.2064
 ```
 
 
@@ -811,7 +813,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1041
+Calc.Time (only one expensive calculation): 0.1058
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
@@ -823,4 +825,4 @@ The output demonstrates that we did not even call the value provider functions f
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/5c1c04c625bdfd86933292e2c69d3ce5611e1874/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/509d865d1d3c31af89a342680ad2f9018091af1d/tests/test_tutorial.py

@@ -361,22 +361,25 @@ def parse_cond(cond, lookup=state_get, **cfg):
     """ Main function.
         see tests
     """
+    cfg['brkts'] = brkts = cfg.get('brkts', '[]')
+
+    sep = cfg.pop('sep', KV_DELIM)
+    nfo = {'keys': set()}
+    if is_str(cond):
+        if cond.startswith('deep:'):
+            cond = cond.split('deep:', 1)[1].strip()
+            cfg['deep'] = '.'
+        cond = tokenize(cond, sep=sep, brkts=brkts)
+        cond = to_struct(cond, cfg['brkts'])
+    if cfg.get('get_struct'):
+        return cond, nfo
+
     lp = cfg.get('lookup_provider')
     if lp:
         lookup = lookup_from_provider(provider=lp)
     else:
         if cfg.get('deep'):
             lookup = partial(state_get_deep, deep=cfg['deep'])
-
-    cfg['brkts'] = brkts = cfg.get('brkts', '[]')
-
-    sep = cfg.pop('sep', KV_DELIM)
-    nfo = {'keys': set()}
-    if is_str(cond):
-        cond = tokenize(cond, sep=sep, brkts=brkts)
-        cond = to_struct(cond, cfg['brkts'])
-    if cfg.get('get_struct'):
-        return cond, nfo
 
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)

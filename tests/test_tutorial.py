@@ -114,6 +114,8 @@ class Test1:
             assert pc.pycond('a.b.0.c', deep='.')(state=m) == True
             assert pc.pycond('a.b.1.c', deep='.')(state=m) == False
             assert pc.pycond('a.b.0.c eq 1', deep='.')(state=m) == True
+            # convencience argument for string conditions:
+            assert pc.pycond('deep: a.b.0.c')(state=m) == True
 
         """
 
