@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 190520
+version: 190521
 
 ---
 
@@ -770,7 +770,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2076
+Calc.Time 0.206
 ```
 
 
@@ -811,7 +811,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1033
+Calc.Time (only one expensive calculation): 0.1041
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
@@ -823,4 +823,4 @@ The output demonstrates that we did not even call the value provider functions f
 
 
 <!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/8dd15f29d800f42b46105291b8802fed76b59852/tests/test_tutorial.py
+[test_tutorial.py]: https://github.com/axiros/pycond/blob/5c1c04c625bdfd86933292e2c69d3ce5611e1874/tests/test_tutorial.py
