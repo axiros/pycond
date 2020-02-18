@@ -86,7 +86,7 @@ or you have this module assemble a condition function from a declaration like:
 ```python
 from pycond import parse_cond
 cond = 'email contains .de and gender eq Male or last_name eq Scott'
-is_foo = parse_cond(cond)
+is_foo, req_keys = parse_cond(cond)
 ```
 
 and then apply as often as you need, against varying state / facts / models (...):
