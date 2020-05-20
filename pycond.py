@@ -219,9 +219,13 @@ COMB_OPS = {
 # those from user space are also replaced at tokenizing time:
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
+from ast import literal_eval
+
 
 def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
-    res = parse_struct_cond(deepcopy(cond), cfg, nfo)
+    # resolve any conditions builds using the same subcond refs many times - i.e. remove those refs can create unique items we can modify during parsing:
+    cond = literal_eval(str(cond))
+    res = parse_struct_cond(cond, cfg, nfo)
     return res
 
 
@@ -240,10 +244,7 @@ def parse_struct_cond(cond, cfg, nfo):
             if f1 and key in COMB_OPS:
                 # cond: b eq bar
                 return partial(
-                    combine,
-                    COMB_OPS[key],
-                    f1,
-                    parse_struct_cond(cond, cfg, nfo),
+                    combine, COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),
                 )
             ac = [key]
             while cond:
@@ -300,9 +301,7 @@ def atomic_cond(cond, cfg, nfo):
     if str(val).startswith('str:'):
         val = str(val[4:])
     else:
-        if cfg.get(
-            'autoconv', True
-        ):  # can do this in the build phase already:
+        if cfg.get('autoconv', True):  # can do this in the build phase already:
             val = py_type(val)  # '42' -> 42
 
     f_lookup = cfg['lookup']
@@ -315,9 +314,7 @@ def atomic_cond(cond, cfg, nfo):
 
     # try save stackframes and evaluations for the eval phase:
     if any((acl, rev_, not_)):
-        f_res = partial(
-            f_atomic_arn, f_op, fp_lookup, key, val, not_, rev_, acl
-        )
+        f_res = partial(f_atomic_arn, f_op, fp_lookup, key, val, not_, rev_, acl)
     else:
         # normal case:
         f_res = partial(f_atomic, f_op, fp_lookup, key, val)
@@ -339,9 +336,7 @@ def f_atomic(f_op, fp_lookup, key, val, **kw):
         if fp_lookup != state_get:
             msg = '. Note: A custom lookup function must return two values:'
             msg += ' The cur. value for key from state plus the compare value.'
-        raise Exception(
-            '%s. key: %s, compare val: %s%s' % (str(ex), key, val, msg)
-        )
+        raise Exception('%s. key: %s, compare val: %s%s' % (str(ex), key, val, msg))
 
 
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):

@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 190523
+version: 200520
 
 ---
 
@@ -86,7 +86,7 @@ or you have this module assemble a condition function from a declaration like:
 ```python
 from pycond import parse_cond
 cond = 'email contains .de and gender eq Male or last_name eq Scott'
-is_foo, req_keys = parse_cond(cond)
+is_foo = parse_cond(cond)
 ```
 
 and then apply as often as you need, against varying state / facts / models (...):
@@ -151,6 +151,7 @@ pycond parses the condition expressions according to a set of constraints given 
 The result of the tokenizer is given to the builder.
   
 
+
 ```python
 import pycond as pc
 
@@ -174,6 +175,7 @@ The functions are partials, i.e. not yet evaluated but information about the nec
 available:
   
 
+
 ```python
 f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
@@ -184,6 +186,7 @@ assert meta['keys'] == ['foo']
 Other processes may deliver condition structures via serializable formats (e.g. json).
 If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
   
+
 
 ```python
 cond = [['a', 'eq', 'b'], 'or', ['c', 'in', ['foo', 'bar']]]
@@ -198,6 +201,7 @@ How state is evaluated is customizable at build and run time.
 ## <a href="#toc9">Default Lookup</a>
 The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
   
+
 
 ```python
 f = pc.pycond('foo eq bar')
@@ -214,6 +218,7 @@ assert f() == True
 
 Use the state argument at evaluation:  
 
+
 ```python
 assert pc.pycond('a gt 2')(state={'a': 42}) == True
 assert pc.pycond('a gt 2')(state={'a': -2}) == False
@@ -223,6 +228,7 @@ assert pc.pycond('a gt 2')(state={'a': -2}) == False
 
 You may supply a path seperator for diving into nested structures like so:
   
+
 
 ```python
 m = {'a': {'b': [{'c': 1}]}}
@@ -245,6 +251,7 @@ You can supply your own function for value acquisition.
 - Signature: See example.
 - Returns: The value for the key from the current state plus the
   compare value for the operator function.  
+
 
 ```python
 # must return a (key, value) tuple:
@@ -280,6 +287,7 @@ at runtime we evaluate the first expression - and stop if it is already
 False. That way expensive deep branch evaluations are omitted or, when
 the lookup is done lazy, the values won't be even fetched:
   
+
 
 ```python
 evaluated = []
@@ -335,6 +343,7 @@ def truthy(key, val=None):
 so such an expression is valid and True:
   
 
+
 ```python
 pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
 assert pc.pycond('[ foo and bar and not baz]')() == True
@@ -343,6 +352,7 @@ assert pc.pycond('[ foo and bar and not baz]')() == True
 - When `not lookup_key` is given, then `co` is set to the `falsy`
   function:
   
+
 
 ```python
 m = {'x': 'y', 'falsy_val': {}}
@@ -362,6 +372,7 @@ All boolean [standardlib operators](https://docs.python.org/2/library/operator.h
 are available by default:
   
 
+
 ```python
 from pytest2md import html_table as tbl  # just a table gen.
 from pycond import get_ops
@@ -371,9 +382,10 @@ for k in 'nr', 'str':
     print(tbl(get_ops()[k], [k + ' operator', 'alias'], summary=s))
 ```
 
-<details>
-        <summary>Default supported nr operators...(click to extend)</summary>
-        <table>
+
+<details><summary>Default supported nr operators...(click to extend)</summary>
+
+<table>
 <tr><td>nr operator</td><td>alias</td></tr>
 <tr><td>add</td><td>+</td></tr>
 <tr><td>and_</td><td>&</td></tr>
@@ -410,13 +422,14 @@ for k in 'nr', 'str':
 <tr><td>itemgetter</td><td></td></tr>
 <tr><td>length_hint</td><td></td></tr>
 </table>
-        </details>
-        
+</details>
 
 
-<details>
-        <summary>Default supported str operators...(click to extend)</summary>
-        <table>
+
+
+<details><summary>Default supported str operators...(click to extend)</summary>
+
+<table>
 <tr><td>str operator</td><td>alias</td></tr>
 <tr><td>attrgetter</td><td></td></tr>
 <tr><td>concat</td><td>+</td></tr>
@@ -426,8 +439,8 @@ for k in 'nr', 'str':
 <tr><td>indexOf</td><td></td></tr>
 <tr><td>methodcaller</td><td></td></tr>
 </table>
-        </details>
-        
+</details>
+
 
 
 
@@ -438,6 +451,7 @@ By default pycond uses text style operators.
 - `ops_use_symbolic` switches processwide to symbolic style only.
 - `ops_use_symbolic_and_txt` switches processwide to both notations allowed.
   
+
 
 ```python
 pc.ops_use_symbolic()
@@ -461,6 +475,7 @@ except:
 ### <a href="#toc19">Extending Condition Operators</a>
   
 
+
 ```python
 pc.OPS['maybe'] = lambda a, b: int(time.time()) % 2
 # valid expression now:
@@ -473,6 +488,7 @@ assert pc.pycond('a maybe b')() in (True, False)
 Negates the result of the condition operator:
   
 
+
 ```python
 pc.State['foo'] = 'abc'
 assert pc.pycond('foo eq abc')() == True
@@ -483,6 +499,7 @@ assert pc.pycond('foo not eq abc')() == False
 ### <a href="#toc21">Reversal `rev`</a>
 
 Reverses the arguments before calling the operator  
+
 
 ```python
 pc.State['foo'] = 'abc'
@@ -499,6 +516,7 @@ assert pc.pycond('foo rev contains abc')() == True
 You may globally wrap all evaluation time condition operations through a custom function:
 
   
+
 
 ```python
 l = []
@@ -525,6 +543,7 @@ You may compose such wrappers via repeated application of the `run_all_ops_thru`
 
 This is done through the `ops_thru` parameter as shown:
   
+
 
 ```python
 def myhk(f_op, a, b):
@@ -576,6 +595,7 @@ The tokenizers job is to take apart expression strings for the builder.
 Separates the different parts of an expression. Default is ' '.
   
 
+
 ```python
 pc.State['a'] = 42
 assert pc.pycond('a.eq.42', sep='.')() == True
@@ -585,6 +605,7 @@ assert pc.pycond('a.eq.42', sep='.')() == True
 
 Bracket characters do not need to be separated, the tokenizer will do:
   
+
 
 ```python
 # equal:
@@ -602,6 +623,7 @@ assert (
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
   
 
+
 ```python
 pc.State['a'] = 'Hello World'
 assert pc.pycond('a eq "Hello World"')() == True
@@ -614,6 +636,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 
 Tell the tokenizer to not interpret the next character:
   
+
 
 ```python
 pc.State['b'] = 'Hello World'
@@ -631,6 +654,7 @@ Expression string values are automatically cast into bools and numbers via the p
 This can be prevented by setting the `autoconv` parameter to `False` or by using Apostrophes:
   
 
+
 ```python
 pc.State['a'] = '42'
 assert pc.pycond('a eq 42')() == False
@@ -644,6 +668,7 @@ assert pc.pycond('a eq 42', autoconv=False)() == True
 If you do not want to provide a custom lookup function (where you can do what you want)
 but want to have looked up keys autoconverted then use:
   
+
 
 ```python
 for id in '1', 1:
@@ -667,6 +692,7 @@ are available to build the ctx.
 `pycon` will return a context builder function for you, calling only those functions
 which the condition actually requires.
   
+
 
 ```python
 pc.ops_use_symbolic_and_txt(allow_single_eq=True)
@@ -772,7 +798,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.206
+Calc.Time 0.2017
 ```
 
 
@@ -786,6 +812,7 @@ Lets avoid calculating these values, remembering the
 > pycond does generate such a custom lookup function readily for you,
 > if you pass a getter namespace as `lookup_provider`:
   
+
 
 ```python
 # we let pycond generate the lookup function now:
@@ -813,16 +840,12 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1005
+Calc.Time (only one expensive calculation): 0.1002
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
 
 
-*Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [test_tutorial.py][test_tutorial.py]*
+*Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [./tests/test_tutorial.py](./tests/test_tutorial.py)
 
 <!-- autogen tutorial -->
-
-
-<!-- autogenlinks -->
-[test_tutorial.py]: https://github.com/axiros/pycond/blob/b5e39519d6da61922a9fd2253f6b0ff49d48e2da/tests/test_tutorial.py
