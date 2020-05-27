@@ -782,7 +782,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2021
+Calc.Time 0.2017
 ```
 
 
@@ -830,7 +830,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1004
+Calc.Time (only one expensive calculation): 0.1002
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
