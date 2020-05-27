@@ -15,6 +15,7 @@ import operator, sys
 import inspect
 from functools import partial
 from copy import deepcopy
+from ast import literal_eval
 
 PY2 = sys.version_info[0] == 2
 # is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
@@ -219,8 +220,6 @@ COMB_OPS = {
 # those from user space are also replaced at tokenizing time:
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
-from ast import literal_eval
-
 
 def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
     # resolve any conditions builds using the same subcond refs many times - i.e. remove those refs can create unique items we can modify during parsing:
@@ -367,12 +366,12 @@ def parse_cond(cond, lookup=state_get, **cfg):
     if cfg.get('get_struct'):
         return cond, nfo
 
+    if cfg.get('deep'):
+        lookup = partial(state_get_deep, deep=cfg['deep'])
+
     lp = cfg.get('lookup_provider')
     if lp:
-        lookup = lookup_from_provider(provider=lp)
-    else:
-        if cfg.get('deep'):
-            lookup = partial(state_get_deep, deep=cfg['deep'])
+        lookup = lookup_from_provider(lp, cfg, lookup)
 
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
@@ -399,14 +398,18 @@ def complete_ctx_data(keys, provider):
     return partial(_getter, keys=keys, provider=provider)
 
 
-def lookup_from_provider(provider):
-    def _lookup(k, v, state, provider):
-        kv = state.get(k, nil)
-        if kv == nil:
-            kv = state[k] = getattr(provider, k)(state)
+def lookup_from_provider(provider, cfg, lookup):
+    def _lookup(k, v, state, provider, cfg, lookup):
+        kv = lookup(k, v, cfg, state=state)
+        if kv[0] != None:
+            return kv
+        f = getattr(provider, k, None)
+        if not f:
+            return None, v
+        kv = state[k] = f(state)
         return kv, v
 
-    return partial(_lookup, provider=provider)
+    return partial(_lookup, provider=provider, cfg=cfg, lookup=lookup)
 
 
 def pycond(cond, *a, **cfg):

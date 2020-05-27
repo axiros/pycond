@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 200520
+version: 20200527
 
 ---
 
@@ -232,10 +232,7 @@ You may supply a path seperator for diving into nested structures like so:
 
 ```python
 m = {'a': {'b': [{'c': 1}]}}
-assert (
-    pc.pycond([('a', 'b', 0, 'c'), 'eq', 1], deep='.')(state=m)
-    == True
-)
+assert pc.pycond([('a', 'b', 0, 'c'), 'eq', 1], deep='.')(state=m) == True
 
 assert pc.pycond('a.b.0.c', deep='.')(state=m) == True
 assert pc.pycond('a.b.1.c', deep='.')(state=m) == False
@@ -297,9 +294,7 @@ def myget(key, val, cfg, state=None, **kw):
     # lets say we are false - always:
     return False, True
 
-f = pc.pycond(
-    '[a eq b] or foo eq bar and baz eq bar', lookup=myget
-)
+f = pc.pycond('[a eq b] or foo eq bar and baz eq bar', lookup=myget)
 f()
 # the value for "baz" is not even fetched and the whole (possibly
 # deep) branch after the last and is ignored:
@@ -610,8 +605,7 @@ Bracket characters do not need to be separated, the tokenizer will do:
 ```python
 # equal:
 assert (
-    pc.pycond('[[a eq 42] and b]')()
-    == pc.pycond('[ [ a eq 42 ] and b ]')()
+    pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
 )
 ```
 
@@ -704,11 +698,7 @@ cond = [
     [
         [
             [
-                [
-                    ['cur_q', '<', 0.5],
-                    'and',
-                    ['delta_q', '>=', 0.15],
-                ],
+                [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
                 'and',
                 ['dt_last_enforce', '>', 28800],
             ],
@@ -718,11 +708,7 @@ cond = [
         'or',
         [
             [
-                [
-                    ['cur_q', '<', 0.5],
-                    'and',
-                    ['delta_q', '>=', 0.15],
-                ],
+                [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
                 'and',
                 ['dt_last_enforce', '>', 28800],
             ],
@@ -741,9 +727,7 @@ class ApiCtxFuncs:
         raise Exception("Won't run with cond. from above")
 
     def group_type(ctx):
-        raise Exception(
-            "Won't run since contained in example data"
-        )
+        raise Exception("Won't run since contained in example data")
 
     def cur_q(ctx):
         print('Calculating cur_q')
@@ -798,7 +782,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2017
+Calc.Time 0.2021
 ```
 
 
@@ -815,7 +799,7 @@ Lets avoid calculating these values, remembering the
 
 
 ```python
-# we let pycond generate the lookup function now:
+# we add a deep condition and let pycond generate the lookup function:
 f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
 
 # Same events as above:
@@ -831,6 +815,12 @@ print(
     'Calc.Time (only one expensive calculation):',
     round(time.time() - t0, 4),
 )
+
+# The deep switch keeps working:
+cond2 = [cond, 'or', ['a-0-b', 'eq', 42]]
+f = pc.pycond(cond2, lookup_provider=ApiCtxFuncs, deep='-')
+data2[0]['a'] = [{'b': 42}]
+assert f(state=data2[0]) == True
 ```
 Output:
 
@@ -840,7 +830,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1002
+Calc.Time (only one expensive calculation): 0.1004
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
