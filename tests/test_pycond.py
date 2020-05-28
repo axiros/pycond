@@ -160,7 +160,7 @@ class Mechanics(T):
         assert f(req=req, user='joe') == True
         assert f(req=req, user='foo') == False
 
-    def test_custom_sep(s, cond='[[foo.eq.b ar]and not.bar.eq.foo]'):
+    def test_custom_sep(s, cond='[[foo.eq.b ar]and.not.bar.eq.foo]'):
         S['foo'] = 'b ar'
         eq(s, parse(cond, sep='.')[0](), True)
         n = '\x01'
@@ -231,9 +231,7 @@ class TestComparisonOps(T):
         eq(s, pycond('foo rev not contains axra')(), True)
         eq(s, pycond('foo rev contains axra')(), False)
         eq(
-            s,
-            pycond('foo rev contains 1,2,3,bar', lookup=val_splitting_get)(),
-            True,
+            s, pycond('foo rev contains 1,2,3,bar', lookup=val_splitting_get)(), True,
         )
         S['foo'] = 'a'
         cond = ['foo', 'rev', 'contains', [1, 'a']]
@@ -285,8 +283,7 @@ class Filtering(T):
     # argh.. py3 fails, would not find h w/o that, fuck.
     globals()['h'] = users[0].split(',')
     users = [
-        (dict([(h[i], u.split(',')[i]) for i in range(len(h))]))
-        for u in users[1:]
+        (dict([(h[i], u.split(',')[i]) for i in range(len(h))])) for u in users[1:]
     ]
     for u in users:
         u['id'] = int(u['id'])
@@ -335,9 +332,7 @@ class Filtering(T):
 
     def test_autoconv(s):
         cond = 'nr lt 5'
-        matches = [
-            u for u in s.users if pycond(cond, autoconv_lookups=True)(state=u)
-        ]
+        matches = [u for u in s.users if pycond(cond, autoconv_lookups=True)(state=u)]
         assert len(matches) == 4
 
 
@@ -448,9 +443,7 @@ class Perf(T):
 
         msg = 'One pycond run of %s levels deeply nested conditions: %.4fs '
         print(msg % (levels, dt1 / levels))
-        assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (
-            dt1 / dt2
-        )
+        assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (dt1 / dt2)
 
 
 import pycond as pc

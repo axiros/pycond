@@ -151,6 +151,7 @@ FALSES = (None, False, '', 0, {}, [], ())
 
 # default lookup of keys here - no, module does NOT need to have state.
 # its a convenience thing, see tests:
+# Discurraged to be used in non-cooperative async situations, since clearly not thread safe - just pass the state into pycond:
 State = {}
 
 
@@ -205,6 +206,7 @@ def combine(f_op, f, g, **kw):
     if not f1:
         if f_op.__name__ in ('and_', 'and_not'):
             return False
+
     return f_op(f1, g(**kw))
 
 
@@ -215,7 +217,6 @@ COMB_OPS = {
     'and_not': and_not,
     'xor': operator.xor,
 }  # extensible
-
 
 # those from user space are also replaced at tokenizing time:
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
@@ -468,7 +469,7 @@ def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
     # remove the space from the ops here, comb ops are like 'and_not':
     for op in COMB_OPS:
         if '_' in op:
-            cond = cond.replace(op.replace('_', ' '), op)
+            cond = cond.replace(op.replace('_', sep), op)
     for op, repl in NEG_REV.items():
         cond = cond.replace(op, repl)
 

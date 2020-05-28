@@ -20,6 +20,29 @@ p2m = p2m.P2M(__file__, fn_target_md='README.md')
 # run = partial(p2m.bash_run, no_cmd_path=True)
 
 
+def xtest_foo():
+    f = pc.pycond([['foo', 'eq', 'bar'], 'or_not', ['a', 'eq', 'b']], lookup=pc.dbg_get)
+    breakpoint()  # FIXME BREAKPOINT
+    assert f(state={'foo': 'bar'}) == True
+
+
+def xtest_f3_1():
+    evaluated = []
+
+    def myget(key, val, cfg, state=None, **kw):
+        evaluated.append(key)
+        # lets say we are false - always:
+        return False, True
+
+    f = pc.pycond('foo eq bar and baz eq bar', lookup=pc.dbg_get)
+    breakpoint()  # FIXME BREAKPOINT
+    f(state={'a': 1, 'foo': 2})
+    # the value for "baz" is not even fetched and the whole (possibly
+    # deep) branch after the last and is ignored:
+    # assert evaluated == ['a', 'foo']
+    print(evaluated)
+
+
 class Test1:
     def test_mechanics(self):
         """
@@ -73,14 +96,14 @@ class Test1:
         How state is evaluated is customizable at build and run time.
 
         ## Default Lookup
-        The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
+        The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async  or non cooperative multitasking environments.
 
         """
 
         def f2():
             f = pc.pycond('foo eq bar')
             assert f() == False
-            pc.State['foo'] = 'bar'
+            pc.State['foo'] = 'bar'  # not thread safe!
             assert f() == True
 
         """
@@ -168,6 +191,16 @@ class Test1:
             # deep) branch after the last and is ignored:
             assert evaluated == ['a', 'foo']
             print(evaluated)
+
+        """
+        ## Debugging Lookups
+
+        pycond provides a key getter which prints out every lookup.
+        """
+
+        def f3_2():
+            f = pc.pycond('[[a eq b] or foo eq bar] or [baz eq bar]', lookup=pc.dbg_get)
+            assert f(state={'foo': 'bar'}) == True
 
         """
         ## Building Conditions From Text
@@ -362,6 +395,7 @@ class Test1:
         ## Combining Operations
 
         You can combine single conditions with
+
         - `and`
         - `and not`
         - `or`
@@ -558,18 +592,19 @@ class Test1:
                 p2m.convert_to_staticmethods(ApiCtxFuncs)
 
             f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
-            # this key stores the context builder function
-            make_ctx = nfos['complete_ctx']
 
-            # now we get (incomplete) data..
+            # now we create (incomplete) data..
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
 
+            # this key stores a context builder function, calculating the complete data:
+            make_ctx = nfos['complete_ctx']
+
             t0 = time.time()
             for event, expected in data1, data2:
-                assert pc.pycond(cond)(state=make_ctx(event)) == expected
+                assert f(state=make_ctx(event)) == expected
 
-            print('Calc.Time', round(time.time() - t0, 4))
+            print('Calc.Time (delta_q was called twice):', round(time.time() - t0, 4)),
             return cond, ApiCtxFuncs
 
         cond, ApiCtxFuncs = f15_1()
@@ -602,8 +637,7 @@ class Test1:
                 assert f(state=event) == expected
 
             print(
-                'Calc.Time (only one expensive calculation):',
-                round(time.time() - t0, 4),
+                'Calc.Time (delta_q was called just once):', round(time.time() - t0, 4),
             )
 
             # The deep switch keeps working:
@@ -618,3 +652,10 @@ class Test1:
 
         p2m.md_from_source_code()
         p2m.write_markdown(with_source_ref=True, make_toc=True)
+
+
+def f20_1():
+    """
+    # Named Conditions
+
+    """

@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200527
+version: 20200528
 
 ---
 
@@ -35,27 +35,28 @@ version: 20200527
     - <a name="toc11"></a>[Deep Lookup / Nested State](#deep-lookup-nested-state)
     - <a name="toc12"></a>[Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
     - <a name="toc13"></a>[Lazy Evaluation](#lazy-evaluation)
-    - <a name="toc14"></a>[Building Conditions From Text](#building-conditions-from-text)
-        - <a name="toc15"></a>[Grammar](#grammar)
-        - <a name="toc16"></a>[Atomic Conditions](#atomic-conditions)
-    - <a name="toc17"></a>[Condition Operators](#condition-operators)
-        - <a name="toc18"></a>[Using Symbolic Operators](#using-symbolic-operators)
-        - <a name="toc19"></a>[Extending Condition Operators](#extending-condition-operators)
-        - <a name="toc20"></a>[Negation `not`](#negation-not)
-        - <a name="toc21"></a>[Reversal `rev`](#reversal-rev)
-        - <a name="toc22"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
-            - <a name="toc23"></a>[Global Wrapping](#global-wrapping)
-            - <a name="toc24"></a>[Condition Local Wrapping](#condition-local-wrapping)
-    - <a name="toc25"></a>[Combining Operations](#combining-operations)
-        - <a name="toc26"></a>[Nesting](#nesting)
-    - <a name="toc27"></a>[Tokenizing Details](#tokenizing-details)
-        - <a name="toc28"></a>[Functioning](#functioning)
-        - <a name="toc29"></a>[Separator `sep`](#separator-sep)
-        - <a name="toc30"></a>[Apostrophes](#apostrophes)
-        - <a name="toc31"></a>[Escaping](#escaping)
-        - <a name="toc32"></a>[Building](#building)
-        - <a name="toc33"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-- <a name="toc34"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
+    - <a name="toc14"></a>[Debugging Lookups](#debugging-lookups)
+    - <a name="toc15"></a>[Building Conditions From Text](#building-conditions-from-text)
+        - <a name="toc16"></a>[Grammar](#grammar)
+        - <a name="toc17"></a>[Atomic Conditions](#atomic-conditions)
+    - <a name="toc18"></a>[Condition Operators](#condition-operators)
+        - <a name="toc19"></a>[Using Symbolic Operators](#using-symbolic-operators)
+        - <a name="toc20"></a>[Extending Condition Operators](#extending-condition-operators)
+        - <a name="toc21"></a>[Negation `not`](#negation-not)
+        - <a name="toc22"></a>[Reversal `rev`](#reversal-rev)
+        - <a name="toc23"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
+            - <a name="toc24"></a>[Global Wrapping](#global-wrapping)
+            - <a name="toc25"></a>[Condition Local Wrapping](#condition-local-wrapping)
+    - <a name="toc26"></a>[Combining Operations](#combining-operations)
+        - <a name="toc27"></a>[Nesting](#nesting)
+    - <a name="toc28"></a>[Tokenizing Details](#tokenizing-details)
+        - <a name="toc29"></a>[Functioning](#functioning)
+        - <a name="toc30"></a>[Separator `sep`](#separator-sep)
+        - <a name="toc31"></a>[Apostrophes](#apostrophes)
+        - <a name="toc32"></a>[Escaping](#escaping)
+        - <a name="toc33"></a>[Building](#building)
+        - <a name="toc34"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
+- <a name="toc35"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
 
 <!-- TOC -->
 
@@ -199,14 +200,14 @@ The result of the builder is a 'pycondition', which can be run many times agains
 How state is evaluated is customizable at build and run time.
 
 ## <a href="#toc9">Default Lookup</a>
-The default is to get lookup keys within expressions from an initially empty `State` dict within the module.
+The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async  or non cooperative multitasking environments.
   
 
 
 ```python
 f = pc.pycond('foo eq bar')
 assert f() == False
-pc.State['foo'] = 'bar'
+pc.State['foo'] = 'bar'  # not thread safe!
 assert f() == True
 ```
 
@@ -307,7 +308,24 @@ Output:
 ['a', 'foo']
 ```
 
-## <a href="#toc14">Building Conditions From Text</a>
+## <a href="#toc14">Debugging Lookups</a>
+
+pycond provides a key getter which prints out every lookup.  
+
+
+```python
+f = pc.pycond('[[a eq b] or foo eq bar] or [baz eq bar]', lookup=pc.dbg_get)
+assert f(state={'foo': 'bar'}) == True
+```
+Output:
+
+```
+Lookup: a b -> None
+Lookup: foo bar -> bar
+Lookup: baz bar -> None
+```
+
+## <a href="#toc15">Building Conditions From Text</a>
 
 Condition functions are created internally from structured expressions -
 but those are [hard to type](#lazy-dynamic-context-assembly),
@@ -316,7 +334,7 @@ involving many apostropies.
 The text based condition syntax is intended for situations when end users
 type them into text boxes directly.
 
-### <a href="#toc15">Grammar</a>
+### <a href="#toc16">Grammar</a>
 
 Combine atomic conditions with boolean operators and nesting brackets like:
 
@@ -324,7 +342,7 @@ Combine atomic conditions with boolean operators and nesting brackets like:
 [  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
 ```
 
-### <a href="#toc16">Atomic Conditions</a>
+### <a href="#toc17">Atomic Conditions</a>
 
 ```
 [not] <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
@@ -361,7 +379,7 @@ assert pc.pycond('x and not foo')(state=m) == True
 assert pc.pycond('y and not falsy_val')(state=m) == False
 ```
 
-## <a href="#toc17">Condition Operators</a>
+## <a href="#toc18">Condition Operators</a>
 
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
 are available by default:
@@ -439,7 +457,7 @@ for k in 'nr', 'str':
 
 
 
-### <a href="#toc18">Using Symbolic Operators</a>
+### <a href="#toc19">Using Symbolic Operators</a>
 
 By default pycond uses text style operators.
 
@@ -467,7 +485,7 @@ except:
 > Operator namespace(s) should be assigned at process start, they are global.
 
 
-### <a href="#toc19">Extending Condition Operators</a>
+### <a href="#toc20">Extending Condition Operators</a>
   
 
 
@@ -478,7 +496,7 @@ assert pc.pycond('a maybe b')() in (True, False)
 ```
 
 
-### <a href="#toc20">Negation `not`</a>
+### <a href="#toc21">Negation `not`</a>
 
 Negates the result of the condition operator:
   
@@ -491,7 +509,7 @@ assert pc.pycond('foo not eq abc')() == False
 ```
 
 
-### <a href="#toc21">Reversal `rev`</a>
+### <a href="#toc22">Reversal `rev`</a>
 
 Reverses the arguments before calling the operator  
 
@@ -505,9 +523,9 @@ assert pc.pycond('foo rev contains abc')() == True
 
 > `rev` and `not` can be combined in any order.
 
-### <a href="#toc22">Wrapping Condition Operators</a>
+### <a href="#toc23">Wrapping Condition Operators</a>
 
-#### <a href="#toc23">Global Wrapping</a>
+#### <a href="#toc24">Global Wrapping</a>
 You may globally wrap all evaluation time condition operations through a custom function:
 
   
@@ -534,7 +552,7 @@ pc.ops_use_symbolic_and_txt()
 
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-#### <a href="#toc24">Condition Local Wrapping</a>
+#### <a href="#toc25">Condition Local Wrapping</a>
 
 This is done through the `ops_thru` parameter as shown:
   
@@ -556,9 +574,10 @@ assert f() == True
 > can add breakpoints or loggers there.
 
 
-## <a href="#toc25">Combining Operations</a>
+## <a href="#toc26">Combining Operations</a>
 
 You can combine single conditions with
+
 - `and`
 - `and not`
 - `or`
@@ -569,23 +588,23 @@ The combining functions are stored in `pycond.COMB_OPS` dict and may be extended
 
 > Do not use spaces for the names of combining operators. The user may use them but they are replaced at before tokenizing time, like `and not` -> `and_not`.
 
-### <a href="#toc26">Nesting</a>
+### <a href="#toc27">Nesting</a>
 
 Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 > Via the `brkts` config parameter you may change those to other separators at build time.
 
 
-## <a href="#toc27">Tokenizing Details</a>
+## <a href="#toc28">Tokenizing Details</a>
 
 
 > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
-### <a href="#toc28">Functioning</a>
+### <a href="#toc29">Functioning</a>
 
 The tokenizers job is to take apart expression strings for the builder.
 
-### <a href="#toc29">Separator `sep`</a>
+### <a href="#toc30">Separator `sep`</a>
 
 Separates the different parts of an expression. Default is ' '.
   
@@ -612,7 +631,7 @@ assert (
 > The condition functions themselves do not evaluate equal - those
 > had been assembled two times.
 
-### <a href="#toc30">Apostrophes</a>
+### <a href="#toc31">Apostrophes</a>
 
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
   
@@ -626,7 +645,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 
 
 
-### <a href="#toc31">Escaping</a>
+### <a href="#toc32">Escaping</a>
 
 Tell the tokenizer to not interpret the next character:
   
@@ -639,9 +658,9 @@ assert pc.pycond('b eq Hello\ World')() == True
 
 
 
-### <a href="#toc32">Building</a>
+### <a href="#toc33">Building</a>
 
-### <a href="#toc33">Autoconv: Casting of values into python simple types</a>
+### <a href="#toc34">Autoconv: Casting of values into python simple types</a>
 
 Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
 
@@ -671,7 +690,7 @@ for id in '1', 1:
 ```
 
 
-# <a href="#toc34">Context On Demand And Lazy Evaluation</a>
+# <a href="#toc35">Context On Demand And Lazy Evaluation</a>
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -755,18 +774,19 @@ if sys.version_info[0] < 3:
     p2m.convert_to_staticmethods(ApiCtxFuncs)
 
 f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
-# this key stores the context builder function
-make_ctx = nfos['complete_ctx']
 
-# now we get (incomplete) data..
+# now we create (incomplete) data..
 data1 = {'group_type': 'xxx'}, False
 data2 = {'group_type': 'lab'}, True
 
+# this key stores a context builder function, calculating the complete data:
+make_ctx = nfos['complete_ctx']
+
 t0 = time.time()
 for event, expected in data1, data2:
-    assert pc.pycond(cond)(state=make_ctx(event)) == expected
+    assert f(state=make_ctx(event)) == expected
 
-print('Calc.Time', round(time.time() - t0, 4))
+print('Calc.Time (delta_q was called twice):', round(time.time() - t0, 4)),
 return cond, ApiCtxFuncs
 ```
 Output:
@@ -782,7 +802,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time 0.2017
+Calc.Time (delta_q was called twice): 0.2006
 ```
 
 
@@ -812,8 +832,7 @@ for event, expected in data1, data2:
     assert f(state=event) == expected
 
 print(
-    'Calc.Time (only one expensive calculation):',
-    round(time.time() - t0, 4),
+    'Calc.Time (delta_q was called just once):', round(time.time() - t0, 4),
 )
 
 # The deep switch keeps working:
@@ -830,7 +849,7 @@ Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calculating clients
-Calc.Time (only one expensive calculation): 0.1002
+Calc.Time (delta_q was called just once): 0.1004
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
