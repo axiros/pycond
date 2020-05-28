@@ -189,33 +189,33 @@ def dbg_get(key, val, cfg, state=State, *a, **kw):
 
 out = lambda *m: print(' '.join([str(s) for s in m]))
 
-# Combining operators:
-# NO! spaces in the keys. User may have spaces in the expression though.
-# better no lambdas:
-def or_not(a, b):
-    return a or not b
+
+def comb_or(f, g, **kw):
+    return f(**kw) or g(**kw)
 
 
-def and_not(a, b):
-    return a and not b
+def comb_or_not(f, g, **kw):
+    return f(**kw) or not g(**kw)
 
 
-def combine(f_op, f, g, **kw):
-    f1 = f(**kw)
-    # lazy eval:
-    if not f1:
-        if f_op.__name__ in ('and_', 'and_not'):
-            return False
+def comb_and(f, g, **kw):
+    return f(**kw) and g(**kw)
 
-    return f_op(f1, g(**kw))
+
+def comb_and_not(f, g, **kw):
+    return f(**kw) and not g(**kw)
+
+
+def comb_xor(f, g, **kw):
+    return bool(f(**kw)) is not bool(g(**kw))
 
 
 COMB_OPS = {
-    'or': operator.or_,
-    'and': operator.and_,
-    'or_not': or_not,
-    'and_not': and_not,
-    'xor': operator.xor,
+    'or': comb_or,
+    'and': comb_and,
+    'or_not': comb_or_not,
+    'and_not': comb_and_not,
+    'xor': comb_xor,
 }  # extensible
 
 # those from user space are also replaced at tokenizing time:
@@ -243,9 +243,7 @@ def parse_struct_cond(cond, cfg, nfo):
         if isinstance(key, (str, tuple)):
             if f1 and key in COMB_OPS:
                 # cond: b eq bar
-                return partial(
-                    combine, COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),
-                )
+                return partial(COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),)
             ac = [key]
             while cond:
                 if isinstance(cond[0], str) and cond[0] in COMB_OPS:

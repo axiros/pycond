@@ -20,29 +20,6 @@ p2m = p2m.P2M(__file__, fn_target_md='README.md')
 # run = partial(p2m.bash_run, no_cmd_path=True)
 
 
-def xtest_foo():
-    f = pc.pycond([['foo', 'eq', 'bar'], 'or_not', ['a', 'eq', 'b']], lookup=pc.dbg_get)
-    breakpoint()  # FIXME BREAKPOINT
-    assert f(state={'foo': 'bar'}) == True
-
-
-def xtest_f3_1():
-    evaluated = []
-
-    def myget(key, val, cfg, state=None, **kw):
-        evaluated.append(key)
-        # lets say we are false - always:
-        return False, True
-
-    f = pc.pycond('foo eq bar and baz eq bar', lookup=pc.dbg_get)
-    breakpoint()  # FIXME BREAKPOINT
-    f(state={'a': 1, 'foo': 2})
-    # the value for "baz" is not even fetched and the whole (possibly
-    # deep) branch after the last and is ignored:
-    # assert evaluated == ['a', 'foo']
-    print(evaluated)
-
-
 class Test1:
     def test_mechanics(self):
         """
@@ -172,7 +149,10 @@ class Test1:
 
         When an evaluation branch contains an "and" or "and_not" combinator, then
         at runtime we evaluate the first expression - and stop if it is already
-        False. That way expensive deep branch evaluations are omitted or, when
+        False.
+        Same when first expression is True, followed by "or" or "or_not".
+
+        That way expensive deep branch evaluations are omitted or, when
         the lookup is done lazy, the values won't be even fetched:
 
         """
@@ -182,14 +162,21 @@ class Test1:
 
             def myget(key, val, cfg, state=None, **kw):
                 evaluated.append(key)
-                # lets say we are false - always:
-                return False, True
+                return pc.state_get(key, val, cfg, state, **kw)
 
             f = pc.pycond('[a eq b] or foo eq bar and baz eq bar', lookup=myget)
-            f()
+            assert f(state={'foo': 42}) == False
             # the value for "baz" is not even fetched and the whole (possibly
             # deep) branch after the last and is ignored:
             assert evaluated == ['a', 'foo']
+            print(evaluated)
+            evaluated.clear()
+
+            f = pc.pycond('[[a eq b] or foo eq bar] and baz eq bar', lookup=myget)
+            assert f(state={'a': 'b', 'baz': 'bar'}) == True
+            # the value for "baz" is not even fetched and the whole (possibly
+            # deep) branch after the last and is ignored:
+            assert evaluated == ['a', 'baz']
             print(evaluated)
 
         """
@@ -652,10 +639,3 @@ class Test1:
 
         p2m.md_from_source_code()
         p2m.write_markdown(with_source_ref=True, make_toc=True)
-
-
-def f20_1():
-    """
-    # Named Conditions
-
-    """

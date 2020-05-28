@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200528
+version: 20200529
 
 ---
 
@@ -282,7 +282,10 @@ This is avoiding unnecessary calculations in many cases:
 
 When an evaluation branch contains an "and" or "and_not" combinator, then
 at runtime we evaluate the first expression - and stop if it is already
-False. That way expensive deep branch evaluations are omitted or, when
+False.
+Same when first expression is True, followed by "or" or "or_not".
+
+That way expensive deep branch evaluations are omitted or, when
 the lookup is done lazy, the values won't be even fetched:
   
 
@@ -292,20 +295,28 @@ evaluated = []
 
 def myget(key, val, cfg, state=None, **kw):
     evaluated.append(key)
-    # lets say we are false - always:
-    return False, True
+    return pc.state_get(key, val, cfg, state, **kw)
 
 f = pc.pycond('[a eq b] or foo eq bar and baz eq bar', lookup=myget)
-f()
+assert f(state={'foo': 42}) == False
 # the value for "baz" is not even fetched and the whole (possibly
 # deep) branch after the last and is ignored:
 assert evaluated == ['a', 'foo']
+print(evaluated)
+evaluated.clear()
+
+f = pc.pycond('[[a eq b] or foo eq bar] and baz eq bar', lookup=myget)
+assert f(state={'a': 'b', 'baz': 'bar'}) == True
+# the value for "baz" is not even fetched and the whole (possibly
+# deep) branch after the last and is ignored:
+assert evaluated == ['a', 'baz']
 print(evaluated)
 ```
 Output:
 
 ```
 ['a', 'foo']
+['a', 'baz']
 ```
 
 ## <a href="#toc14">Debugging Lookups</a>
@@ -322,7 +333,6 @@ Output:
 ```
 Lookup: a b -> None
 Lookup: foo bar -> bar
-Lookup: baz bar -> None
 ```
 
 ## <a href="#toc15">Building Conditions From Text</a>
@@ -802,7 +812,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2006
+Calc.Time (delta_q was called twice): 0.2004
 ```
 
 
@@ -848,8 +858,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calculating clients
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 ```
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.  
