@@ -18,6 +18,22 @@ p2m = p2m.P2M(__file__, fn_target_md='README.md')
 
 # parametrizing the shell run results (not required here):
 # run = partial(p2m.bash_run, no_cmd_path=True)
+now = time.time
+
+
+def test_qualify():
+    q = {
+        'thrd': ['k', 'or', 'first'],
+        'nested': [['foo'], ['c', 'in', ['foo', 'bar']]],
+        'zero': [['x', 'eq', 1], 'or', 'thrd'],
+        'first': ['a', 'eq', 'b'],
+    }
+    f = pc.qualify(q)
+    t0 = now()
+    for i in range(10000):
+        r = f({'a': 'b'})
+    print(now() - t0)
+    assert r == {'first': True, 'nested': [False, False], 'thrd': True, 'zero': True}
 
 
 class Test1:
@@ -65,6 +81,9 @@ class Test1:
         def f1_1():
             cond = [['a', 'eq', 'b'], 'or', ['c', 'in', ['foo', 'bar']]]
             assert pc.pycond(cond)(state={'a': 'b'}) == True
+            # json support is built in:
+            cond_as_json = json.dumps(cond)
+            assert pc.pycond(cond_as_json)(state={'a': 'b'}) == True
 
         """
         # Evaluation
@@ -646,6 +665,15 @@ class Test1:
 
         """
         The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
+
+
+        ## Multiple Conditions Qualification
+
+        Instead of just delivering booleans pycond can be used to qualify a whole set of
+        information about data like so:
+
+
+
         """
 
         p2m.md_from_source_code()

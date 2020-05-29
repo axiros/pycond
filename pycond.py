@@ -13,6 +13,7 @@ DEV Notes:
 from __future__ import print_function
 import operator, sys
 import inspect
+import json
 from functools import partial
 from copy import deepcopy
 from ast import literal_eval
@@ -191,6 +192,8 @@ out = lambda *m: print(' '.join([str(s) for s in m]))
 
 
 def comb_or(f, g, **kw):
+    if kw:
+        breakpoint()  # FIXME BREAKPOINT
     return f(**kw) or g(**kw)
 
 
@@ -256,6 +259,19 @@ def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
     return res
 
 
+KEY_STR_TYP, KEY_TPL_TYP, KEY_LST_TYP = 1, 2, 3
+
+
+def key_type(key):
+    if isinstance(key, str):
+        return KEY_STR_TYP
+    elif isinstance(key, tuple):
+        return KEY_TPL_TYP
+    elif isinstance(key, list) and is_deep_list_path(key):
+        return KEY_LST_TYP
+    return None
+
+
 def parse_struct_cond(cond, cfg, nfo):
     """this expects json style conditions
     Examples:
@@ -269,10 +285,16 @@ def parse_struct_cond(cond, cfg, nfo):
     f1 = None
     while cond:
         key = cond.pop(0)
-        if isinstance(key, (str, tuple)) or is_deep_list_path(key):
-            if f1 and key in COMB_OPS:
-                # cond: b eq bar
-                return partial(COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),)
+        kt = key_type(key)
+        if kt:
+            if kt == KEY_STR_TYP:
+                if f1 and key in COMB_OPS:
+                    # cond: b eq bar
+                    return partial(
+                        COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),
+                    )
+            elif kt == KEY_LST_TYP:
+                key = tuple(key)
             ac = [key]
             while cond:
                 if isinstance(cond[0], str) and cond[0] in COMB_OPS:
@@ -281,6 +303,7 @@ def parse_struct_cond(cond, cfg, nfo):
             f1 = atomic_cond(ac, cfg, nfo)
             # now a combinator MUST come:
         else:
+            # key is not a key but the first cond:
             f1 = parse_struct_cond(key, cfg, nfo)
     return f1
 
@@ -294,16 +317,16 @@ def atomic_cond(cond, cfg, nfo):
     # ------------------------------------------------ Handle atomic conditions
     # cond like ['foo', 'not', 'le', '10']
     key = cond.pop(0)
-    if isinstance(key, list):
-        key = tuple(key)
     # autocondition for key only: not rev contains (None, 0, ...):
     if len(cond) == 0:
+        comp = 'truthy'
         cond.insert(0, 0)
-        cond.insert(0, 'truthy')
+        cond.insert(0, comp)
     elif len(cond) == 1 and key == 'not':
         key = cond.pop(0)
+        comp = 'falsy'
         cond.insert(0, 0)
-        cond.insert(0, 'falsy')
+        cond.insert(0, comp)
 
     nfo['keys'].add(key)
 
@@ -387,22 +410,31 @@ def sorted_keys(l):
     return sorted(list(b)) + sorted(a, key=len)
 
 
+def deserialize_str(cond, **cfg):
+    try:
+        return json.loads(cond), cfg
+    except:
+        pass
+
+    cfg['brkts'] = brkts = cfg.get('brkts', '[]')
+    sep = cfg.pop('sep', KV_DELIM)
+    if cond.startswith('deep:'):
+        cond = cond.split('deep:', 1)[1].strip()
+        cfg['deep'] = '.'
+    cond = tokenize(cond, sep=sep, brkts=brkts)
+    return to_struct(cond, cfg['brkts']), cfg
+
+
 def parse_cond(cond, lookup=state_get, **cfg):
     """ Main function.
         see tests
     """
-    cfg['brkts'] = brkts = cfg.get('brkts', '[]')
-
-    sep = cfg.pop('sep', KV_DELIM)
     nfo = {'keys': set()}
     if is_str(cond):
-        if cond.startswith('deep:'):
-            cond = cond.split('deep:', 1)[1].strip()
-            cfg['deep'] = '.'
-        cond = tokenize(cond, sep=sep, brkts=brkts)
-        cond = to_struct(cond, cfg['brkts'])
+        cond, cfg = deserialize_str(cond, **cfg)
+
     if cfg.get('get_struct'):
-        return cond, nfo
+        return cond, cfg
 
     if cfg.get('deep'):
         lookup = partial(state_get_deep, deep=cfg['deep'])
@@ -595,3 +627,102 @@ def to_struct(cond, brackets='[]'):
             res.append(part)
 
     return res
+
+
+# ----------------------------------------------------------------------------- qualify
+def norm(cond):
+    kt = key_type(cond[0])
+    if kt:
+        cond = [cond]
+    if len(cond) == 1:
+        return cond, True
+    elif isinstance(cond[1], str) and cond[1] in COMB_OPS:
+        return cond, True
+    # A list of conds:
+    return cond, False
+
+
+def init_conds(conds, d, prefix=()):
+    """
+    Recurses into conds
+
+    """
+    # a multi cond is a list of conds, with substreams behind
+    if not isinstance(conds, (list, dict)) or not conds:
+        raise Exception('Cannot parse: %s' % str(conds))
+
+    if isinstance(conds, list):
+        cond, is_single = norm(conds)
+        if is_single:
+            return {'cond': conds}
+        else:
+            return [init_conds(c, d) for c in conds]
+            # conds = dict([(i, c) for i, c in zip(range(len(conds)), conds)])
+
+    elif isinstance(conds, dict):
+        res = [[k, init_conds(v, d, prefix + (k,))] for k, v in conds.items()]
+        d.update(dict(res))
+        return res
+
+    raise
+
+
+def build(conds, lookup, cfg):
+    if isinstance(conds, dict) and 'cond' in conds:
+        conds['built'] = parse_cond(conds['cond'], lookup, **cfg)
+        return
+
+    for k, v in conds:
+        if isinstance(v, list):
+            [build(c, lookup, cfg) for c in v]
+        else:
+            build(v, lookup, cfg)
+
+
+def sub_lookup(lookup):
+    def lu(key, val, cfg, state=State, lookup=lookup, **kw):
+        cache = state.get('_cond_cache')
+        if cache is None:
+            cache = state['_cond_cache'] = {}
+        v = cache.get(key, nil)
+        if v != nil:
+            return v, val
+
+        kv = lookup(key, val, cfg, state, **kw)
+        if kv[0] != None:
+            return kv
+        kvs = lookup(key, val, cfg, state=cfg['sub'], **kw)
+        if kvs[0] == None:
+            return kv
+        res = kvs[0]['built'][0](state=state, **kw)
+        return res, val
+
+    return lu
+
+
+def qualify(conds, lookup=state_get, recurse=True, **cfg):
+    if isinstance(conds, str):
+        conds, cfg = deserialize_str(conds, cfg)
+    d = {}
+    conds = init_conds(conds, d)
+    cfg['sub'] = d
+    build(conds, sub_lookup(lookup), cfg)
+
+    def run_conds(state, conds=conds, subs=d, **kw):
+
+        if isinstance(conds, dict):
+            built = conds.get('built')
+            if built:
+                return built[0](state=state, **kw)
+            breakpoint()  # FIXME BREAKPOINT
+
+        r = {}
+        for k, v in conds:
+            if isinstance(v, list):
+                r[k] = [run_conds(state, c, d, **kw) for c in v]
+            else:
+                r[k] = run_conds(state, v, d, **kw)
+        state.pop('_cond_cache', 0)
+        return r
+
+    return run_conds
