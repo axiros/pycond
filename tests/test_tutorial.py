@@ -67,12 +67,13 @@ class Test1:
             assert pc.pycond(cond)(state={'a': 'b'}) == True
 
         """
-        ## Evaluation
+        # Evaluation
 
-        The result of the builder is a 'pycondition', which can be run many times against a varying state of the system.
+        The result of the builder is a 'pycondition', which can be run many times against varying state of the system.
         How state is evaluated is customizable at build and run time.
 
         ## Default Lookup
+
         The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async  or non cooperative multitasking environments.
 
         """
@@ -88,7 +89,7 @@ class Test1:
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
 
-        ## Passing Custom State
+        ## Passing State
 
         Use the state argument at evaluation:
         """
@@ -98,21 +99,29 @@ class Test1:
             assert pc.pycond('a gt 2')(state={'a': -2}) == False
 
         """
-        ## Deep Lookup / Nested State
+        ### Deep Lookup / Nested State / Lists
 
         You may supply a path seperator for diving into nested structures like so:
-
         """
 
         def f2_2():
             m = {'a': {'b': [{'c': 1}]}}
-            assert pc.pycond([('a', 'b', 0, 'c'), 'eq', 1], deep='.')(state=m) == True
-
             assert pc.pycond('a.b.0.c', deep='.')(state=m) == True
             assert pc.pycond('a.b.1.c', deep='.')(state=m) == False
             assert pc.pycond('a.b.0.c eq 1', deep='.')(state=m) == True
             # convencience argument for string conditions:
             assert pc.pycond('deep: a.b.0.c')(state=m) == True
+
+            # This is how you express deep access via structured conditions:
+            assert pc.pycond([('a', 'b', 0, 'c'), 'eq', 1])(state=m) == True
+
+            # Since tuples are not transferrable in json, we also allow deep paths as list:
+            # We apply heuristics to exclude expressions or conditions:
+            c = [[['a', 'b', 0, 'c'], 'eq', 1], 'and', 'a']
+            f, nfos = pc.parse_cond(c)
+            # sorting order for keys: tuples at end, sorted by len, rest default py sorted:
+            assert f(state=m) == True and nfos['keys'] == ['a', ('a', 'b', 0, 'c')]
+            print(nfos)
 
         """
 
@@ -180,6 +189,8 @@ class Test1:
             print(evaluated)
 
         """
+        # Details
+
         ## Debugging Lookups
 
         pycond provides a key getter which prints out every lookup.

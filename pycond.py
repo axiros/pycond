@@ -222,8 +222,35 @@ COMB_OPS = {
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
 
 
+def is_deep_list_path(key):
+    """
+    Identify the first list is a key, i.e. should actually be a tuple:
+
+    [[['a', 'b', 0, 'c'], 'eq', 1], 'and', 'a'] -> should be:
+    [[('a', 'b', 0, 'c'), 'eq', 1], 'and', 'a']
+
+    When transferred over json we can't do paths as tuples
+    We find if have a deep path by excluding every other option:
+    """
+    if not isinstance(key, list):
+        return
+    if any([k for k in key if not isinstance(k, (str, int))]):
+        return
+    if not (len(key)) > 1:
+        return
+    if key[1] in COMB_OPS:
+        return
+    if key[1] in OPS:
+        return
+    if len(key) == 4 and key[1] in OP_PREFIXES:
+        return
+    return True
+
+
 def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
-    # resolve any conditions builds using the same subcond refs many times - i.e. remove those refs can create unique items we can modify during parsing:
+    # resolve any conditions builds using the same subcond refs many times -
+    # i.e. remove those refs can create unique items we can modify during parsing:
+    # NOTE: This is build time, not eval time, i.e. does not hurt much:
     cond = literal_eval(str(cond))
     res = parse_struct_cond(cond, cfg, nfo)
     return res
@@ -237,10 +264,12 @@ def parse_struct_cond(cond, cfg, nfo):
     [a eq foo] and b
     [a eq foo] and [b is baz]
     """
+    cfg['foo'] = 'bar'
+    nfo['foo'] = 'bar1'
     f1 = None
     while cond:
         key = cond.pop(0)
-        if isinstance(key, (str, tuple)):
+        if isinstance(key, (str, tuple)) or is_deep_list_path(key):
             if f1 and key in COMB_OPS:
                 # cond: b eq bar
                 return partial(COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),)
@@ -258,11 +287,15 @@ def parse_struct_cond(cond, cfg, nfo):
 
 # _parse_cond = x_parse_cond
 
+OP_PREFIXES = {'not', 'not_rev', 'rev_not', 'rev'}
+
 
 def atomic_cond(cond, cfg, nfo):
     # ------------------------------------------------ Handle atomic conditions
     # cond like ['foo', 'not', 'le', '10']
     key = cond.pop(0)
+    if isinstance(key, list):
+        key = tuple(key)
     # autocondition for key only: not rev contains (None, 0, ...):
     if len(cond) == 0:
         cond.insert(0, 0)
@@ -279,7 +312,7 @@ def atomic_cond(cond, cfg, nfo):
     not_, rev_ = False, False
     # we accept [not] [rev] and also [rev] [not]
     for i in 1, 2:
-        if cond[0] in ('not', 'not_rev', 'rev_not', 'rev'):
+        if cond[0] in OP_PREFIXES:
             nr = cond.pop(0)
             not_ = True if 'not' in nr else not_
             rev_ = True if 'rev' in nr else rev_
@@ -348,6 +381,12 @@ def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
 
 
 # ------------------------------------------------------------------ Public API
+def sorted_keys(l):
+    a = [i for i in l if isinstance(i, tuple)]
+    b = l - set(a)
+    return sorted(list(b)) + sorted(a, key=len)
+
+
 def parse_cond(cond, lookup=state_get, **cfg):
     """ Main function.
         see tests
@@ -375,7 +414,7 @@ def parse_cond(cond, lookup=state_get, **cfg):
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
     cond = parse_struct_cond_after_deep_copy(cond, cfg, nfo)
-    nfo['keys'] = sorted(list(nfo['keys']))
+    nfo['keys'] = sorted_keys(nfo['keys'])
     provider = cfg.get('ctx_provider')
     if provider:
         nfo['complete_ctx'] = complete_ctx_data(nfo['keys'], provider=provider)
