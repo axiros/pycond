@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200530
+version: 20200601
 
 ---
 
@@ -58,7 +58,9 @@ version: 20200530
         - <a name="toc34"></a>[Building](#building)
         - <a name="toc35"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
 - <a name="toc36"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
-    - <a name="toc37"></a>[Multiple Conditions Qualification](#multiple-conditions-qualification)
+    - <a name="toc37"></a>[Caching](#caching)
+    - <a name="toc38"></a>[Named Conditions: Qualification](#named-conditions-qualification)
+        - <a name="toc39"></a>[Partial Evaluation](#partial-evaluation)
 
 <!-- TOC -->
 
@@ -265,6 +267,7 @@ Output:
 ## <a href="#toc12">Custom Lookup And Value Passing</a>
 
 You can supply your own function for value acquisition.
+
 - Signature: See example.
 - Returns: The value for the key from the current state plus the
   compare value for the operator function.  
@@ -879,18 +882,119 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1004
 ```
+
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
 
+## <a href="#toc37">Caching</a>
 
-## <a href="#toc37">Multiple Conditions Qualification</a>
+Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
-Instead of just delivering booleans pycond can be used to qualify a whole set of
-information about data like so:
+- Builtin state lookups: Not cached
+- Custom `lookup` functions: Not cached (you can implment caching within those functions)
+- Lookup provider return values: Cached, i.e. called only once
+- Named conditions (see below): Cached
+
+## <a href="#toc38">Named Conditions: Qualification</a>
+
+Instead of just delivering booleans, pycond can be used to qualify a whole set of
+information about data, like so:  
 
 
+```python
+# We accept different forms of delivery.
+# The first full text is restricted to simple flat dicts only:
+for c in [
+    'one: a gt 10, two: a gt 10 or foo eq bar',
+    {'one': 'a gt 10', 'two': 'a gt 10 or foo eq bar'},
+    {
+        'one': ['a', 'gt', 10],
+        'two': ['a', 'gt', 10, 'or', 'foo', 'eq', 'bar'],
+    },
+]:
+    f = pc.qualify(c)
+    r = f({'foo': 'bar', 'a': 0})
+    assert r == {'one': False, 'two': True}
+```
+
+
+We may refer to results of other named conditions:  
+
+
+```python
+q = {
+    'thrd': ['k', 'or', 'first'],
+    'listed': [['foo'], ['c', 'eq', 'foo']],
+    'zero': [['x', 'eq', 1], 'or', 'thrd'],
+    'first': ['a', 'eq', 'b'],
+}
+f = pc.qualify(q)
+
+assert f({'a': 'b'}) == {
+    'first': True,
+    'listed': [False, False],
+    'thrd': True,
+    'zero': True,
+}
+assert f({'c': 'foo', 'x': 1}) == {
+    'first': False,
+    'listed': [False, True],
+    'thrd': False,
+    'zero': True,
+}
+```
+
+WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
+
+### <a href="#toc39">Partial Evaluation</a>
+
+If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond
+will only evaluate named conditions required to calculate the root key:
+  
+
+
+```python
+called = []
+
+class MyLookupProvider:
+    def expensive_func(data):
+        called.append(data)
+        return 1
+
+    def xx(data):
+        called.append(data)
+        return data.get('a')
+
+q = {
+    'root': ['foo', 'and', 'bar'],
+    'bar': [
+        ['somecond'],
+        'or',
+        [['expensive_func', 'eq', 1], 'and', 'baz'],
+    ],
+    'x': ['xx'],
+    'baz': ['expensive_func', 'lt', 10],
+}
+qualifier = pc.qualify(q, lookup_provider=MyLookupProvider)
+
+d = {'foo': 1}
+r = qualifier(d)
+# root, bar, baz had been calculated, not x
+assert r == {'root': True, 'bar': True, 'baz': True, 'expensive_func': 1}
+# expensive_func result, which was cached, is also returned.
+# expensive_func only called once allthough result evaluated for bar and baz:
+assert len(called) == 1
+
+called.clear()
+f = pc.qualify(q, lookup_provider=MyLookupProvider, root='x')
+assert f({'a': 1}) == {'x': True, 'xx': 1}
+assert f({'b': 1}) == {'x': False, 'xx': None}
+assert called == [{'a': 1}, {'b': 1}]
+```
+
+This means pycond can be used as a lightweight declarative function dispatching framework.
   
 
 

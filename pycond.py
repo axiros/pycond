@@ -8,6 +8,22 @@ DEV Notes:
 
     f_xyz denotes a function (we work a lot with lambdas and partials)
 
+
+Q:  Why not pass state inst
+A:  The **kw for all functions at run time are for the custom lookup feature:
+
+    model = {'eve': {'last_host': 'somehost'}}
+
+    def my_lu(k, v, req, user, model=model):
+        return (model.get(user) or {}).get(k), req[v]
+
+    f = pc.pycond('last_host eq host', lookup=my_lu)
+
+    req = {'host': 'somehost'}
+    assert f(req=req, user='joe') == False 
+    assert f(req=req, user='eve') == True
+
+    Note: state= via **kw in the sig is even faster than via state=State in the sig!
 """
 
 from __future__ import print_function
@@ -192,8 +208,6 @@ out = lambda *m: print(' '.join([str(s) for s in m]))
 
 
 def comb_or(f, g, **kw):
-    if kw:
-        breakpoint()  # FIXME BREAKPOINT
     return f(**kw) or g(**kw)
 
 
@@ -410,13 +424,21 @@ def sorted_keys(l):
     return sorted(list(b)) + sorted(a, key=len)
 
 
-def deserialize_str(cond, **cfg):
+def deserialize_str(cond, check_dict=False, **cfg):
     try:
         return json.loads(cond), cfg
     except:
         pass
-
     cfg['brkts'] = brkts = cfg.get('brkts', '[]')
+
+    if check_dict:
+        # in def qualify we accept textual (flat) dicts.
+        # The cond strings (v) will be sent again into this method.
+        p = cond.split(':', 1)
+        if len(p) > 1 and not ' ' in p[0] and not brkts[0] in p[0]:
+            kvs = [c.strip().split(':', 1) for c in cond.split(',')]
+            return dict([(k.strip(), v.strip()) for k, v in kvs]), cfg
+
     sep = cfg.pop('sep', KV_DELIM)
     if cond.startswith('deep:'):
         cond = cond.split('deep:', 1)[1].strip()
@@ -470,14 +492,17 @@ def complete_ctx_data(keys, provider):
 
 def lookup_from_provider(provider, cfg, lookup):
     def _lookup(k, v, state, provider, cfg, lookup):
+        kv = from_cache(state, k, v)
+        if kv:
+            return kv
         kv = lookup(k, v, cfg, state=state)
         if kv[0] != None:
             return kv
         f = getattr(provider, k, None)
         if not f:
             return None, v
-        kv = state[k] = f(state)
-        return kv, v
+        val = state[CACHE_KEY][k] = f(state)
+        return val, v
 
     return partial(_lookup, provider=provider, cfg=cfg, lookup=lookup)
 
@@ -642,25 +667,27 @@ def norm(cond):
     return cond, False
 
 
-def init_conds(conds, d, prefix=()):
+def init_conds(conds, cfg, d, prefix=()):
     """
     Recurses into conds
 
     """
     # a multi cond is a list of conds, with substreams behind
+    if isinstance(conds, str):
+        conds = deserialize_str(conds, **cfg)[0]
+
     if not isinstance(conds, (list, dict)) or not conds:
         raise Exception('Cannot parse: %s' % str(conds))
-
     if isinstance(conds, list):
         cond, is_single = norm(conds)
         if is_single:
             return {'cond': conds}
         else:
-            return [init_conds(c, d) for c in conds]
+            return [init_conds(c, cfg, d, prefix) for c in conds]
             # conds = dict([(i, c) for i, c in zip(range(len(conds)), conds)])
 
     elif isinstance(conds, dict):
-        res = [[k, init_conds(v, d, prefix + (k,))] for k, v in conds.items()]
+        res = [[k, init_conds(v, cfg, d, prefix + (k,))] for k, v in conds.items()]
         d.update(dict(res))
         return res
 
@@ -679,42 +706,67 @@ def build(conds, lookup, cfg):
             build(v, lookup, cfg)
 
 
-def sub_lookup(lookup):
-    def lu(key, val, cfg, state=State, lookup=lookup, **kw):
-        cache = state.get('_cond_cache')
-        if cache is None:
-            cache = state['_cond_cache'] = {}
-        v = cache.get(key, nil)
-        if v != nil:
-            return v, val
+CACHE_KEY = '.pyc_cache'
 
-        kv = lookup(key, val, cfg, state, **kw)
+
+def pop_cache(state):
+    return state.pop(CACHE_KEY, 0)
+
+
+def from_cache(state, key, val):
+    cache = state.get(CACHE_KEY)
+    if cache is None:
+        cache = state[CACHE_KEY] = {}
+    v = cache.get(key, nil)
+    if v != nil:
+        return v, val
+
+
+def sub_lookup(lookup):
+    def lu(key, v, cfg, state=State, lookup=lookup, **kw):
+        kv = from_cache(state, key, v)
+        if kv:
+            return kv
+        kv = lookup(key, v, cfg, state, **kw)
         if kv[0] != None:
             return kv
-        kvs = lookup(key, val, cfg, state=cfg['sub'], **kw)
+        kvs = lookup(key, v, cfg, state=cfg['sub'], **kw)
         if kvs[0] == None:
             return kv
-        res = kvs[0]['built'][0](state=state, **kw)
-        return res, val
+        val = state[CACHE_KEY][key] = kvs[0]['built'][0](state=state, **kw)
+        return val, v
 
     return lu
 
 
-def qualify(conds, lookup=state_get, recurse=True, **cfg):
+def qualify(conds, lookup=state_get, **cfg):
     if isinstance(conds, str):
-        conds, cfg = deserialize_str(conds, cfg)
+        conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
     d = {}
-    conds = init_conds(conds, d)
+    conds = init_conds(conds, cfg, d)
     cfg['sub'] = d
     build(conds, sub_lookup(lookup), cfg)
 
-    def run_conds(state, conds=conds, subs=d, **kw):
+    root = cfg.get('root')
+    if 'root' in d and root is None:
+        root = 'root'
+    if root:
+        # put it first, we'll break after evaling that:
+        c = []
+        for k, v in conds:
+            if k == root:
+                c.insert(0, [k, v])
+            else:
+                c.append([k, v])
+        conds = c
+
+    def run_conds(state, conds=conds, subs=d, root=root, **kw):
 
         if isinstance(conds, dict):
             built = conds.get('built')
             if built:
                 return built[0](state=state, **kw)
-            breakpoint()  # FIXME BREAKPOINT
+            raise  # never
 
         r = {}
         for k, v in conds:
@@ -722,7 +774,10 @@ def qualify(conds, lookup=state_get, recurse=True, **cfg):
                 r[k] = [run_conds(state, c, d, **kw) for c in v]
             else:
                 r[k] = run_conds(state, v, d, **kw)
-        state.pop('_cond_cache', 0)
+            if root:
+                break
+        c = pop_cache(state)
+        r.update(c)
         return r
 
     return run_conds

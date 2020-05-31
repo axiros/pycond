@@ -21,21 +21,6 @@ p2m = p2m.P2M(__file__, fn_target_md='README.md')
 now = time.time
 
 
-def test_qualify():
-    q = {
-        'thrd': ['k', 'or', 'first'],
-        'nested': [['foo'], ['c', 'in', ['foo', 'bar']]],
-        'zero': [['x', 'eq', 1], 'or', 'thrd'],
-        'first': ['a', 'eq', 'b'],
-    }
-    f = pc.qualify(q)
-    t0 = now()
-    for i in range(10000):
-        r = f({'a': 'b'})
-    print(now() - t0)
-    assert r == {'first': True, 'nested': [False, False], 'thrd': True, 'zero': True}
-
-
 class Test1:
     def test_mechanics(self):
         """
@@ -147,6 +132,7 @@ class Test1:
         ## Custom Lookup And Value Passing
 
         You can supply your own function for value acquisition.
+
         - Signature: See example.
         - Returns: The value for the key from the current state plus the
           compare value for the operator function.
@@ -663,16 +649,118 @@ class Test1:
             data2[0]['a'] = [{'b': 42}]
             assert f(state=data2[0]) == True
 
+        from pytest2md import html_table as tbl  # just a table gen.
+
         """
         The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
 
+        ## Caching
 
-        ## Multiple Conditions Qualification
+        Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
-        Instead of just delivering booleans pycond can be used to qualify a whole set of
-        information about data like so:
+        - Builtin state lookups: Not cached
+        - Custom `lookup` functions: Not cached (you can implment caching within those functions)
+        - Lookup provider return values: Cached, i.e. called only once
+        - Named conditions (see below): Cached
 
+        ## Named Conditions: Qualification
 
+        Instead of just delivering booleans, pycond can be used to qualify a whole set of
+        information about data, like so:
+        """
+
+        def f20_1():
+            # We accept different forms of delivery.
+            # The first full text is restricted to simple flat dicts only:
+            for c in [
+                'one: a gt 10, two: a gt 10 or foo eq bar',
+                {'one': 'a gt 10', 'two': 'a gt 10 or foo eq bar'},
+                {
+                    'one': ['a', 'gt', 10],
+                    'two': ['a', 'gt', 10, 'or', 'foo', 'eq', 'bar'],
+                },
+            ]:
+                f = pc.qualify(c)
+                r = f({'foo': 'bar', 'a': 0})
+                assert r == {'one': False, 'two': True}
+
+        """
+
+        We may refer to results of other named conditions:
+        """
+
+        def f20_3():
+            q = {
+                'thrd': ['k', 'or', 'first'],
+                'listed': [['foo'], ['c', 'eq', 'foo']],
+                'zero': [['x', 'eq', 1], 'or', 'thrd'],
+                'first': ['a', 'eq', 'b'],
+            }
+            f = pc.qualify(q)
+
+            assert f({'a': 'b'}) == {
+                'first': True,
+                'listed': [False, False],
+                'thrd': True,
+                'zero': True,
+            }
+            assert f({'c': 'foo', 'x': 1}) == {
+                'first': False,
+                'listed': [False, True],
+                'thrd': False,
+                'zero': True,
+            }
+
+        """
+        WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
+
+        ### Partial Evaluation
+
+        If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond
+        will only evaluate named conditions required to calculate the root key:
+
+        """
+
+        def f20_4():
+            called = []
+
+            class MyLookupProvider:
+                def expensive_func(data):
+                    called.append(data)
+                    return 1
+
+                def xx(data):
+                    called.append(data)
+                    return data.get('a')
+
+            q = {
+                'root': ['foo', 'and', 'bar'],
+                'bar': [
+                    ['somecond'],
+                    'or',
+                    [['expensive_func', 'eq', 1], 'and', 'baz'],
+                ],
+                'x': ['xx'],
+                'baz': ['expensive_func', 'lt', 10],
+            }
+            qualifier = pc.qualify(q, lookup_provider=MyLookupProvider)
+
+            d = {'foo': 1}
+            r = qualifier(d)
+            # root, bar, baz had been calculated, not x
+            assert r == {'root': True, 'bar': True, 'baz': True, 'expensive_func': 1}
+            # expensive_func result, which was cached, is also returned.
+            # expensive_func only called once allthough result evaluated for bar and baz:
+            assert len(called) == 1
+
+            called.clear()
+            f = pc.qualify(q, lookup_provider=MyLookupProvider, root='x')
+            assert f({'a': 1}) == {'x': True, 'xx': 1}
+            assert f({'b': 1}) == {'x': False, 'xx': None}
+            assert called == [{'a': 1}, {'b': 1}]
+
+        """
+        This means pycond can be used as a lightweight declarative function dispatching framework.
 
         """
 
