@@ -78,7 +78,7 @@ class Test1:
 
         ## Default Lookup
 
-        The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async  or non cooperative multitasking environments.
+        The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async or non cooperative multitasking environments.
 
         """
 
@@ -194,6 +194,9 @@ class Test1:
             print(evaluated)
 
         """
+        Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
+
+
         # Details
 
         ## Debugging Lookups

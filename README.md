@@ -103,7 +103,7 @@ foo_users = [ u for u in users if is_foo(state=u) ]
 with roughly the same performance (factor 2-3) than the handcrafted python.
 
 > In real life performance is often **better** then using imperative code, due to
-`pycond's` [lazy evaluation](#lazy-evaluation) feature. 
+`pycond's` [lazy evaluation](#context-on-demand-and-lazy-evaluation) feature. 
 
 # <a href="#toc2">Why</a>
 
@@ -208,7 +208,7 @@ How state is evaluated is customizable at build and run time.
 
 ## <a href="#toc9">Default Lookup</a>
 
-The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async  or non cooperative multitasking environments.
+The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async or non cooperative multitasking environments.
   
 
 
@@ -340,6 +340,9 @@ Output:
 ['a', 'foo']
 ['a', 'baz']
 ```
+
+Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
+
 
 # <a href="#toc14">Details</a>
 
@@ -836,7 +839,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2005
+Calc.Time (delta_q was called twice): 0.2004
 ```
 
 
@@ -882,7 +885,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1002
 ```
 
 
