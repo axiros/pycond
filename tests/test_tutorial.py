@@ -42,8 +42,6 @@ class Test1:
         assert isinstance(f0(), list) and isinstance(f0()[0], list)
         """
 
-
-
         ## Building
         After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
         The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
@@ -92,7 +90,6 @@ class Test1:
 
         (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
-
         ## Passing State
 
         Use the state argument at evaluation:
@@ -126,6 +123,17 @@ class Test1:
             # sorting order for keys: tuples at end, sorted by len, rest default py sorted:
             assert f(state=m) == True and nfos['keys'] == ['a', ('a', 'b', 0, 'c')]
             print(nfos)
+
+        """
+        ## Prefixed Data
+
+        When data is passed through processing pipelines, it often is passed with headers. So it may be useful to pass a global prefix to access the payload like so:
+
+        """
+
+        def f_21():
+            m = {'payload': {'b': [{'c': 1}], 'id': 123}}
+            assert pc.pycond('b.0.c', deep='.', prefix='payload')(state=m) == True
 
         """
 
@@ -195,7 +203,6 @@ class Test1:
 
         """
         Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
-
 
         # Details
 
@@ -307,7 +314,6 @@ class Test1:
 
         > Operator namespace(s) should be assigned at process start, they are global.
 
-
         ### Extending Condition Operators
 
         """
@@ -351,7 +357,6 @@ class Test1:
 
         #### Global Wrapping
         You may globally wrap all evaluation time condition operations through a custom function:
-
 
         """
 
@@ -397,7 +402,6 @@ class Test1:
         > Using `ops_thru` is a good way to debug unexpected results, since you
         > can add breakpoints or loggers there.
 
-
         ## Combining Operations
 
         You can combine single conditions with
@@ -418,9 +422,7 @@ class Test1:
 
         > Via the `brkts` config parameter you may change those to other separators at build time.
 
-
         ## Tokenizing Details
-
 
         > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
@@ -467,8 +469,6 @@ class Test1:
 
         """
 
-
-
         ### Escaping
 
         Tell the tokenizer to not interpret the next character:
@@ -480,7 +480,6 @@ class Test1:
             assert pc.pycond('b eq Hello\ World')() == True
 
         """
-
 
         ### Building
 
@@ -622,7 +621,6 @@ class Test1:
         Lets avoid calculating these values, remembering the
         [custom lookup function](#custom-lookup-and-value-passing) feature.
 
-
         > pycond does generate such a custom lookup function readily for you,
         > if you pass a getter namespace as `lookup_provider`:
 
@@ -657,6 +655,8 @@ class Test1:
         """
         The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
 
+        NOTE: Instead of providing a class tree you may also provide a dict of functions as `lookup_provider_dict` argument, see `qualify` examples below.
+
         ## Caching
 
         Note: Currently you cannot override these defaults. Drop an issue if you need to.
@@ -689,75 +689,79 @@ class Test1:
 
         """
 
-        We may refer to results of other named conditions:
+        We may refer to results of other named conditions and also can pass named condition sets as lists instead of dicts:
         """
 
         def f20_3():
+            def run(q):
+                print('Running', q)
+                f = pc.qualify(q)
+
+                assert f({'a': 'b'}) == {
+                    'first': True,
+                    'listed': [False, False],
+                    'thrd': True,
+                    'zero': True,
+                }
+                assert f({'c': 'foo', 'x': 1}) == {
+                    'first': False,
+                    'listed': [False, True],
+                    'thrd': False,
+                    'zero': True,
+                }
+
             q = {
                 'thrd': ['k', 'or', 'first'],
                 'listed': [['foo'], ['c', 'eq', 'foo']],
                 'zero': [['x', 'eq', 1], 'or', 'thrd'],
                 'first': ['a', 'eq', 'b'],
             }
-            f = pc.qualify(q)
+            run(q)
 
-            assert f({'a': 'b'}) == {
-                'first': True,
-                'listed': [False, False],
-                'thrd': True,
-                'zero': True,
-            }
-            assert f({'c': 'foo', 'x': 1}) == {
-                'first': False,
-                'listed': [False, True],
-                'thrd': False,
-                'zero': True,
-            }
+            # The conditions may be passed as list as well:
+            q = [[k, v] for k, v in q.items()]
+            run(q)
 
         """
         WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
+
         ### Partial Evaluation
 
-        If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond
-        will only evaluate named conditions required to calculate the root key:
+        If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
 
         """
 
         def f20_4():
             called = []
 
-            class MyLookupProvider:
-                def expensive_func(data):
-                    called.append(data)
-                    return 1
+            def expensive_func(data):
+                called.append(data)
+                return 1
 
-                def xx(data):
-                    called.append(data)
-                    return data.get('a')
+            def xx(data):
+                called.append(data)
+                return data.get('a')
 
+            funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
             q = {
                 'root': ['foo', 'and', 'bar'],
-                'bar': [
-                    ['somecond'],
-                    'or',
-                    [['expensive_func', 'eq', 1], 'and', 'baz'],
-                ],
+                'bar': [['somecond'], 'or', [['exp', 'eq', 1], 'and', 'baz'],],
                 'x': ['xx'],
-                'baz': ['expensive_func', 'lt', 10],
+                'baz': ['exp', 'lt', 10],
             }
-            qualifier = pc.qualify(q, lookup_provider=MyLookupProvider)
+            qualifier = pc.qualify(q, lookup_provider_dict=funcs)
 
             d = {'foo': 1}
             r = qualifier(d)
             # root, bar, baz had been calculated, not x
-            assert r == {'root': True, 'bar': True, 'baz': True, 'expensive_func': 1}
+            assert r == {'root': True, 'bar': True, 'baz': True, 'exp': 1}
             # expensive_func result, which was cached, is also returned.
             # expensive_func only called once allthough result evaluated for bar and baz:
             assert len(called) == 1
 
             called.clear()
-            f = pc.qualify(q, lookup_provider=MyLookupProvider, root='x')
+            f = pc.qualify(q, lookup_provider_dict=funcs, root='x')
             assert f({'a': 1}) == {'x': True, 'xx': 1}
             assert f({'b': 1}) == {'x': False, 'xx': None}
             assert called == [{'a': 1}, {'b': 1}]
@@ -767,5 +771,157 @@ class Test1:
 
         """
 
+        """
+        # Streaming Data
+
+        Since version 20200601 pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
+
+        Lets first set up a test data stream, by defining a function `rx_setup` like so:
+
+        """
+
+        def rx_setup():
+            # simply `import rx as Rx and rx = rx.operators`:
+            # import pycond as pc, like always:
+            Rx, rx = pc.import_rx()
+
+            def subs(*test_pipe, items=4):
+                """
+                Function which takes a set of operators and runs an interval stream until completed
+                """
+
+                # stream sink result holder plus a stream completer:
+                l, compl = [], rx.take(items)
+                l.clear()  # clear any previous results
+                # creates integers: 0, then 1, then 2, ... and so on:
+                stream = Rx.interval(0.01)
+                # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
+                stream = stream.pipe(rx.map(lambda i: {'i': i}), compl)
+                # defines the stream through the tested operators:
+                s = stream.pipe(*test_pipe)
+                # runs the stream:
+                d = s.subscribe(
+                    on_next=lambda x: l.append(x),
+                    on_completed=lambda: l.append('completed'),
+                )
+                # blocks until completed:
+                while not (l and l[-1] == 'completed'):
+                    time.sleep(0.001)
+                l.pop()  # removes completed indicator
+                return l  # returns all processed messages
+
+            return Rx, rx, subs
+
+        """
+        Lets test the setup by having some messages streamed through:
+
+        """
+
+        def rx_1():
+            Rx, rx, subs = rx_setup()
+            # test test setup:
+            r = subs(items=3)
+            assert r == [{'i': 0}, {'i': 1}, {'i': 2}]
+
+        """
+        -> test setup works.
+
+        ## Data Filtering
+
+        This is the most simple operation: A simple stream filter.
+
+        """
+
+        def rx_filter():
+            Rx, rx, subs = rx_setup()
+
+            # ask pycond for a stream filter based on a condition:
+            pcfilter = partial(pc.rxop, ['i', 'mod', 2])
+
+            r = subs(pcfilter())
+            assert r == [{'i': 1}, {'i': 3}]  # 4 produced, 2 filtered out
+
+            # try the stream filter with message headered data:
+            pl = 'payload'
+            r = subs(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
+            print('Full messages passed:', r)
+            r = [m[pl] for m in r]
+            assert r == [{'i': 1}, {'i': 3}]
+
+            # We may pass a custom filter function, which will be called,
+            # when data streams through. It gets the built cond. as first argument:
+            def myf(my_built_filter, data):
+                return my_built_filter(data) or data['i'] == 0
+
+            r = subs(pcfilter(func=myf))
+            assert r == [
+                {'i': 0},
+                {'i': 1},
+                {'i': 3},
+            ]  # 4 produced, only 1 filtered out now
+
+        """
+        ## Data Classification
+
+        Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently
+
+        """
+
+        def rx_classifier():
+            Rx, rx, subs = rx_setup()
+
+            # generate a set of classifiers:
+            conds = [['i', 'mod', i] for i in range(2, 4)]
+
+            def run(offs=0):
+
+                # and get a classifying operator from pycond, adding the results in place, at key 'mod':
+                r = subs(pc.rxop(conds, at='mod'))
+                i, j = 0 + offs, 1 + offs
+                assert r == [
+                    {'i': 0, 'mod': {i: 0, j: 0}},
+                    {'i': 1, 'mod': {i: 1, j: 1}},
+                    {'i': 2, 'mod': {i: 0, j: 2}},
+                    {'i': 3, 'mod': {i: 1, j: 0}},
+                ]
+
+            # we can also provide the names of the classifiers by passing a dict:
+            # here we pass 2 and 3 as those names:
+            conds = dict([(i, ['i', 'mod', i]) for i in range(2, 4)])
+            run(2)
+
+        """
+        Normally the data has headers, so thats a good place to keep the classification tags.
+
+        ### Selective Classification
+
+        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a root condition:
+        """
+
+        def rx_class_sel():
+            Rx, rx, subs = rx_setup()
+
+            # using the list style right away:
+            conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
+            conds.append(['alt', ['i', 'gt', 1]])
+            # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
+            r = subs(pc.rxop(conds, at='mod', root=2))
+
+            assert r == [
+                {'i': 0, 'mod': {2: False, 'alt': False}},
+                {'i': 1, 'mod': {2: 1}},
+                {'i': 2, 'mod': {2: True, 'alt': True}},
+                {'i': 3, 'mod': {2: 1}},
+            ]
+
+        ## Data Filtering
         p2m.md_from_source_code()
         p2m.write_markdown(with_source_ref=True, make_toc=True)
+
+        # # from rx.scheduler.eventloop import GEventScheduler
+        # # # we use gevent
+        # # import gevent
+        # # from gevent import monkey
+
+        # # monkey.patch_all()
+        # # GS = GEventScheduler(gevent)

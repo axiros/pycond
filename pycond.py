@@ -34,14 +34,25 @@ from functools import partial
 from copy import deepcopy
 from ast import literal_eval
 
+_is = isinstance
+
 PY2 = sys.version_info[0] == 2
-# is_str = lambda s: isinstance(s, basestring if PY2 else (bytes, str))
+# is_str = lambda s: _is(s, basestring if PY2 else (bytes, str))
 if PY2:
-    is_str = lambda s: isinstance(s, basestring)
+    is_str = lambda s: _is(s, basestring)
     sig_args = lambda f: inspect.getargspec(getattr(f, 'func', f)).args
 else:
-    is_str = lambda s: isinstance(s, (bytes, str))
+    is_str = lambda s: _is(s, (bytes, str))
     sig_args = lambda f: list(inspect.signature(f).parameters.keys())
+
+
+bbb = bool
+
+
+def xbool(o):
+    print(o)
+    return bbb(o)
+
 
 # fmt:off
 # from dir(operator):
@@ -174,7 +185,7 @@ State = {}
 
 def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
     # key maybe already path tuple - or string with deep as seperator:
-    parts = key.split(deep) if isinstance(key, str) else list(key)
+    parts = key.split(deep) if _is(key, str) else list(key)
     while parts:
         part = parts.pop(0)
         try:
@@ -191,7 +202,7 @@ def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
 
 def state_get(key, val, cfg, state=State, **kw):
     # a lookup function can modify key AND value, i.e. returns both:
-    if isinstance(key, tuple):
+    if _is(key, tuple):
         return state_get_deep(key, val, cfg, state, **kw)
     else:
         return state.get(key), val  # default k, v access function
@@ -249,9 +260,9 @@ def is_deep_list_path(key):
     When transferred over json we can't do paths as tuples
     We find if have a deep path by excluding every other option:
     """
-    if not isinstance(key, list):
+    if not _is(key, list):
         return
-    if any([k for k in key if not isinstance(k, (str, int))]):
+    if any([k for k in key if not _is(k, (str, int))]):
         return
     if not (len(key)) > 1:
         return
@@ -270,18 +281,29 @@ def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
     # NOTE: This is build time, not eval time, i.e. does not hurt much:
     cond = literal_eval(str(cond))
     res = parse_struct_cond(cond, cfg, nfo)
-    return res
+    p = cfg.get('prefix')
+    if not p:
+        return res
+
+    def f(prefix, res):
+        def f1(prefix, res, *a, state=State, **kw):
+            state = state.get(prefix)
+            return res(*a, state=state, **kw)
+
+        return partial(f1, prefix=prefix, res=res)
+
+    return f(p, res)
 
 
 KEY_STR_TYP, KEY_TPL_TYP, KEY_LST_TYP = 1, 2, 3
 
 
 def key_type(key):
-    if isinstance(key, str):
+    if _is(key, str):
         return KEY_STR_TYP
-    elif isinstance(key, tuple):
+    elif _is(key, tuple):
         return KEY_TPL_TYP
-    elif isinstance(key, list) and is_deep_list_path(key):
+    elif _is(key, list) and is_deep_list_path(key):
         return KEY_LST_TYP
     return None
 
@@ -311,7 +333,7 @@ def parse_struct_cond(cond, cfg, nfo):
                 key = tuple(key)
             ac = [key]
             while cond:
-                if isinstance(cond[0], str) and cond[0] in COMB_OPS:
+                if _is(cond[0], str) and cond[0] in COMB_OPS:
                     break
                 ac.append(cond.pop(0))
             f1 = atomic_cond(ac, cfg, nfo)
@@ -419,7 +441,7 @@ def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
 
 # ------------------------------------------------------------------ Public API
 def sorted_keys(l):
-    a = [i for i in l if isinstance(i, tuple)]
+    a = [i for i in l if _is(i, tuple)]
     b = l - set(a)
     return sorted(list(b)) + sorted(a, key=len)
 
@@ -461,9 +483,10 @@ def parse_cond(cond, lookup=state_get, **cfg):
     if cfg.get('deep'):
         lookup = partial(state_get_deep, deep=cfg['deep'])
 
-    lp = cfg.get('lookup_provider')
-    if lp:
-        lookup = lookup_from_provider(lp, cfg, lookup)
+    for _lp in ('lookup_provider', 'lookup_provider_dict'):
+        lp = cfg.get(_lp)
+        if lp:
+            lookup = lookup_from_provider(lp, cfg, lookup, is_dict='dict' in _lp)
 
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
@@ -490,21 +513,27 @@ def complete_ctx_data(keys, provider):
     return partial(_getter, keys=keys, provider=provider)
 
 
-def lookup_from_provider(provider, cfg, lookup):
-    def _lookup(k, v, state, provider, cfg, lookup):
+def lookup_from_provider(provider, cfg, lookup, is_dict):
+    def _lookup(k, v, state, provider, cfg, lookup, is_dict, **kw):
         kv = from_cache(state, k, v)
         if kv:
             return kv
         kv = lookup(k, v, cfg, state=state)
         if kv[0] != None:
             return kv
-        f = getattr(provider, k, None)
+        if is_dict:
+            f = provider.get(k)
+            if f:
+                # convention, dict of functions under this key:
+                f = f['func']
+        else:
+            f = getattr(provider, k, None)
         if not f:
             return None, v
         val = state[CACHE_KEY][k] = f(state)
         return val, v
 
-    return partial(_lookup, provider=provider, cfg=cfg, lookup=lookup)
+    return partial(_lookup, provider=provider, cfg=cfg, lookup=lookup, is_dict=is_dict)
 
 
 def pycond(cond, *a, **cfg):
@@ -656,60 +685,101 @@ def to_struct(cond, brackets='[]'):
 
 # ----------------------------------------------------------------------------- qualify
 def norm(cond):
+    """Do we have a single condition, which we return double bracketted or a list of conds?"""
+    # given as ['foo', 'eq', 'bar'] instead [['foo', 'eq', 'bar']]?
     kt = key_type(cond[0])
     if kt:
         cond = [cond]
+
     if len(cond) == 1:
         return cond, True
-    elif isinstance(cond[1], str) and cond[1] in COMB_OPS:
+
+    elif _is(cond[1], str) and cond[1] in COMB_OPS:
         return cond, True
     # A list of conds:
     return cond, False
 
 
-def init_conds(conds, cfg, d, prefix=()):
+from os import environ
+
+
+def is_named_listed_set_of_conds(cond):
+    """
+    is cond like: [[<name>, <conditionlist>], ...]
+    I.e. just given alternative to dicts, since ordered.
+    """
+    try:
+        for c in cond:
+            if _is(c, list) and c and _is(c[0], (int, bool, float)):
+                continue
+            if not key_type(c[0]):
+                return
+            if not _is(c[1], list):
+                return
+            if _is(c[1], str) and c[1] in COMB_OPS:
+                return
+    except:
+        return
+    # breakpoint()  # FIXME BREAKPOINT
+    return True
+
+
+def init_conds(conds, cfg, built, prefix=()):
     """
     Recurses into conds
 
     """
     # a multi cond is a list of conds, with substreams behind
-    if isinstance(conds, str):
+    if _is(conds, str):
         conds = deserialize_str(conds, **cfg)[0]
 
-    if not isinstance(conds, (list, dict)) or not conds:
+    if not _is(conds, (list, dict)) or not conds:
         raise Exception('Cannot parse: %s' % str(conds))
-    if isinstance(conds, list):
+
+    if _is(conds, list):
         cond, is_single = norm(conds)
         if is_single:
             return {'cond': conds}
+        elif is_named_listed_set_of_conds(cond):
+            cs = [[key, init_conds(c, cfg, built, prefix)] for key, c in cond]
+            return cs
         else:
-            return [init_conds(c, cfg, d, prefix) for c in conds]
+            return [init_conds(c, cfg, built, prefix) for c in conds]
             # conds = dict([(i, c) for i, c in zip(range(len(conds)), conds)])
 
-    elif isinstance(conds, dict):
-        res = [[k, init_conds(v, cfg, d, prefix + (k,))] for k, v in conds.items()]
-        d.update(dict(res))
+    elif _is(conds, dict):
+        res = [[k, init_conds(v, cfg, built, prefix + (k,))] for k, v in conds.items()]
+        # built.update(res)
+
+        for k in dict(res):
+            built[k] = {}
+
         return res
 
     raise
 
 
-def build(conds, lookup, cfg):
-    if isinstance(conds, dict) and 'cond' in conds:
-        conds['built'] = parse_cond(conds['cond'], lookup, **cfg)
-        return
+def build(conds, lookup, cfg, into):
+    if _is(conds, dict) and 'cond' in conds:
+        # conds['built'] = parse_cond(conds['cond'], lookup)  # , **cfg)
+        return parse_cond(conds['cond'], lookup, **cfg)
 
     for k, v in conds:
-        if isinstance(v, list):
-            [build(c, lookup, cfg) for c in v]
+        if _is(v, list):
+            if norm(v)[1] == True:
+                into[k] = build(v, lookup, cfg, into)
+            else:
+                into[k] = [build(c, lookup, cfg, into) for c in v]
         else:
-            build(v, lookup, cfg)
+            into[k] = build(v, lookup, cfg, into)
 
 
 CACHE_KEY = '.pyc_cache'
 
 
-def pop_cache(state):
+def pop_cache(state, prefix):
+    if prefix:
+        state = state.get(prefix)
     return state.pop(CACHE_KEY, 0)
 
 
@@ -722,35 +792,87 @@ def from_cache(state, key, val):
         return v, val
 
 
-def sub_lookup(lookup):
-    def lu(key, v, cfg, state=State, lookup=lookup, **kw):
+def sub_lookup(lookup, built):
+    """
+    Returns the wanted lookup function but with a fallback to other named sub conds
+    """
+
+    def lu(key, v, cfg, state=State, lookup=lookup, built=built, **kw):
         kv = from_cache(state, key, v)
         if kv:
             return kv
         kv = lookup(key, v, cfg, state, **kw)
         if kv[0] != None:
             return kv
-        kvs = lookup(key, v, cfg, state=cfg['sub'], **kw)
-        if kvs[0] == None:
+
+        # not found -> check: is the key a named condition?
+        sub_cond_ref = lookup(key, v, cfg, state=built, **kw)
+        if sub_cond_ref[0] == None:
+            # nope - so return the None:
             return kv
-        val = state[CACHE_KEY][key] = kvs[0]['built'][0](state=state, **kw)
+        # cache value of named condition:
+        val = state[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
         return val, v
 
     return lu
 
 
-def qualify(conds, lookup=state_get, **cfg):
-    if isinstance(conds, str):
+def run_conds(state, conds, built, is_single, **kw):
+    """In data path (hot)"""
+    if is_single:
+        r = built['root'][0](state=state, **kw)
+        pop_cache(state, kw.get('prefix'))
+        return r
+
+    if _is(conds, dict) and conds.get('cond'):
+        f = built[0](state=state, **kw)
+        return f
+
+    r = {}
+    for k, v in conds:
+        b = built[k]
+        if _is(v, list):
+            r[k] = [
+                run_conds(state, c, b[i], is_single, **kw)
+                for i, c in zip(range(len(v)), v)
+            ]
+        else:
+            r[k] = run_conds(state, v, b, is_single, **kw)
+
+        # user wants only partial evaluation?
+        if kw.get('root') not in (None, False):
+            break
+
+    c = pop_cache(state, kw.get('prefix'))
+    r.update(c)
+    return r
+
+
+def qualify(conds, lookup=state_get, return_type=False, **cfg):
+    if _is(conds, str):
         conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
-    d = {}
-    conds = init_conds(conds, cfg, d)
-    cfg['sub'] = d
-    build(conds, sub_lookup(lookup), cfg)
+    built = {}  # store all built named conditions here
+    conds = init_conds(conds, cfg, built)
+
+    # user sent a list of conds already, not a dict. We create conds as if he would
+    # have passed the dict:
+    if conds and _is(conds, list) and _is(conds[0], dict) and 'cond' in conds[0]:
+        conds = [i for i in zip(range(len(conds)), conds)]
+
+    # built dict of named conds - conds the ordered list of them:
+    # If cond was just a plain condition built will remain empty but it returned:
+    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
+    is_single = False
+    if not built:
+        built = {'root': b}
+        conds = [['root', conds]]
+        is_single = True
 
     root = cfg.get('root')
-    if 'root' in d and root is None:
-        root = 'root'
-    if root:
+    if 'root' in built and root is None:
+        root = cfg['root'] = 'root'
+
+    if root is not None:
         # put it first, we'll break after evaling that:
         c = []
         for k, v in conds:
@@ -760,24 +882,34 @@ def qualify(conds, lookup=state_get, **cfg):
                 c.append([k, v])
         conds = c
 
-    def run_conds(state, conds=conds, subs=d, root=root, **kw):
+    f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
+    if return_type:
+        return f, is_single
+    else:
+        return f
 
-        if isinstance(conds, dict):
-            built = conds.get('built')
-            if built:
-                return built[0](state=state, **kw)
-            raise  # never
 
-        r = {}
-        for k, v in conds:
-            if isinstance(v, list):
-                r[k] = [run_conds(state, c, d, **kw) for c in v]
-            else:
-                r[k] = run_conds(state, v, d, **kw)
-            if root:
-                break
-        c = pop_cache(state)
-        r.update(c)
-        return r
+# ---------------------------------------------------------------------------------  rx
+def import_rx():
+    from rx import operators as rx
+    import rx as Rx
 
-    return run_conds
+    return Rx, rx
+
+
+def rxop(cond, func=None, at=None, **cfg):
+    """for streaming data (optional)"""
+    Rx, rx = import_rx()
+    q, is_single = qualify(cond, return_type=True, **cfg)
+    if is_single:
+        f = func or (lambda q, x: bool(q(x)))
+        return rx.filter(partial(f, q))
+    else:
+
+        def f(q, x, at=at):
+            d = x if at is None else x.setdefault(at, {})
+            d.update(q(x))
+            return x
+
+        return rx.map(partial(f, q))
+    breakpoint()  # FIXME BREAKPOINT

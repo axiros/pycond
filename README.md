@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200601
+version: 20200602
 
 ---
 
@@ -33,34 +33,39 @@ version: 20200601
     - <a name="toc9"></a>[Default Lookup](#default-lookup)
     - <a name="toc10"></a>[Passing State](#passing-state)
         - <a name="toc11"></a>[Deep Lookup / Nested State / Lists](#deep-lookup-nested-state-lists)
-    - <a name="toc12"></a>[Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
-    - <a name="toc13"></a>[Lazy Evaluation](#lazy-evaluation)
-- <a name="toc14"></a>[Details](#details)
-    - <a name="toc15"></a>[Debugging Lookups](#debugging-lookups)
-    - <a name="toc16"></a>[Building Conditions From Text](#building-conditions-from-text)
-        - <a name="toc17"></a>[Grammar](#grammar)
-        - <a name="toc18"></a>[Atomic Conditions](#atomic-conditions)
-    - <a name="toc19"></a>[Condition Operators](#condition-operators)
-        - <a name="toc20"></a>[Using Symbolic Operators](#using-symbolic-operators)
-        - <a name="toc21"></a>[Extending Condition Operators](#extending-condition-operators)
-        - <a name="toc22"></a>[Negation `not`](#negation-not)
-        - <a name="toc23"></a>[Reversal `rev`](#reversal-rev)
-        - <a name="toc24"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
-            - <a name="toc25"></a>[Global Wrapping](#global-wrapping)
-            - <a name="toc26"></a>[Condition Local Wrapping](#condition-local-wrapping)
-    - <a name="toc27"></a>[Combining Operations](#combining-operations)
-        - <a name="toc28"></a>[Nesting](#nesting)
-    - <a name="toc29"></a>[Tokenizing Details](#tokenizing-details)
-        - <a name="toc30"></a>[Functioning](#functioning)
-        - <a name="toc31"></a>[Separator `sep`](#separator-sep)
-        - <a name="toc32"></a>[Apostrophes](#apostrophes)
-        - <a name="toc33"></a>[Escaping](#escaping)
-        - <a name="toc34"></a>[Building](#building)
-        - <a name="toc35"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-- <a name="toc36"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
-    - <a name="toc37"></a>[Caching](#caching)
-    - <a name="toc38"></a>[Named Conditions: Qualification](#named-conditions-qualification)
-        - <a name="toc39"></a>[Partial Evaluation](#partial-evaluation)
+    - <a name="toc12"></a>[Prefixed Data](#prefixed-data)
+    - <a name="toc13"></a>[Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
+    - <a name="toc14"></a>[Lazy Evaluation](#lazy-evaluation)
+- <a name="toc15"></a>[Details](#details)
+    - <a name="toc16"></a>[Debugging Lookups](#debugging-lookups)
+    - <a name="toc17"></a>[Building Conditions From Text](#building-conditions-from-text)
+        - <a name="toc18"></a>[Grammar](#grammar)
+        - <a name="toc19"></a>[Atomic Conditions](#atomic-conditions)
+    - <a name="toc20"></a>[Condition Operators](#condition-operators)
+        - <a name="toc21"></a>[Using Symbolic Operators](#using-symbolic-operators)
+        - <a name="toc22"></a>[Extending Condition Operators](#extending-condition-operators)
+        - <a name="toc23"></a>[Negation `not`](#negation-not)
+        - <a name="toc24"></a>[Reversal `rev`](#reversal-rev)
+        - <a name="toc25"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
+            - <a name="toc26"></a>[Global Wrapping](#global-wrapping)
+            - <a name="toc27"></a>[Condition Local Wrapping](#condition-local-wrapping)
+    - <a name="toc28"></a>[Combining Operations](#combining-operations)
+        - <a name="toc29"></a>[Nesting](#nesting)
+    - <a name="toc30"></a>[Tokenizing Details](#tokenizing-details)
+        - <a name="toc31"></a>[Functioning](#functioning)
+        - <a name="toc32"></a>[Separator `sep`](#separator-sep)
+        - <a name="toc33"></a>[Apostrophes](#apostrophes)
+        - <a name="toc34"></a>[Escaping](#escaping)
+        - <a name="toc35"></a>[Building](#building)
+        - <a name="toc36"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
+- <a name="toc37"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
+    - <a name="toc38"></a>[Caching](#caching)
+    - <a name="toc39"></a>[Named Conditions: Qualification](#named-conditions-qualification)
+        - <a name="toc40"></a>[Partial Evaluation](#partial-evaluation)
+- <a name="toc41"></a>[Streaming Data](#streaming-data)
+    - <a name="toc42"></a>[Data Filtering](#data-filtering)
+    - <a name="toc43"></a>[Data Classification](#data-classification)
+        - <a name="toc44"></a>[Selective Classification](#selective-classification)
 
 <!-- TOC -->
 
@@ -172,8 +177,6 @@ Output:
 ```
 
 
-
-
 ## <a href="#toc6">Building</a>
 After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
 The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
@@ -222,7 +225,6 @@ assert f() == True
 
 (`pycond` is a shortcut for `parse_cond`, when meta infos are not required).
 
-
 ## <a href="#toc10">Passing State</a>
 
 Use the state argument at evaluation:  
@@ -263,8 +265,19 @@ Output:
 {'keys': ['a', ('a', 'b', 0, 'c')], 'foo': 'bar1'}
 ```
 
+## <a href="#toc12">Prefixed Data</a>
 
-## <a href="#toc12">Custom Lookup And Value Passing</a>
+When data is passed through processing pipelines, it often is passed with headers. So it may be useful to pass a global prefix to access the payload like so:
+  
+
+
+```python
+m = {'payload': {'b': [{'c': 1}], 'id': 123}}
+assert pc.pycond('b.0.c', deep='.', prefix='payload')(state=m) == True
+```
+
+
+## <a href="#toc13">Custom Lookup And Value Passing</a>
 
 You can supply your own function for value acquisition.
 
@@ -298,7 +311,7 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get
 function.
 
-## <a href="#toc13">Lazy Evaluation</a>
+## <a href="#toc14">Lazy Evaluation</a>
 
 This is avoiding unnecessary calculations in many cases:
 
@@ -343,10 +356,9 @@ Output:
 
 Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
 
+# <a href="#toc15">Details</a>
 
-# <a href="#toc14">Details</a>
-
-## <a href="#toc15">Debugging Lookups</a>
+## <a href="#toc16">Debugging Lookups</a>
 
 pycond provides a key getter which prints out every lookup.  
 
@@ -362,7 +374,7 @@ Lookup: a b -> None
 Lookup: foo bar -> bar
 ```
 
-## <a href="#toc16">Building Conditions From Text</a>
+## <a href="#toc17">Building Conditions From Text</a>
 
 Condition functions are created internally from structured expressions -
 but those are [hard to type](#lazy-dynamic-context-assembly),
@@ -371,7 +383,7 @@ involving many apostropies.
 The text based condition syntax is intended for situations when end users
 type them into text boxes directly.
 
-### <a href="#toc17">Grammar</a>
+### <a href="#toc18">Grammar</a>
 
 Combine atomic conditions with boolean operators and nesting brackets like:
 
@@ -379,7 +391,7 @@ Combine atomic conditions with boolean operators and nesting brackets like:
 [  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
 ```
 
-### <a href="#toc18">Atomic Conditions</a>
+### <a href="#toc19">Atomic Conditions</a>
 
 ```
 [not] <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
@@ -416,7 +428,7 @@ assert pc.pycond('x and not foo')(state=m) == True
 assert pc.pycond('y and not falsy_val')(state=m) == False
 ```
 
-## <a href="#toc19">Condition Operators</a>
+## <a href="#toc20">Condition Operators</a>
 
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
 are available by default:
@@ -494,7 +506,7 @@ for k in 'nr', 'str':
 
 
 
-### <a href="#toc20">Using Symbolic Operators</a>
+### <a href="#toc21">Using Symbolic Operators</a>
 
 By default pycond uses text style operators.
 
@@ -521,8 +533,7 @@ except:
 
 > Operator namespace(s) should be assigned at process start, they are global.
 
-
-### <a href="#toc21">Extending Condition Operators</a>
+### <a href="#toc22">Extending Condition Operators</a>
   
 
 
@@ -533,7 +544,7 @@ assert pc.pycond('a maybe b')() in (True, False)
 ```
 
 
-### <a href="#toc22">Negation `not`</a>
+### <a href="#toc23">Negation `not`</a>
 
 Negates the result of the condition operator:
   
@@ -546,7 +557,7 @@ assert pc.pycond('foo not eq abc')() == False
 ```
 
 
-### <a href="#toc23">Reversal `rev`</a>
+### <a href="#toc24">Reversal `rev`</a>
 
 Reverses the arguments before calling the operator  
 
@@ -560,11 +571,10 @@ assert pc.pycond('foo rev contains abc')() == True
 
 > `rev` and `not` can be combined in any order.
 
-### <a href="#toc24">Wrapping Condition Operators</a>
+### <a href="#toc25">Wrapping Condition Operators</a>
 
-#### <a href="#toc25">Global Wrapping</a>
+#### <a href="#toc26">Global Wrapping</a>
 You may globally wrap all evaluation time condition operations through a custom function:
-
   
 
 
@@ -589,7 +599,7 @@ pc.ops_use_symbolic_and_txt()
 
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-#### <a href="#toc26">Condition Local Wrapping</a>
+#### <a href="#toc27">Condition Local Wrapping</a>
 
 This is done through the `ops_thru` parameter as shown:
   
@@ -610,8 +620,7 @@ assert f() == True
 > Using `ops_thru` is a good way to debug unexpected results, since you
 > can add breakpoints or loggers there.
 
-
-## <a href="#toc27">Combining Operations</a>
+## <a href="#toc28">Combining Operations</a>
 
 You can combine single conditions with
 
@@ -625,23 +634,21 @@ The combining functions are stored in `pycond.COMB_OPS` dict and may be extended
 
 > Do not use spaces for the names of combining operators. The user may use them but they are replaced at before tokenizing time, like `and not` -> `and_not`.
 
-### <a href="#toc28">Nesting</a>
+### <a href="#toc29">Nesting</a>
 
 Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 > Via the `brkts` config parameter you may change those to other separators at build time.
 
-
-## <a href="#toc29">Tokenizing Details</a>
-
+## <a href="#toc30">Tokenizing Details</a>
 
 > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
-### <a href="#toc30">Functioning</a>
+### <a href="#toc31">Functioning</a>
 
 The tokenizers job is to take apart expression strings for the builder.
 
-### <a href="#toc31">Separator `sep`</a>
+### <a href="#toc32">Separator `sep`</a>
 
 Separates the different parts of an expression. Default is ' '.
   
@@ -668,7 +675,7 @@ assert (
 > The condition functions themselves do not evaluate equal - those
 > had been assembled two times.
 
-### <a href="#toc32">Apostrophes</a>
+### <a href="#toc33">Apostrophes</a>
 
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
   
@@ -680,9 +687,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 ```
 
 
-
-
-### <a href="#toc33">Escaping</a>
+### <a href="#toc34">Escaping</a>
 
 Tell the tokenizer to not interpret the next character:
   
@@ -694,10 +699,9 @@ assert pc.pycond('b eq Hello\ World')() == True
 ```
 
 
+### <a href="#toc35">Building</a>
 
-### <a href="#toc34">Building</a>
-
-### <a href="#toc35">Autoconv: Casting of values into python simple types</a>
+### <a href="#toc36">Autoconv: Casting of values into python simple types</a>
 
 Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
 
@@ -727,7 +731,7 @@ for id in '1', 1:
 ```
 
 
-# <a href="#toc36">Context On Demand And Lazy Evaluation</a>
+# <a href="#toc37">Context On Demand And Lazy Evaluation</a>
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -849,7 +853,6 @@ only needed in dead ends of a lazily evaluated condition.
 Lets avoid calculating these values, remembering the
 [custom lookup function](#custom-lookup-and-value-passing) feature.
 
-
 > pycond does generate such a custom lookup function readily for you,
 > if you pass a getter namespace as `lookup_provider`:
   
@@ -891,7 +894,9 @@ Calc.Time (delta_q was called just once): 0.1002
 
 The output demonstrates that we did not even call the value provider functions for the dead branches of the condition.
 
-## <a href="#toc37">Caching</a>
+NOTE: Instead of providing a class tree you may also provide a dict of functions as `lookup_provider_dict` argument, see `qualify` examples below.
+
+## <a href="#toc38">Caching</a>
 
 Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
@@ -900,7 +905,7 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 - Lookup provider return values: Cached, i.e. called only once
 - Named conditions (see below): Cached
 
-## <a href="#toc38">Named Conditions: Qualification</a>
+## <a href="#toc39">Named Conditions: Qualification</a>
 
 Instead of just delivering booleans, pycond can be used to qualify a whole set of
 information about data, like so:  
@@ -923,75 +928,85 @@ for c in [
 ```
 
 
-We may refer to results of other named conditions:  
+We may refer to results of other named conditions and also can pass named condition sets as lists instead of dicts:  
 
 
 ```python
+def run(q):
+    print('Running', q)
+    f = pc.qualify(q)
+
+    assert f({'a': 'b'}) == {
+        'first': True,
+        'listed': [False, False],
+        'thrd': True,
+        'zero': True,
+    }
+    assert f({'c': 'foo', 'x': 1}) == {
+        'first': False,
+        'listed': [False, True],
+        'thrd': False,
+        'zero': True,
+    }
+
 q = {
     'thrd': ['k', 'or', 'first'],
     'listed': [['foo'], ['c', 'eq', 'foo']],
     'zero': [['x', 'eq', 1], 'or', 'thrd'],
     'first': ['a', 'eq', 'b'],
 }
-f = pc.qualify(q)
+run(q)
 
-assert f({'a': 'b'}) == {
-    'first': True,
-    'listed': [False, False],
-    'thrd': True,
-    'zero': True,
-}
-assert f({'c': 'foo', 'x': 1}) == {
-    'first': False,
-    'listed': [False, True],
-    'thrd': False,
-    'zero': True,
-}
+# The conditions may be passed as list as well:
+q = [[k, v] for k, v in q.items()]
+run(q)
+```
+Output:
+
+```
+Running {'thrd': ['k', 'or', 'first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 'zero': [['x', 'eq', 1], 'or', 'thrd'], 'first': ['a', 'eq', 'b']}
+Running [['thrd', ['k', 'or', 'first']], ['listed', [['foo'], ['c', 'eq', 'foo']]], ['zero', [['x', 'eq', 1], 'or', 'thrd']], ['first', ['a', 'eq', 'b']]]
 ```
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
-### <a href="#toc39">Partial Evaluation</a>
 
-If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond
-will only evaluate named conditions required to calculate the root key:
+### <a href="#toc40">Partial Evaluation</a>
+
+If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
   
 
 
 ```python
 called = []
 
-class MyLookupProvider:
-    def expensive_func(data):
-        called.append(data)
-        return 1
+def expensive_func(data):
+    called.append(data)
+    return 1
 
-    def xx(data):
-        called.append(data)
-        return data.get('a')
+def xx(data):
+    called.append(data)
+    return data.get('a')
 
+funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
 q = {
     'root': ['foo', 'and', 'bar'],
-    'bar': [
-        ['somecond'],
-        'or',
-        [['expensive_func', 'eq', 1], 'and', 'baz'],
-    ],
+    'bar': [['somecond'], 'or', [['exp', 'eq', 1], 'and', 'baz'],],
     'x': ['xx'],
-    'baz': ['expensive_func', 'lt', 10],
+    'baz': ['exp', 'lt', 10],
 }
-qualifier = pc.qualify(q, lookup_provider=MyLookupProvider)
+qualifier = pc.qualify(q, lookup_provider_dict=funcs)
 
 d = {'foo': 1}
 r = qualifier(d)
 # root, bar, baz had been calculated, not x
-assert r == {'root': True, 'bar': True, 'baz': True, 'expensive_func': 1}
+assert r == {'root': True, 'bar': True, 'baz': True, 'exp': 1}
 # expensive_func result, which was cached, is also returned.
 # expensive_func only called once allthough result evaluated for bar and baz:
 assert len(called) == 1
 
 called.clear()
-f = pc.qualify(q, lookup_provider=MyLookupProvider, root='x')
+f = pc.qualify(q, lookup_provider_dict=funcs, root='x')
 assert f({'a': 1}) == {'x': True, 'xx': 1}
 assert f({'b': 1}) == {'x': False, 'xx': None}
 assert called == [{'a': 1}, {'b': 1}]
@@ -999,6 +1014,154 @@ assert called == [{'a': 1}, {'b': 1}]
 
 This means pycond can be used as a lightweight declarative function dispatching framework.
   
+
+# <a href="#toc41">Streaming Data</a>
+
+Since version 20200601 pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
+
+Lets first set up a test data stream, by defining a function `rx_setup` like so:
+  
+
+
+```python
+# simply `import rx as Rx and rx = rx.operators`:
+# import pycond as pc, like always:
+Rx, rx = pc.import_rx()
+
+def subs(*test_pipe, items=4):
+    """
+    Function which takes a set of operators and runs an interval stream until completed
+    """
+
+    # stream sink result holder plus a stream completer:
+    l, compl = [], rx.take(items)
+    l.clear()  # clear any previous results
+    # creates integers: 0, then 1, then 2, ... and so on:
+    stream = Rx.interval(0.01)
+    # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
+    stream = stream.pipe(rx.map(lambda i: {'i': i}), compl)
+    # defines the stream through the tested operators:
+    s = stream.pipe(*test_pipe)
+    # runs the stream:
+    d = s.subscribe(
+        on_next=lambda x: l.append(x),
+        on_completed=lambda: l.append('completed'),
+    )
+    # blocks until completed:
+    while not (l and l[-1] == 'completed'):
+        time.sleep(0.001)
+    l.pop()  # removes completed indicator
+    return l  # returns all processed messages
+
+return Rx, rx, subs
+```
+
+Lets test the setup by having some messages streamed through:
+  
+
+
+```python
+Rx, rx, subs = rx_setup()
+# test test setup:
+r = subs(items=3)
+assert r == [{'i': 0}, {'i': 1}, {'i': 2}]
+```
+
+-> test setup works.
+
+## <a href="#toc42">Data Filtering</a>
+
+This is the most simple operation: A simple stream filter.
+  
+
+
+```python
+Rx, rx, subs = rx_setup()
+
+# ask pycond for a stream filter based on a condition:
+pcfilter = partial(pc.rxop, ['i', 'mod', 2])
+
+r = subs(pcfilter())
+assert r == [{'i': 1}, {'i': 3}]  # 4 produced, 2 filtered out
+
+# try the stream filter with message headered data:
+pl = 'payload'
+r = subs(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
+print('Full messages passed:', r)
+r = [m[pl] for m in r]
+assert r == [{'i': 1}, {'i': 3}]
+
+# We may pass a custom filter function, which will be called,
+# when data streams through. It gets the built cond. as first argument:
+def myf(my_built_filter, data):
+    return my_built_filter(data) or data['i'] == 0
+
+r = subs(pcfilter(func=myf))
+assert r == [
+    {'i': 0},
+    {'i': 1},
+    {'i': 3},
+]  # 4 produced, only 1 filtered out now
+```
+Output:
+
+```
+Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}]
+```
+
+## <a href="#toc43">Data Classification</a>
+
+Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently
+  
+
+
+```python
+Rx, rx, subs = rx_setup()
+
+# generate a set of classifiers:
+conds = [['i', 'mod', i] for i in range(2, 4)]
+
+def run(offs=0):
+
+    # and get a classifying operator from pycond, adding the results in place, at key 'mod':
+    r = subs(pc.rxop(conds, at='mod'))
+    i, j = 0 + offs, 1 + offs
+    assert r == [
+        {'i': 0, 'mod': {i: 0, j: 0}},
+        {'i': 1, 'mod': {i: 1, j: 1}},
+        {'i': 2, 'mod': {i: 0, j: 2}},
+        {'i': 3, 'mod': {i: 1, j: 0}},
+    ]
+
+# we can also provide the names of the classifiers by passing a dict:
+# here we pass 2 and 3 as those names:
+conds = dict([(i, ['i', 'mod', i]) for i in range(2, 4)])
+run(2)
+```
+
+Normally the data has headers, so thats a good place to keep the classification tags.
+
+### <a href="#toc44">Selective Classification</a>
+
+We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a root condition:  
+
+
+```python
+Rx, rx, subs = rx_setup()
+
+# using the list style right away:
+conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
+conds.append(['alt', ['i', 'gt', 1]])
+# provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
+r = subs(pc.rxop(conds, at='mod', root=2))
+
+assert r == [
+    {'i': 0, 'mod': {2: False, 'alt': False}},
+    {'i': 1, 'mod': {2: 1}},
+    {'i': 2, 'mod': {2: True, 'alt': True}},
+    {'i': 3, 'mod': {2: 1}},
+]
+```
 
 
 *Auto generated by [pytest2md](https://github.com/axiros/pytest2md), running [./tests/test_tutorial.py](./tests/test_tutorial.py)
