@@ -63,9 +63,10 @@ version: 20200602
     - <a name="toc39"></a>[Named Conditions: Qualification](#named-conditions-qualification)
         - <a name="toc40"></a>[Partial Evaluation](#partial-evaluation)
 - <a name="toc41"></a>[Streaming Data](#streaming-data)
-    - <a name="toc42"></a>[Data Filtering](#data-filtering)
-    - <a name="toc43"></a>[Data Classification](#data-classification)
+    - <a name="toc42"></a>[Filtering](#filtering)
+    - <a name="toc43"></a>[Streaming Classification](#streaming-classification)
         - <a name="toc44"></a>[Selective Classification](#selective-classification)
+    - <a name="toc45"></a>[Asyncronous Operations](#asyncronous-operations)
 
 <!-- TOC -->
 
@@ -843,7 +844,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2004
+Calc.Time (delta_q was called twice): 0.2005
 ```
 
 
@@ -1028,7 +1029,7 @@ Lets first set up a test data stream, by defining a function `rx_setup` like so:
 # import pycond as pc, like always:
 Rx, rx = pc.import_rx()
 
-def subs(*test_pipe, items=4):
+def push(*test_pipe, items=4):
     """
     Function which takes a set of operators and runs an interval stream until completed
     """
@@ -1053,7 +1054,7 @@ def subs(*test_pipe, items=4):
     l.pop()  # removes completed indicator
     return l  # returns all processed messages
 
-return Rx, rx, subs
+return Rx, rx, push
 ```
 
 Lets test the setup by having some messages streamed through:
@@ -1061,32 +1062,32 @@ Lets test the setup by having some messages streamed through:
 
 
 ```python
-Rx, rx, subs = rx_setup()
+Rx, rx, push = rx_setup()
 # test test setup:
-r = subs(items=3)
+r = push(items=3)
 assert r == [{'i': 0}, {'i': 1}, {'i': 2}]
 ```
 
 -> test setup works.
 
-## <a href="#toc42">Data Filtering</a>
+## <a href="#toc42">Filtering</a>
 
 This is the most simple operation: A simple stream filter.
   
 
 
 ```python
-Rx, rx, subs = rx_setup()
+Rx, rx, push = rx_setup()
 
 # ask pycond for a stream filter based on a condition:
 pcfilter = partial(pc.rxop, ['i', 'mod', 2])
 
-r = subs(pcfilter())
+r = push(pcfilter())
 assert r == [{'i': 1}, {'i': 3}]  # 4 produced, 2 filtered out
 
 # try the stream filter with message headered data:
 pl = 'payload'
-r = subs(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
+r = push(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
 print('Full messages passed:', r)
 r = [m[pl] for m in r]
 assert r == [{'i': 1}, {'i': 3}]
@@ -1096,7 +1097,7 @@ assert r == [{'i': 1}, {'i': 3}]
 def myf(my_built_filter, data):
     return my_built_filter(data) or data['i'] == 0
 
-r = subs(pcfilter(func=myf))
+r = push(pcfilter(func=myf))
 assert r == [
     {'i': 0},
     {'i': 1},
@@ -1109,14 +1110,14 @@ Output:
 Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}]
 ```
 
-## <a href="#toc43">Data Classification</a>
+## <a href="#toc43">Streaming Classification</a>
 
-Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently
+Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
   
 
 
 ```python
-Rx, rx, subs = rx_setup()
+Rx, rx, push = rx_setup()
 
 # generate a set of classifiers:
 conds = [['i', 'mod', i] for i in range(2, 4)]
@@ -1124,7 +1125,7 @@ conds = [['i', 'mod', i] for i in range(2, 4)]
 def run(offs=0):
 
     # and get a classifying operator from pycond, adding the results in place, at key 'mod':
-    r = subs(pc.rxop(conds, at='mod'))
+    r = push(pc.rxop(conds, at='mod'))
     i, j = 0 + offs, 1 + offs
     assert r == [
         {'i': 0, 'mod': {i: 0, j: 0}},
@@ -1147,13 +1148,13 @@ We fall back to an alternative condition evaluation (which could be a function c
 
 
 ```python
-Rx, rx, subs = rx_setup()
+Rx, rx, push = rx_setup()
 
-# using the list style right away:
+# using the list style:
 conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
 conds.append(['alt', ['i', 'gt', 1]])
 # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
-r = subs(pc.rxop(conds, at='mod', root=2))
+r = push(pc.rxop(conds, at='mod', root=2))
 
 assert r == [
     {'i': 0, 'mod': {2: False, 'alt': False}},
@@ -1161,6 +1162,25 @@ assert r == [
     {'i': 2, 'mod': {2: True, 'alt': True}},
     {'i': 3, 'mod': {2: 1}},
 ]
+```
+
+## <a href="#toc45">Asyncronous Operations</a>
+
+Selective classification allows to call condition functions only when other criteria are met. That enables to call e.g. a database only when required.
+
+pycond allows to define that blocking operations should be run async within the stream, possibly giving up order.
+
+  
+
+
+```python
+def db_lookup(k, v, state):
+    print('user check. locals:', dict(locals()))
+
+    breakpoint()  # FIXME BREAKPOINT
+    return (model.get(user) or {}).get(k), req[v]
+
+f = pc.pycond('last_host eq host', lookup=db_lookup)
 ```
 
 

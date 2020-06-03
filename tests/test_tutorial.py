@@ -785,7 +785,7 @@ class Test1:
             # import pycond as pc, like always:
             Rx, rx = pc.import_rx()
 
-            def subs(*test_pipe, items=4):
+            def push(*test_pipe, items=4):
                 """
                 Function which takes a set of operators and runs an interval stream until completed
                 """
@@ -810,7 +810,7 @@ class Test1:
                 l.pop()  # removes completed indicator
                 return l  # returns all processed messages
 
-            return Rx, rx, subs
+            return Rx, rx, push
 
         """
         Lets test the setup by having some messages streamed through:
@@ -818,32 +818,32 @@ class Test1:
         """
 
         def rx_1():
-            Rx, rx, subs = rx_setup()
+            Rx, rx, push = rx_setup()
             # test test setup:
-            r = subs(items=3)
+            r = push(items=3)
             assert r == [{'i': 0}, {'i': 1}, {'i': 2}]
 
         """
         -> test setup works.
 
-        ## Data Filtering
+        ## Filtering
 
         This is the most simple operation: A simple stream filter.
 
         """
 
         def rx_filter():
-            Rx, rx, subs = rx_setup()
+            Rx, rx, push = rx_setup()
 
             # ask pycond for a stream filter based on a condition:
             pcfilter = partial(pc.rxop, ['i', 'mod', 2])
 
-            r = subs(pcfilter())
+            r = push(pcfilter())
             assert r == [{'i': 1}, {'i': 3}]  # 4 produced, 2 filtered out
 
             # try the stream filter with message headered data:
             pl = 'payload'
-            r = subs(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
+            r = push(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
             print('Full messages passed:', r)
             r = [m[pl] for m in r]
             assert r == [{'i': 1}, {'i': 3}]
@@ -853,7 +853,7 @@ class Test1:
             def myf(my_built_filter, data):
                 return my_built_filter(data) or data['i'] == 0
 
-            r = subs(pcfilter(func=myf))
+            r = push(pcfilter(func=myf))
             assert r == [
                 {'i': 0},
                 {'i': 1},
@@ -861,14 +861,14 @@ class Test1:
             ]  # 4 produced, only 1 filtered out now
 
         """
-        ## Data Classification
+        ## Streaming Classification
 
-        Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently
+        Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
 
         """
 
         def rx_classifier():
-            Rx, rx, subs = rx_setup()
+            Rx, rx, push = rx_setup()
 
             # generate a set of classifiers:
             conds = [['i', 'mod', i] for i in range(2, 4)]
@@ -876,7 +876,7 @@ class Test1:
             def run(offs=0):
 
                 # and get a classifying operator from pycond, adding the results in place, at key 'mod':
-                r = subs(pc.rxop(conds, at='mod'))
+                r = push(pc.rxop(conds, at='mod'))
                 i, j = 0 + offs, 1 + offs
                 assert r == [
                     {'i': 0, 'mod': {i: 0, j: 0}},
@@ -899,13 +899,13 @@ class Test1:
         """
 
         def rx_class_sel():
-            Rx, rx, subs = rx_setup()
+            Rx, rx, push = rx_setup()
 
-            # using the list style right away:
+            # using the list style:
             conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
             conds.append(['alt', ['i', 'gt', 1]])
             # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
-            r = subs(pc.rxop(conds, at='mod', root=2))
+            r = push(pc.rxop(conds, at='mod', root=2))
 
             assert r == [
                 {'i': 0, 'mod': {2: False, 'alt': False}},
@@ -913,6 +913,26 @@ class Test1:
                 {'i': 2, 'mod': {2: True, 'alt': True}},
                 {'i': 3, 'mod': {2: 1}},
             ]
+
+        """
+        ## Asyncronous Operations
+
+        Selective classification allows to call condition functions only when other criteria are met. That enables to call e.g. a database only when required.
+
+        pycond allows to define that blocking operations should be run async within the stream, possibly giving up order.
+
+
+        """
+
+        def rx_async():
+            def db_lookup(k, v, state):
+                print('user check. locals:', dict(locals()))
+
+                breakpoint()  # FIXME BREAKPOINT
+                return (model.get(user) or {}).get(k), req[v]
+
+            f = pc.pycond('last_host eq host', lookup=db_lookup)
+            # f(state={'last_host': 23})
 
         ## Data Filtering
         p2m.md_from_source_code()

@@ -684,6 +684,48 @@ def to_struct(cond, brackets='[]'):
 
 
 # ----------------------------------------------------------------------------- qualify
+
+
+def qualify(conds, lookup=state_get, return_type=False, **cfg):
+    if _is(conds, str):
+        conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
+    built = {}  # store all built named conditions here
+    conds, is_single, is_named_listed = init_conds(conds, cfg, built)
+
+    # user sent a list of conds already, not a dict. We create conds as if he would have passed the dict:
+
+    #     if conds and _is(conds, list) and _is(conds[0], dict) and 'cond' in conds[0]:
+    #         breakpoint()  # FIXME BREAKPOINT
+    #         conds = [i for i in zip(range(len(conds)), conds)]
+
+    # built dict of named conds - conds is the list of them, i.e. with order:
+    # If cond was just a plain condition built will remain empty but it returned:
+    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
+    if is_single:
+        built = {'root': b}
+        conds = [['root', conds]]
+
+    root = cfg.get('root')
+    if 'root' in built and root is None:
+        root = cfg['root'] = 'root'
+
+    if root is not None:
+        # put it first, we'll break after evaling that:
+        c = []
+        for k, v in conds:
+            if k == root:
+                c.insert(0, [k, v])
+            else:
+                c.append([k, v])
+        conds = c
+
+    f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
+    if return_type:
+        return f, is_single
+    else:
+        return f
+
+
 def norm(cond):
     """Do we have a single condition, which we return double bracketted or a list of conds?"""
     # given as ['foo', 'eq', 'bar'] instead [['foo', 'eq', 'bar']]?
@@ -728,7 +770,15 @@ def init_conds(conds, cfg, built, prefix=()):
     """
     Recurses into conds
 
+    Returns
+    - conds in normalized format as list of {'cond': ..} dicts
+    - is_single
+    - is_named_listed
     """
+    # save some clutter:
+    def recurse(conds, cfg=cfg, built=built, prefix=prefix):
+        return init_conds(conds, cfg, built, prefix)[0]
+
     # a multi cond is a list of conds, with substreams behind
     if _is(conds, str):
         conds = deserialize_str(conds, **cfg)[0]
@@ -736,25 +786,26 @@ def init_conds(conds, cfg, built, prefix=()):
     if not _is(conds, (list, dict)) or not conds:
         raise Exception('Cannot parse: %s' % str(conds))
 
+    is_single = False
     if _is(conds, list):
+
         cond, is_single = norm(conds)
         if is_single:
-            return {'cond': conds}
+            return {'cond': conds}, is_single, False
+
         elif is_named_listed_set_of_conds(cond):
-            cs = [[key, init_conds(c, cfg, built, prefix)] for key, c in cond]
-            return cs
+            cs = [[key, recurse(c)] for key, c in cond]
+            return cs, is_single, True
+
         else:
-            return [init_conds(c, cfg, built, prefix) for c in conds]
-            # conds = dict([(i, c) for i, c in zip(range(len(conds)), conds)])
+            return [recurse(c) for c in conds], is_single, False
 
     elif _is(conds, dict):
-        res = [[k, init_conds(v, cfg, built, prefix + (k,))] for k, v in conds.items()]
-        # built.update(res)
-
+        res = [[k, recurse(v, prefix=prefix + (k,))] for k, v in conds.items()]
         for k in dict(res):
             built[k] = {}
 
-        return res
+        return res, is_single, False
 
     raise
 
@@ -846,47 +897,6 @@ def run_conds(state, conds, built, is_single, **kw):
     c = pop_cache(state, kw.get('prefix'))
     r.update(c)
     return r
-
-
-def qualify(conds, lookup=state_get, return_type=False, **cfg):
-    if _is(conds, str):
-        conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
-    built = {}  # store all built named conditions here
-    conds = init_conds(conds, cfg, built)
-
-    # user sent a list of conds already, not a dict. We create conds as if he would
-    # have passed the dict:
-    if conds and _is(conds, list) and _is(conds[0], dict) and 'cond' in conds[0]:
-        conds = [i for i in zip(range(len(conds)), conds)]
-
-    # built dict of named conds - conds the ordered list of them:
-    # If cond was just a plain condition built will remain empty but it returned:
-    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
-    is_single = False
-    if not built:
-        built = {'root': b}
-        conds = [['root', conds]]
-        is_single = True
-
-    root = cfg.get('root')
-    if 'root' in built and root is None:
-        root = cfg['root'] = 'root'
-
-    if root is not None:
-        # put it first, we'll break after evaling that:
-        c = []
-        for k, v in conds:
-            if k == root:
-                c.insert(0, [k, v])
-            else:
-                c.append([k, v])
-        conds = c
-
-    f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
-    if return_type:
-        return f, is_single
-    else:
-        return f
 
 
 # ---------------------------------------------------------------------------------  rx
