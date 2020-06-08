@@ -1,6 +1,14 @@
 """
 Creates The Tutorial Using pytest2md
 """
+
+# we use gevent
+import gevent
+
+from gevent import monkey
+
+monkey.patch_all()
+
 import pytest, json, os, time
 import pytest2md as p2m  # this is our markdown tutorial generation tool
 import pycond as pc  # the tested module:
@@ -20,11 +28,14 @@ p2m = p2m.P2M(__file__, fn_target_md='README.md')
 # run = partial(p2m.bash_run, no_cmd_path=True)
 now = time.time
 
+if sys.version_info[0] < 3:
+    # no support:
+    os.environ['P2MSKIP'] = 'rx_'
+
 
 class Test1:
     def test_mechanics(self):
         """
-
         ## Parsing
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
         The result of the tokenizer is given to the builder.
@@ -162,8 +173,7 @@ class Test1:
 
         """
         > as you can see in the example, the state parameter is just a convention
-        for `pyconds'` [title: default lookup function,fmatch=pycond.py,lmatch:def state_get]<SRC>
-        function.
+        for `pyconds'` [title: default lookup function,fmatch:pycond.py,lmatch:def state_get]<SRC>.
 
         ## Lazy Evaluation
 
@@ -622,15 +632,28 @@ class Test1:
         [custom lookup function](#custom-lookup-and-value-passing) feature.
 
         > pycond does generate such a custom lookup function readily for you,
-        > if you pass a getter namespace as `lookup_provider`:
+        > if you pass a getter namespace as `lookup_provider`.
+
+        Pycond then [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def lookup_from_provider]<SRC> within that namespace and calls them, when needed, with the usual signature, except the key:
 
         """
 
         def f15_2():
+            F = ApiCtxFuncs
+
+            # make signature compliant:
+            def wrap(fn, f):
+                if callable(f):
+
+                    def wrapped(v, data, cfg, f=f, **kw):
+                        return f(data), v
+
+                    setattr(F, fn, wrapped)
+
+            [wrap(fn, getattr(F, fn)) for fn in dir(F) if fn not in ('__class__',)]
 
             # we add a deep condition and let pycond generate the lookup function:
-            f = pc.pycond(cond, lookup_provider=ApiCtxFuncs)
-
+            f = pc.pycond(cond, lookup_provider=F)
             # Same events as above:
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
@@ -697,13 +720,16 @@ class Test1:
                 print('Running', q)
                 f = pc.qualify(q)
 
-                assert f({'a': 'b'}) == {
+                def nc(d):
+                    return d
+
+                assert nc(f({'a': 'b'})) == {
                     'first': True,
                     'listed': [False, False],
                     'thrd': True,
                     'zero': True,
                 }
-                assert f({'c': 'foo', 'x': 1}) == {
+                assert nc(f({'c': 'foo', 'x': 1})) == {
                     'first': False,
                     'listed': [False, True],
                     'thrd': False,
@@ -735,13 +761,13 @@ class Test1:
         def f20_4():
             called = []
 
-            def expensive_func(data):
+            def expensive_func(v, data, cfg, **kw):
                 called.append(data)
-                return 1
+                return 1, v
 
-            def xx(data):
+            def xx(v, data, cfg, **kw):
                 called.append(data)
-                return data.get('a')
+                return data.get('a'), v
 
             funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
             q = {
@@ -753,7 +779,12 @@ class Test1:
             qualifier = pc.qualify(q, lookup_provider_dict=funcs)
 
             d = {'foo': 1}
+
+            def nc(r):
+                return r
+
             r = qualifier(d)
+
             # root, bar, baz had been calculated, not x
             assert r == {'root': True, 'bar': True, 'baz': True, 'exp': 1}
             # expensive_func result, which was cached, is also returned.
@@ -762,8 +793,8 @@ class Test1:
 
             called.clear()
             f = pc.qualify(q, lookup_provider_dict=funcs, root='x')
-            assert f({'a': 1}) == {'x': True, 'xx': 1}
-            assert f({'b': 1}) == {'x': False, 'xx': None}
+            assert nc(f({'a': 1})) == {'x': True, 'xx': 1}
+            assert nc(f({'b': 1})) == {'x': False, 'xx': None}
             assert called == [{'a': 1}, {'b': 1}]
 
         """
@@ -774,7 +805,7 @@ class Test1:
         """
         # Streaming Data
 
-        Since version 20200601 pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
+        Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
         Lets first set up a test data stream, by defining a function `rx_setup` like so:
 
@@ -785,32 +816,50 @@ class Test1:
             # import pycond as pc, like always:
             Rx, rx = pc.import_rx()
 
-            def push(*test_pipe, items=4):
+            def push_through(*test_pipe, items=4):
                 """
-                Function which takes a set of operators and runs an interval stream until completed
+                Function which takes a set of operators and runs an 'rx.interval' stream, until count items are through
                 """
 
                 # stream sink result holder plus a stream completer:
                 l, compl = [], rx.take(items)
                 l.clear()  # clear any previous results
+
+                def next_(x):
+                    # simply remember what went through in a list:
+                    l.append(x)
+
+                def err(*a):
+                    # should never happen:
+                    print('exception', a)
+
                 # creates integers: 0, then 1, then 2, ... and so on:
                 stream = Rx.interval(0.01)
+
                 # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
-                stream = stream.pipe(rx.map(lambda i: {'i': i}), compl)
+                stream = stream.pipe(
+                    rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
+                )
+
                 # defines the stream through the tested operators:
+                test_pipe = test_pipe + (compl,)
                 s = stream.pipe(*test_pipe)
+
                 # runs the stream:
                 d = s.subscribe(
-                    on_next=lambda x: l.append(x),
+                    on_error=err,
+                    on_next=next_,
                     on_completed=lambda: l.append('completed'),
                 )
+
                 # blocks until completed:
                 while not (l and l[-1] == 'completed'):
                     time.sleep(0.001)
                 l.pop()  # removes completed indicator
+
                 return l  # returns all processed messages
 
-            return Rx, rx, push
+            return Rx, rx, push_through
 
         """
         Lets test the setup by having some messages streamed through:
@@ -818,10 +867,10 @@ class Test1:
         """
 
         def rx_1():
-            Rx, rx, push = rx_setup()
+            Rx, rx, push_through = rx_setup()
             # test test setup:
-            r = push(items=3)
-            assert r == [{'i': 0}, {'i': 1}, {'i': 2}]
+            r = push_through(items=3)
+            assert r == [{'i': 1}, {'i': 2}, {'i': 3}]
 
         """
         -> test setup works.
@@ -833,32 +882,30 @@ class Test1:
         """
 
         def rx_filter():
-            Rx, rx, push = rx_setup()
+            Rx, rx, push_through = rx_setup()
 
             # ask pycond for a stream filter based on a condition:
             pcfilter = partial(pc.rxop, ['i', 'mod', 2])
 
-            r = push(pcfilter())
-            assert r == [{'i': 1}, {'i': 3}]  # 4 produced, 2 filtered out
+            r = push_through(pcfilter())
+            odds = [{'i': 1}, {'i': 3}, {'i': 5}, {'i': 7}]
+            assert r == odds
 
             # try the stream filter with message headered data:
             pl = 'payload'
-            r = push(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
+            r = push_through(rx.map(lambda i: {pl: i}), pcfilter(prefix=pl))
             print('Full messages passed:', r)
             r = [m[pl] for m in r]
-            assert r == [{'i': 1}, {'i': 3}]
+            assert len(r) == 4
+            assert r == odds
 
             # We may pass a custom filter function, which will be called,
             # when data streams through. It gets the built cond. as first argument:
             def myf(my_built_filter, data):
-                return my_built_filter(data) or data['i'] == 0
+                return my_built_filter(data) or data['i'] == 2
 
-            r = push(pcfilter(func=myf))
-            assert r == [
-                {'i': 0},
-                {'i': 1},
-                {'i': 3},
-            ]  # 4 produced, only 1 filtered out now
+            r = push_through(pcfilter(func=myf))
+            assert r == [{'i': 1}, {'i': 2}, {'i': 3}, {'i': 5}]
 
         """
         ## Streaming Classification
@@ -868,7 +915,7 @@ class Test1:
         """
 
         def rx_classifier():
-            Rx, rx, push = rx_setup()
+            Rx, rx, push_through = rx_setup()
 
             # generate a set of classifiers:
             conds = [['i', 'mod', i] for i in range(2, 4)]
@@ -876,13 +923,13 @@ class Test1:
             def run(offs=0):
 
                 # and get a classifying operator from pycond, adding the results in place, at key 'mod':
-                r = push(pc.rxop(conds, at='mod'))
+                r = push_through(pc.rxop(conds, into='mod'))
                 i, j = 0 + offs, 1 + offs
                 assert r == [
-                    {'i': 0, 'mod': {i: 0, j: 0}},
                     {'i': 1, 'mod': {i: 1, j: 1}},
                     {'i': 2, 'mod': {i: 0, j: 2}},
                     {'i': 3, 'mod': {i: 1, j: 0}},
+                    {'i': 4, 'mod': {i: 0, j: 1}},
                 ]
 
             # we can also provide the names of the classifiers by passing a dict:
@@ -895,53 +942,111 @@ class Test1:
 
         ### Selective Classification
 
-        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a root condition:
+        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition* - when it evaluated, possibly requiring evaluation of other conditions, we return:
         """
 
         def rx_class_sel():
-            Rx, rx, push = rx_setup()
+            Rx, rx, push_through = rx_setup()
 
             # using the list style:
             conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
             conds.append(['alt', ['i', 'gt', 1]])
-            # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
-            r = push(pc.rxop(conds, at='mod', root=2))
 
+            # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
+            r = push_through(pc.rxop(conds, into='mod', root=2))
             assert r == [
-                {'i': 0, 'mod': {2: False, 'alt': False}},
-                {'i': 1, 'mod': {2: 1}},
+                # evaluation of alt was not required:
+                {'i': 1, 'mod': {2: True}},
+                # evaluation of alt was required:
                 {'i': 2, 'mod': {2: True, 'alt': True}},
-                {'i': 3, 'mod': {2: 1}},
+                {'i': 3, 'mod': {2: True}},
+                {'i': 4, 'mod': {2: True, 'alt': True}},
             ]
 
         """
         ## Asyncronous Operations
 
-        Selective classification allows to call condition functions only when other criteria are met. That enables to call e.g. a database only when required.
+        WARNING: Early Version.
 
-        pycond allows to define that blocking operations should be run async within the stream, possibly giving up order.
+        Selective classification allows to call condition functions only when other criteria are met.
+        That makes it possible to read e.g. from a database only when data is really required - and not always, "just in case".
+
+        pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
 
         """
+        from threading import current_thread as cur_thread
+        from rx.scheduler.eventloop import GEventScheduler
 
-        def rx_async():
-            def db_lookup(k, v, state):
-                print('user check. locals:', dict(locals()))
+        def test_rx_async():
+            _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
-                breakpoint()  # FIXME BREAKPOINT
-                return (model.get(user) or {}).get(k), req[v]
+            Rx, rx, push_through = rx_setup()
+            GS = GEventScheduler(gevent)
 
-            f = pc.pycond('last_host eq host', lookup=db_lookup)
-            # f(state={'last_host': 23})
+            class F:
+                """
+                Namespace for condition functions, which we can indicate to be run async.
+                You may also pass a dict (lookup_provider_dict)
+                """
+
+                def odd(v, data, cfg, **kw):
+                    _thn('odd', data)
+                    return data['i'] % 2, v
+
+                def blocking(v, data, cfg, **kw):
+                    i = data['i']
+                    _thn('blocking', data)
+                    if i == 1:
+                        # two others will "overtake the i=1 item,
+                        # since the interval stream is firing every 0.01 secs:
+                        time.sleep(0.021)
+                    elif i == 2:
+                        # will cause a timeout error:
+                        time.sleep(0.035)
+                    return data['i'], v
+
+            # Defining a simple set of classifiers:
+            # We'll the key 2 as root, and 3 is not referred to:
+            conds = [
+                [
+                    2,
+                    [
+                        ['i', 'lt', 100],
+                        'and',
+                        [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
+                        'and_not',
+                        ['blocking', 'eq', 3],
+                    ],
+                ]
+            ]
+            timeouts = []
+
+            def handle_timeout(args, t=timeouts):
+                # args are: [item, cfg]
+                t.append(args)
+                # returning nil will trigger a filter, i.e. no progression further
+                # downstream will happen:
+                return pc.nil
+
+            # have the operator built for us:
+            rxop = pc.rxop(
+                conds,
+                into='mod',
+                scheduler=GS,
+                lookup_provider=F,
+                timeout=0.028,
+                timeout_cb=handle_timeout,
+                asyn=['blocking'],
+            )
+            r = push_through(rxop, items=5)
+            time.sleep(0.4)
+            assert [m['i'] for m in r] == [3, 1, 4, 5, 6]
+
+            assert [m['mod'][2] for m in r] == [False, True, False, True, False]
+            # item 2 caused a timeout:
+            assert timeouts[0][0]['i'] == 2
 
         ## Data Filtering
         p2m.md_from_source_code()
         p2m.write_markdown(with_source_ref=True, make_toc=True)
-
-        # # from rx.scheduler.eventloop import GEventScheduler
-        # # # we use gevent
-        # # import gevent
-        # # from gevent import monkey
-
-        # # monkey.patch_all()
-        # # GS = GEventScheduler(gevent)

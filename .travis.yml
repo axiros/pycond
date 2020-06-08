@@ -39,6 +39,7 @@ before_install:
   - "echo 'starting'"
   - "echo $PYTHONPATH"
   - pip install codecov
+  - pip install rx
   - pip install pytest2md>=190428
   #- sudo pip install -U attrs structlog nose appdirs funcsigs colorama
   #- sudo python setup.py install

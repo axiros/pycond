@@ -35,6 +35,7 @@ from copy import deepcopy
 from ast import literal_eval
 
 _is = isinstance
+nil = '\x01'
 
 PY2 = sys.version_info[0] == 2
 # is_str = lambda s: _is(s, basestring if PY2 else (bytes, str))
@@ -218,33 +219,64 @@ def dbg_get(key, val, cfg, state=State, *a, **kw):
 out = lambda *m: print(' '.join([str(s) for s in m]))
 
 
-def comb_or(f, g, **kw):
-    return f(**kw) or g(**kw)
+OR, AND, OR_NOT, AND_NOT, XOR = 0, 1, 2, 3, 4
 
 
-def comb_or_not(f, g, **kw):
-    return f(**kw) or not g(**kw)
+def comb(op, lazy_on, negate=None):
+    """Absolut Hotspot. Fastest way to do it."""
+
+    def _comb(
+        f,
+        g,
+        op=op,
+        lazy_on=lazy_on,
+        negate=negate,
+        ands={AND, AND_NOT},
+        ors={OR, OR_NOT},
+        fr=nil,
+        **kw,
+    ):
+        try:
+            fr = f(**kw)
+            if fr:
+                if lazy_on:
+                    return True
+
+            elif lazy_on == False:
+                return False
+
+            if op == AND:
+                return fr and g(**kw)
+            elif op == OR:
+                return fr or g(**kw)
+            elif op == AND_NOT:
+                return fr and not g(**kw)
+            elif op == OR_NOT:
+                return fr or not g(**kw)
+            else:
+                return fr is not g(**kw)
+
+        except Async as ex:
+            h = ex.args[0][0]
+            if fr == nil:
+                fgr = [op, h, g]
+            else:
+                fgr = [op, bool(fr), h]
+            ex.args[0][0] = fgr
+            raise ex
+
+    return _comb
 
 
-def comb_and(f, g, **kw):
-    return f(**kw) and g(**kw)
-
-
-def comb_and_not(f, g, **kw):
-    return f(**kw) and not g(**kw)
-
-
-def comb_xor(f, g, **kw):
-    return bool(f(**kw)) is not bool(g(**kw))
-
-
+# fmt: off
 COMB_OPS = {
-    'or': comb_or,
-    'and': comb_and,
-    'or_not': comb_or_not,
-    'and_not': comb_and_not,
-    'xor': comb_xor,
-}  # extensible
+    'or':      comb(OR, True),
+    'and':     comb(AND, False),
+    'or_not':  comb(OR_NOT, True, True),
+    'and_not': comb(AND_NOT, False, True),
+    'xor':     comb(XOR, None),
+}
+# fmt: on
 
 # those from user space are also replaced at tokenizing time:
 NEG_REV = {'not rev': 'not_rev', 'rev not': 'rev_not'}
@@ -422,11 +454,16 @@ def f_atomic(f_op, fp_lookup, key, val, **kw):
     try:
         return f_op(*fp_lookup(**kw))
     except Exception as ex:
+        if ex.__class__ == Async:
+            raise
         msg = ''
         if fp_lookup != state_get:
             msg = '. Note: A custom lookup function must return two values:'
             msg += ' The cur. value for key from state plus the compare value.'
-        raise Exception('%s. key: %s, compare val: %s%s' % (str(ex), key, val, msg))
+        raise Exception(
+            '%s %s. key: %s, compare val: %s%s'
+            % (ex.__class__.__name__, str(ex), key, val, msg)
+        )
 
 
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
@@ -498,9 +535,6 @@ def parse_cond(cond, lookup=state_get, **cfg):
     return cond, nfo
 
 
-nil = '\x01'
-
-
 def complete_ctx_data(keys, provider):
     def _getter(ctx, keys, provider):
         for k in keys:
@@ -513,12 +547,58 @@ def complete_ctx_data(keys, provider):
     return partial(_getter, keys=keys, provider=provider)
 
 
+# where we store intermediate results, e.g. from lookup providers:
+CACHE_KEY = '.pyc_cache'
+CACHE_KEY_ASYNC = '.async'
+
+
+def pop_cache(state, prefix):
+    """prefix e.g. "payload" in full messages with headers"""
+    if prefix:
+        state = state.get(prefix)
+    return state.pop(CACHE_KEY, 0)
+
+
+def add_cache(state, k, v):
+    state[CACHE_KEY][k] = v
+
+
+def from_cache(state, key, val=None):
+    cache = state.get(CACHE_KEY)
+    if cache is None:
+        cache = state[CACHE_KEY] = {}
+    v = cache.get(key, nil)
+    if v != nil:
+        return v, val
+
+
+class Async(Exception):
+    pass
+
+
+def func_is_async_but_we_are_sync(k, state, cfg):
+    if k in cfg.get('asyn', '') and not from_cache(state, CACHE_KEY_ASYNC):
+        return True
+
+
 def lookup_from_provider(provider, cfg, lookup, is_dict):
-    def _lookup(k, v, state, provider, cfg, lookup, is_dict, **kw):
+    """
+    Wrapping the normal lookup function into a fallback to getting a function
+    from a lookup provider and calling it.
+
+    Provider can be dict of functions or a class.
+    """
+
+    def wrapped(provider, lookup, is_dict, k, v, cfg, state=State, **kw):
+        """
+        First try the normal lookup, then fall back to provider.
+
+        Provider lookup result values get cached.
+        """
         kv = from_cache(state, k, v)
         if kv:
             return kv
-        kv = lookup(k, v, cfg, state=state)
+        kv = lookup(k, v, cfg, state=state, **kw)
         if kv[0] != None:
             return kv
         if is_dict:
@@ -528,12 +608,20 @@ def lookup_from_provider(provider, cfg, lookup, is_dict):
                 f = f['func']
         else:
             f = getattr(provider, k, None)
-        if not f:
-            return None, v
-        val = state[CACHE_KEY][k] = f(state)
-        return val, v
 
-    return partial(_lookup, provider=provider, cfg=cfg, lookup=lookup, is_dict=is_dict)
+        if func_is_async_but_we_are_sync(k, state, cfg):
+            add_cache(state, CACHE_KEY_ASYNC, True)
+            raise Async([1])
+
+        if not f:
+            # return what the normal lookup returned:
+            return None, v
+        # key is dropped, it was the function name:
+        kv = f(v, state, cfg, **kw)
+        add_cache(state, k, kv[0])
+        return kv
+
+    return partial(wrapped, provider, lookup, is_dict, cfg=cfg)
 
 
 def pycond(cond, *a, **cfg):
@@ -687,20 +775,19 @@ def to_struct(cond, brackets='[]'):
 
 
 def qualify(conds, lookup=state_get, return_type=False, **cfg):
+    """
+    conds = set of conditions in any acceptable format or a single one.
+
+    """
     if _is(conds, str):
         conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
     built = {}  # store all built named conditions here
     conds, is_single, is_named_listed = init_conds(conds, cfg, built)
 
-    # user sent a list of conds already, not a dict. We create conds as if he would have passed the dict:
-
-    #     if conds and _is(conds, list) and _is(conds[0], dict) and 'cond' in conds[0]:
-    #         breakpoint()  # FIXME BREAKPOINT
-    #         conds = [i for i in zip(range(len(conds)), conds)]
-
     # built dict of named conds - conds is the list of them, i.e. with order:
-    # If cond was just a plain condition built will remain empty but it returned:
     b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
+
+    # was a single condition passed?
     if is_single:
         built = {'root': b}
         conds = [['root', conds]]
@@ -727,28 +814,31 @@ def qualify(conds, lookup=state_get, return_type=False, **cfg):
 
 
 def norm(cond):
-    """Do we have a single condition, which we return double bracketted or a list of conds?"""
+    """
+    Do we have a single condition, which we return double bracketted or a list of conds?
+
+    We also return if the cond is_single
+    """
     # given as ['foo', 'eq', 'bar'] instead [['foo', 'eq', 'bar']]?
     kt = key_type(cond[0])
     if kt:
         cond = [cond]
-
     if len(cond) == 1:
-        return cond, True
+        # could be a single key multicond, given as list, then len is 2:
+        if len(cond[0]) != 2:
+            return cond, True
+        return cond, False
 
     elif _is(cond[1], str) and cond[1] in COMB_OPS:
         return cond, True
+
     # A list of conds:
     return cond, False
 
 
-from os import environ
-
-
 def is_named_listed_set_of_conds(cond):
     """
-    is cond like: [[<name>, <conditionlist>], ...]
-    I.e. just given alternative to dicts, since ordered.
+    Is cond like: [[<name>, <conditionlist>], ...] I.e. just given alternative to dicts, since ordered?
     """
     try:
         for c in cond:
@@ -807,7 +897,7 @@ def init_conds(conds, cfg, built, prefix=()):
 
         return res, is_single, False
 
-    raise
+    raise  # never
 
 
 def build(conds, lookup, cfg, into):
@@ -823,24 +913,6 @@ def build(conds, lookup, cfg, into):
                 into[k] = [build(c, lookup, cfg, into) for c in v]
         else:
             into[k] = build(v, lookup, cfg, into)
-
-
-CACHE_KEY = '.pyc_cache'
-
-
-def pop_cache(state, prefix):
-    if prefix:
-        state = state.get(prefix)
-    return state.pop(CACHE_KEY, 0)
-
-
-def from_cache(state, key, val):
-    cache = state.get(CACHE_KEY)
-    if cache is None:
-        cache = state[CACHE_KEY] = {}
-    v = cache.get(key, nil)
-    if v != nil:
-        return v, val
 
 
 def sub_lookup(lookup, built):
@@ -895,11 +967,18 @@ def run_conds(state, conds, built, is_single, **kw):
             break
 
     c = pop_cache(state, kw.get('prefix'))
-    r.update(c)
+    # deliver this as well, contains the function call results.
+    # can't hurt r anyway not part of the original data:
+    if c:
+        # r[CACHE_KEY] = c
+        # print('cache', c)
+        r.update(c)
     return r
 
 
 # ---------------------------------------------------------------------------------  rx
+
+
 def import_rx():
     from rx import operators as rx
     import rx as Rx
@@ -907,19 +986,63 @@ def import_rx():
     return Rx, rx
 
 
-def rxop(cond, func=None, at=None, **cfg):
+import time
+
+
+def rx_async(exc_msg):
+    Rx, rx = import_rx()
+    x, cfg, pcond, is_single, into = exc_msg
+
+    sched = cfg.get('scheduler')
+    timeout = cfg.get('timeout', 1)
+    # no action by default:
+    timeout_cb = partial(cfg.get('timeout_cb', lambda x: nil))
+
+    def runconds(x, cfg=cfg, pcond=pcond, into=into):
+        """
+            We are in a seperate greenlet now, and may block
+            """
+        r = pcond(x)
+        into.update(r)
+        # forward the item itself:
+        return x
+
+    return Rx.merge(
+        Rx.just([x, cfg]).pipe(rx.delay(timeout), rx.map(timeout_cb)),
+        Rx.just(x).pipe(rx.delay(0, sched), rx.map(runconds)),
+    ).pipe(rx.first(), rx.filter(lambda x: x != nil))
+
+
+def rxop(cond, func=None, into=None, **cfg):
     """for streaming data (optional)"""
     Rx, rx = import_rx()
-    q, is_single = qualify(cond, return_type=True, **cfg)
+    pcond, is_single = qualify(cond, return_type=True, **cfg)
+
+    asyn = cfg.get('asyn')
     if is_single:
-        f = func or (lambda q, x: bool(q(x)))
-        return rx.filter(partial(f, q))
-    else:
+        if asyn:
+            raise Exception('Async mode not supported for simple filters')
+        f = func or (lambda pcond, x: bool(pcond(x)))
+        return rx.filter(partial(f, pcond))
 
-        def f(q, x, at=at):
-            d = x if at is None else x.setdefault(at, {})
-            d.update(q(x))
+    def fsync(x, pcond=pcond, cfg=cfg, into=into, asyn=asyn):
+        d = x if into is None else x.setdefault(into, {})
+        print(x)
+        try:
+            m = pcond(x)
+            d.update(m)
             return x
+        except Async as ex:
+            if not asyn:
+                raise
+            exc_msg = [x, cfg, pcond, is_single, d]
+            return exc_msg
 
-        return rx.map(partial(f, q))
-    breakpoint()  # FIXME BREAKPOINT
+    if not asyn:
+        return rx.map(fsync)
+    else:
+        return rx.pipe(
+            rx.map(fsync),
+            rx.group_by(lambda x: isinstance(x, dict)),
+            rx.flat_map(lambda s: s if s.key else s.pipe(rx.flat_map(rx_async))),
+        )

@@ -12,15 +12,16 @@ echo "Uploading to pip"
 set -x
 here="$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && echo "$PWD")"
 cd "$here" || exit 1
-export NOLINKREPL=true
+#export NOLINKREPL=true
+export MD_LINKS_FOR=github
 pytest tests || exit 1
-unset NOLINKREPL
-git commit -am 'pre_pypi_upload' # to have the commit hash for the links
+git commit --amend -am 'links auto replaced'
+#unset NOLINKREPL
+#git commit -am 'pre_pypi_upload' # to have the commit hash for the links
 #slt="https://github.com/axiros/DevApps/blob/`git rev-parse  HEAD`"
 #slt="$slt/%(file)s%(#Lline)s"
-echo "Setting links..."
-mdtool set_links src_link_tmpl="github" md_file="README.md"
-git commit --amend -am 'links auto replaced'
+#echo "Setting links..."
+#mdtool set_links src_link_tmpl="github" md_file="README.md"
 git push
 
 clean () {
