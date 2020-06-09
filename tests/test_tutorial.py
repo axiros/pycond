@@ -1010,8 +1010,7 @@ class Test1:
                         time.sleep(0.035)
                     return data['i'], v
 
-            # Defining a simple set of classifiers:
-            # We'll the key 2 as root, and 3 is not referred to:
+            # Defining a simple 'set' of classifiers, here as list, with one single key: 2:
             conds = [
                 [
                     2,

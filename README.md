@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200604
+version: 20200605
 
 ---
 
@@ -1220,7 +1220,7 @@ Output:
 
 ## <a href="#toc45">Asyncronous Operations</a>
 
-WARNING: Early Version.
+WARNING: Early Version, tested only for GEventScheduler.
 
 Selective classification allows to call condition functions only when other criteria are met.
 That makes it possible to read e.g. from a database only when data is really required - and not always, "just in case".
@@ -1261,8 +1261,7 @@ class F:
             time.sleep(0.035)
         return data['i'], v
 
-# Defining a simple set of classifiers:
-# We'll the key 2 as root, and 3 is not referred to:
+# Defining a simple 'set' of classifiers, here as list, with one single key: 2:
 conds = [
     [
         2,
@@ -1330,5 +1329,5 @@ thread: Thread-56 odd {'i': 6, 'mod': {}, '.pyc_cache': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/7dbc744acc981f50ebe144d40fb9818cb2986a4e/pycond.py#L186
-[pycond.py#583]: https://github.com/axiros/pycond/blob/7dbc744acc981f50ebe144d40fb9818cb2986a4e/pycond.py#L583
+[pycond.py#186]: https://github.com/axiros/pycond/blob/815996549deb1bd2e26495cdaea8359bde4b5c46/pycond.py#L186
+[pycond.py#583]: https://github.com/axiros/pycond/blob/815996549deb1bd2e26495cdaea8359bde4b5c46/pycond.py#L583

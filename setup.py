@@ -29,6 +29,7 @@ setup(
     description='Lightweight Condition Parsing and Building of Evaluation Expressions',
     long_description=md,
     long_description_content_type='text/markdown',
+    # for async rx we assume rx is installed:
     install_requires=[],
     tests_require=['pytest2md>=20190430'],
     include_package_data=True,
@@ -52,12 +53,14 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2',
+        # most will work, tests are done for 3 only though, using py3 excl. constructs:
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
     ],
     keywords=[
         'conditions',
         'expression',
+        'async',
         'serialization',
         'rxpy',
         'reactivex',
