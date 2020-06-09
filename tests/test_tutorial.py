@@ -7,7 +7,10 @@ import gevent
 
 from gevent import monkey
 
-monkey.patch_all()
+try:
+    monkey.patch_all()
+except Exception as ex:
+    os.environ['P2MSKIP'] = 'rx_async'
 
 import pytest, json, os, time
 import pytest2md as p2m  # this is our markdown tutorial generation tool
@@ -966,7 +969,7 @@ class Test1:
         """
         ## Asyncronous Operations
 
-        WARNING: Early Version.
+        WARNING: Early Version, tested only for GEventScheduler.
 
         Selective classification allows to call condition functions only when other criteria are met.
         That makes it possible to read e.g. from a database only when data is really required - and not always, "just in case".
@@ -975,10 +978,11 @@ class Test1:
 
 
         """
-        from threading import current_thread as cur_thread
-        from rx.scheduler.eventloop import GEventScheduler
 
-        def test_rx_async():
+        def rx_async():
+            from threading import current_thread as cur_thread
+            from rx.scheduler.eventloop import GEventScheduler
+
             _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
             Rx, rx, push_through = rx_setup()

@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200603
+version: 20200604
 
 ---
 
@@ -842,7 +842,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2008
+Calc.Time (delta_q was called twice): 0.2006
 ```
 
 
@@ -901,7 +901,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1005
+Calc.Time (delta_q was called just once): 0.1004
 ```
 
 
@@ -1231,6 +1231,9 @@ pycond allows to define, that blocking operations should be run *async* within t
 
 
 ```python
+from threading import current_thread as cur_thread
+from rx.scheduler.eventloop import GEventScheduler
+
 _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
 Rx, rx, push_through = rx_setup()
@@ -1327,5 +1330,5 @@ thread: Thread-56 odd {'i': 6, 'mod': {}, '.pyc_cache': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/59eac3d1f2b9552572a9c75f0155248f24f7d38d/pycond.py#L186
-[pycond.py#583]: https://github.com/axiros/pycond/blob/59eac3d1f2b9552572a9c75f0155248f24f7d38d/pycond.py#L583
+[pycond.py#186]: https://github.com/axiros/pycond/blob/7dbc744acc981f50ebe144d40fb9818cb2986a4e/pycond.py#L186
+[pycond.py#583]: https://github.com/axiros/pycond/blob/7dbc744acc981f50ebe144d40fb9818cb2986a4e/pycond.py#L583
