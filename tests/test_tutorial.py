@@ -21,6 +21,7 @@ from uuid import uuid4
 import time
 import json
 import sys
+from threading import current_thread as cur_thread
 
 
 # py2.7 compat:
@@ -723,16 +724,14 @@ class Test1:
                 print('Running', q)
                 f = pc.qualify(q)
 
-                def nc(d):
-                    return d
-
-                assert nc(f({'a': 'b'})) == {
+                assert f({'a': 'b'}) == {
                     'first': True,
                     'listed': [False, False],
                     'thrd': True,
                     'zero': True,
                 }
-                assert nc(f({'c': 'foo', 'x': 1})) == {
+                res = f({'c': 'foo', 'x': 1})
+                assert res == {
                     'first': False,
                     'listed': [False, True],
                     'thrd': False,
@@ -779,13 +778,9 @@ class Test1:
                 'x': ['xx'],
                 'baz': ['exp', 'lt', 10],
             }
-            qualifier = pc.qualify(q, lookup_provider_dict=funcs)
+            qualifier = pc.qualify(q, lookup_provider_dict=funcs, add_cached=True)
 
             d = {'foo': 1}
-
-            def nc(r):
-                return r
-
             r = qualifier(d)
 
             # root, bar, baz had been calculated, not x
@@ -795,9 +790,9 @@ class Test1:
             assert len(called) == 1
 
             called.clear()
-            f = pc.qualify(q, lookup_provider_dict=funcs, root='x')
-            assert nc(f({'a': 1})) == {'x': True, 'xx': 1}
-            assert nc(f({'b': 1})) == {'x': False, 'xx': None}
+            f = pc.qualify(q, lookup_provider_dict=funcs, root='x', add_cached=True)
+            assert f({'a': 1}) == {'x': True, 'xx': 1}
+            assert f({'b': 1}) == {'x': False, 'xx': None}
             assert called == [{'a': 1}, {'b': 1}]
 
         """
@@ -945,7 +940,8 @@ class Test1:
 
         ### Selective Classification
 
-        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition* - when it evaluated, possibly requiring evaluation of other conditions, we return:
+        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
+        When it evaluated, possibly requiring evaluation of other conditions, we return:
         """
 
         def rx_class_sel():
@@ -956,7 +952,7 @@ class Test1:
             conds.append(['alt', ['i', 'gt', 1]])
 
             # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
-            r = push_through(pc.rxop(conds, into='mod', root=2))
+            r = push_through(pc.rxop(conds, into='mod', root=2, add_cached=True))
             assert r == [
                 # evaluation of alt was not required:
                 {'i': 1, 'mod': {2: True}},
@@ -969,7 +965,7 @@ class Test1:
         """
         ## Asyncronous Operations
 
-        WARNING: Early Version, tested only for GEventScheduler.
+        WARNING: Early Version. Only for the gevent platform.
 
         Selective classification allows to call condition functions only when other criteria are met.
         That makes it possible to read e.g. from a database only when data is really required - and not always, "just in case".
@@ -980,18 +976,13 @@ class Test1:
         """
 
         def rx_async():
-            from threading import current_thread as cur_thread
-            from rx.scheduler.eventloop import GEventScheduler
-
             _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
             Rx, rx, push_through = rx_setup()
-            GS = GEventScheduler(gevent)
 
             class F:
                 """
-                Namespace for condition functions, which we can indicate to be run async.
-                You may also pass a dict (lookup_provider_dict)
+                Namespace for condition functions, which we can indicate to be run async. You may also pass a dict (lookup_provider_dict)
                 """
 
                 def odd(v, data, cfg, **kw):
@@ -1004,10 +995,15 @@ class Test1:
                     if i == 1:
                         # two others will "overtake the i=1 item,
                         # since the interval stream is firing every 0.01 secs:
-                        time.sleep(0.021)
+                        time.sleep(0.028)
                     elif i == 2:
-                        # will cause a timeout error:
-                        time.sleep(0.035)
+                        # Exceptions, incl. timeouts, will simply be forwarded to cfg['err_handler']
+                        # i.e. also timeout mgmt have to be done here, in the custom functions themselves.
+                        # Rationale: Async ops are done with libs, which ship with their own timeout params. No need to re-invent.
+                        # In that err handler, then further arrangements can be done.
+                        raise TimeoutError('ups')
+                    elif i == 5:
+                        1 / 0
                     return data['i'], v
 
             # Defining a simple 'set' of classifiers, here as list, with one single key: 2:
@@ -1025,30 +1021,27 @@ class Test1:
             ]
             timeouts = []
 
-            def handle_timeout(args, t=timeouts):
+            def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
                 # args are: [item, cfg]
-                t.append(args)
-                # returning nil will trigger a filter, i.e. no progression further
-                # downstream will happen:
-                return pc.nil
+                if 'ups' in str(exc):
+                    assert exc.__class__ == TimeoutError
+                    t.append(item)
+                else:
+                    assert exc.__class__ == ZeroDivisionError
 
             # have the operator built for us:
             rxop = pc.rxop(
                 conds,
                 into='mod',
-                scheduler=GS,
                 lookup_provider=F,
-                timeout=0.028,
-                timeout_cb=handle_timeout,
+                err_handler=handle_err,
                 asyn=['blocking'],
             )
             r = push_through(rxop, items=5)
-            time.sleep(0.4)
-            assert [m['i'] for m in r] == [3, 1, 4, 5, 6]
-
-            assert [m['mod'][2] for m in r] == [False, True, False, True, False]
+            assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
+            assert [m['mod'][2] for m in r] == [False, True, False, False, True]
             # item 2 caused a timeout:
-            assert timeouts[0][0]['i'] == 2
+            assert timeouts[0]['i'] == 2
 
         ## Data Filtering
         p2m.md_from_source_code()

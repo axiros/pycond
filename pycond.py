@@ -236,7 +236,8 @@ def comb(op, lazy_on, negate=None):
         fr=nil,
         **kw,
     ):
-        try:
+        # try:
+        if 1:
             fr = f(**kw)
             if fr:
                 if lazy_on:
@@ -256,14 +257,14 @@ def comb(op, lazy_on, negate=None):
             else:
                 return fr is not g(**kw)
 
-        except Async as ex:
-            h = ex.args[0][0]
-            if fr == nil:
-                fgr = [op, h, g]
-            else:
-                fgr = [op, bool(fr), h]
-            ex.args[0][0] = fgr
-            raise ex
+    #         except Async as ex:
+    #             h = ex.args[0][0]
+    #             if fr == nil:
+    #                 fgr = [op, h, g]
+    #             else:
+    #                 fgr = [op, bool(fr), h]
+    #             ex.args[0][0] = fgr
+    #             raise ex
 
     return _comb
 
@@ -453,17 +454,17 @@ def f_atomic(f_op, fp_lookup, key, val, **kw):
     # normal case - be fast:
     try:
         return f_op(*fp_lookup(**kw))
-    except Exception as ex:
-        if ex.__class__ == Async:
-            raise
-        msg = ''
-        if fp_lookup != state_get:
-            msg = '. Note: A custom lookup function must return two values:'
-            msg += ' The cur. value for key from state plus the compare value.'
-        raise Exception(
-            '%s %s. key: %s, compare val: %s%s'
-            % (ex.__class__.__name__, str(ex), key, val, msg)
-        )
+    except Async:
+        raise
+    # except Exception as ex:
+    #     msg = ''
+    #     if fp_lookup != state_get:
+    #         msg = '. Note: A custom lookup function must return two values:'
+    #         msg += ' The cur. value for key from state plus the compare value.'
+    #     raise Exception(
+    #         '%s %s. key: %s, compare val: %s%s'
+    #         % (ex.__class__.__name__, str(ex), key, val, msg)
+    #     )
 
 
 def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
@@ -520,6 +521,7 @@ def parse_cond(cond, lookup=state_get, **cfg):
     if cfg.get('deep'):
         lookup = partial(state_get_deep, deep=cfg['deep'])
 
+    lp = None
     for _lp in ('lookup_provider', 'lookup_provider_dict'):
         lp = cfg.get(_lp)
         if lp:
@@ -532,7 +534,14 @@ def parse_cond(cond, lookup=state_get, **cfg):
     provider = cfg.get('ctx_provider')
     if provider:
         nfo['complete_ctx'] = complete_ctx_data(nfo['keys'], provider=provider)
+    # if lp:
+    #    cond = partial(post_hook, cond)
     return cond, nfo
+
+
+# def post_hook(cond_func, *a, **kw):
+#     res = cond_func(*a, **kw)
+#     return res
 
 
 def complete_ctx_data(keys, provider):
@@ -548,36 +557,34 @@ def complete_ctx_data(keys, provider):
 
 
 # where we store intermediate results, e.g. from lookup providers:
-CACHE_KEY = '.pyc_cache'
-CACHE_KEY_ASYNC = '.async'
+CACHE_KEY = 'pyc_cache'
+CACHE_KEY_ASYNC = 'async'
 
 
-def pop_cache(state, prefix):
+def pop_cache(kw, prefix):
     """prefix e.g. "payload" in full messages with headers"""
-    if prefix:
-        state = state.get(prefix)
-    return state.pop(CACHE_KEY, 0)
+    # if prefix:
+    #     = state.get(prefix)
+    return kw.pop(CACHE_KEY, 0)
 
 
-def add_cache(state, k, v):
-    state[CACHE_KEY][k] = v
+def cache_set(kw, k, v):
+    kw[CACHE_KEY][k] = v
 
 
-def from_cache(state, key, val=None):
-    cache = state.get(CACHE_KEY)
-    if cache is None:
-        cache = state[CACHE_KEY] = {}
+def cache_get(kw, key, val=None):
+    try:
+        cache = kw[CACHE_KEY]
+    except Exception as ex:
+        kw[CACHE_KEY] = cache = {}
     v = cache.get(key, nil)
     if v != nil:
         return v, val
 
 
-class Async(Exception):
-    pass
-
-
-def func_is_async_but_we_are_sync(k, state, cfg):
-    if k in cfg.get('asyn', '') and not from_cache(state, CACHE_KEY_ASYNC):
+def func_is_async_but_we_are_sync(k, kw, cfg):
+    if k in cfg.get('asyn', '') and not cache_get(kw, CACHE_KEY_ASYNC):
+        # will raise the Async Exception, bubbling up:
         return True
 
 
@@ -595,7 +602,7 @@ def lookup_from_provider(provider, cfg, lookup, is_dict):
 
         Provider lookup result values get cached.
         """
-        kv = from_cache(state, k, v)
+        kv = cache_get(kw, k, v)
         if kv:
             return kv
         kv = lookup(k, v, cfg, state=state, **kw)
@@ -609,16 +616,17 @@ def lookup_from_provider(provider, cfg, lookup, is_dict):
         else:
             f = getattr(provider, k, None)
 
-        if func_is_async_but_we_are_sync(k, state, cfg):
-            add_cache(state, CACHE_KEY_ASYNC, True)
-            raise Async([1])
+        if func_is_async_but_we_are_sync(k, kw, cfg):
+            cache_set(kw, CACHE_KEY_ASYNC, True)
+            # cache_set(kw, 'foo1', True)
+            raise Async([kw])
 
         if not f:
             # return what the normal lookup returned:
             return None, v
         # key is dropped, it was the function name:
         kv = f(v, state, cfg, **kw)
-        add_cache(state, k, kv[0])
+        cache_set(kw, k, kv[0])
         return kv
 
     return partial(wrapped, provider, lookup, is_dict, cfg=cfg)
@@ -772,6 +780,15 @@ def to_struct(cond, brackets='[]'):
 
 
 # ----------------------------------------------------------------------------- qualify
+def add_cache_then_run(f, *a, **kw):
+    """
+    When running an item through we want a cache for
+    - lookup provider results
+    - sub cond evaluations
+    """
+    if not CACHE_KEY in kw:
+        kw[CACHE_KEY] = {}
+    return f(*a, **kw)
 
 
 def qualify(conds, lookup=state_get, return_type=False, **cfg):
@@ -805,8 +822,8 @@ def qualify(conds, lookup=state_get, return_type=False, **cfg):
             else:
                 c.append([k, v])
         conds = c
-
     f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
+    f = partial(add_cache_then_run, f)
     if return_type:
         return f, is_single
     else:
@@ -921,7 +938,7 @@ def sub_lookup(lookup, built):
     """
 
     def lu(key, v, cfg, state=State, lookup=lookup, built=built, **kw):
-        kv = from_cache(state, key, v)
+        kv = cache_get(kw, key, v)
         if kv:
             return kv
         kv = lookup(key, v, cfg, state, **kw)
@@ -934,7 +951,7 @@ def sub_lookup(lookup, built):
             # nope - so return the None:
             return kv
         # cache value of named condition:
-        val = state[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
+        val = kw[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
         return val, v
 
     return lu
@@ -944,7 +961,7 @@ def run_conds(state, conds, built, is_single, **kw):
     """In data path (hot)"""
     if is_single:
         r = built['root'][0](state=state, **kw)
-        pop_cache(state, kw.get('prefix'))
+        # pop_cache(state, kw.get('prefix'))
         return r
 
     if _is(conds, dict) and conds.get('cond'):
@@ -966,10 +983,10 @@ def run_conds(state, conds, built, is_single, **kw):
         if kw.get('root') not in (None, False):
             break
 
-    c = pop_cache(state, kw.get('prefix'))
+    c = pop_cache(kw, kw.get('prefix'))
     # deliver this as well, contains the function call results.
     # can't hurt r anyway not part of the original data:
-    if c:
+    if c and kw.get('add_cached'):
         # r[CACHE_KEY] = c
         # print('cache', c)
         r.update(c)
@@ -978,71 +995,126 @@ def run_conds(state, conds, built, is_single, **kw):
 
 # ---------------------------------------------------------------------------------  rx
 
+import time
+
+
+class Async(Exception):
+    """
+    When raised will bubble up into mechanics to continue on an async lane.
+
+    Our Mechanic to not have to put ALL condition evals to an async lane
+    but only those which require it, due to previous conditions matching.
+    """
+
+
+class Completed(Exception):
+    """
+    When a custom function (sync or async) wants to end the stream.
+    """
+
 
 def import_rx():
+    """helper for clients, to normalize rx namespace"""
     from rx import operators as rx
     import rx as Rx
 
     return Rx, rx
 
 
-import time
-
-
-def rx_async(exc_msg):
-    Rx, rx = import_rx()
-    x, cfg, pcond, is_single, into = exc_msg
-
-    sched = cfg.get('scheduler')
-    timeout = cfg.get('timeout', 1)
-    # no action by default:
-    timeout_cb = partial(cfg.get('timeout_cb', lambda x: nil))
-
-    def runconds(x, cfg=cfg, pcond=pcond, into=into):
-        """
-            We are in a seperate greenlet now, and may block
-            """
-        r = pcond(x)
-        into.update(r)
-        # forward the item itself:
-        return x
-
-    return Rx.merge(
-        Rx.just([x, cfg]).pipe(rx.delay(timeout), rx.map(timeout_cb)),
-        Rx.just(x).pipe(rx.delay(0, sched), rx.map(runconds)),
-    ).pipe(rx.first(), rx.filter(lambda x: x != nil))
-
-
 def rxop(cond, func=None, into=None, **cfg):
-    """for streaming data (optional)"""
+    """
+    Returns a reactive-x operator ror streaming data (optional)
+
+    It does support to dispatch blocking functions asyncronously, depending if conditions are met - then giving up order.
+
+    Only async platform supported currently: gevent (hardcoded herein)
+
+    == Usage:
+
+    Consult the tutorial
+
+    == Exceptions:
+
+    Will go silent except a cfg['err_handler'] is passed, which will be called.
+    If this raises as well, then the stream stops.
+
+    == Timeout Mgmt:
+
+    Has to be done outside, i.e. in the async functions themselves.
+    Rationale: Async ops are done with libs, which ship with their own timeout params, no need to re-invent / overlay with ours.
+    => users should except at such timeouts, which will trigger the cfg['err_handler'] function - where further arrangements can be done.
+
+    == Perf:
+
+    See test_rx_perf.py regarding perf
+
+    For a condition which ALWAYS matches to run a function async we get:
+
+    Items    10000
+    ==============
+     direct  0.115 pycond(state=s)
+       qual  0.205 qualify(s)
+     rxsync  0.336 .pipe(rxop(cond))
+    rxasync  1.151 .pipe(rxop(cond, asyn=[<function name>]))
+
+    """
     Rx, rx = import_rx()
-    pcond, is_single = qualify(cond, return_type=True, **cfg)
+    qualifier, is_single = qualify(cond, return_type=True, **cfg)
 
     asyn = cfg.get('asyn')
+    if asyn:
+        import gevent
     if is_single:
         if asyn:
             raise Exception('Async mode not supported for simple filters')
-        f = func or (lambda pcond, x: bool(pcond(x)))
-        return rx.filter(partial(f, pcond))
+        f = func or (lambda qualifier, x: bool(qualifier(x)))
+        return rx.filter(partial(f, qualifier))
 
-    def fsync(x, pcond=pcond, cfg=cfg, into=into, asyn=asyn):
+    # will hold the results of any async op:
+    subj_async_results = Rx.subject.Subject()
+    # will hold the cached values:
+    kw = {}
+
+    def run_item(obs, x, asyn_kw, qualifier=qualifier, cfg=cfg, into=into):
+        """Run either in sync or async mode, then asyn_kw is not None"""
         d = x if into is None else x.setdefault(into, {})
-        print(x)
         try:
-            m = pcond(x)
+            m = qualifier(x) if asyn_kw is None else qualifier(x, **asyn_kw)
             d.update(m)
-            return x
+            obs.on_next(x)
         except Async as ex:
-            if not asyn:
+            if asyn_kw is not None:
+                # can never happen - w can't raise that when the cache key is in kw:
+                print('BUG: asyn_kw loop!')
                 raise
-            exc_msg = [x, cfg, pcond, is_single, d]
-            return exc_msg
+            # The exception bubbled up while sync - from the point where the first async func was found - with curent state of cache:
+            kw_with_cache = ex.args[0][0]
+            return kw_with_cache
 
-    if not asyn:
-        return rx.map(fsync)
-    else:
-        return rx.pipe(
-            rx.map(fsync),
-            rx.group_by(lambda x: isinstance(x, dict)),
-            rx.flat_map(lambda s: s if s.key else s.pipe(rx.flat_map(rx_async))),
-        )
+        except Completed as ex:
+            obs.on_completed()
+
+        except Exception as ex:
+            eh = cfg.get('err_handler')
+            eh(x, cfg=cfg, ctx=kw, exc=ex) if eh else None
+
+    def _run(source):
+        """custom operator"""
+
+        def subscribe(obs, scheduler=None):  # , sx=sx):
+            def on_next(x, run_item=run_item):
+                res = run_item(obs, x, None)
+                # Was the async exception raised:
+                if not res:
+                    return
+                # We spawn a greenlet now which nexts to the async subj, merged into the result stream.
+                # Why: The low level method is over an order of magn. faster faster than a flat_map(map(just(x, GS))) :-/
+                # !! Please test perf FIRST before trying to build this with rx !!
+                # Note: By handing the subj and not the observer, the stream never completes - deemed better than early completions with spawned async tasks around:
+                gevent.spawn(run_item, subj_async_results, x, res)
+
+            return source.subscribe(on_next, obs.on_error, obs.on_completed, scheduler)
+
+        return Rx.merge(Rx.create(subscribe), subj_async_results)
+
+    return _run
