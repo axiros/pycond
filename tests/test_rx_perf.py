@@ -128,6 +128,9 @@ class Tests:
         head = '%s Items' % count
         print('\n'.join(('', head, '=' * len(head))))
         [print('%9s' % k, v) for k, v in res.items()]
+        # yes, we are 10 times slower when all items are processed async:
+        # doing this with rx.group_by(needs_asnc) -> flat_map(s.pipe(map(rx.just(x, GS)))) was far far slower yet, so I'm sort of ok with our 10k / sec:
+        assert res['rxasync'] < 15 * res['direct']
 
 
 if __name__ == '__main__':

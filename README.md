@@ -842,7 +842,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2006
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
@@ -901,7 +901,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1007
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -1307,5 +1307,5 @@ thread: DummyThread-10055 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/998bb838ea5795b886478f4eea0389530204ed31/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/998bb838ea5795b886478f4eea0389530204ed31/pycond.py#L590
+[pycond.py#186]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L590
