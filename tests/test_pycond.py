@@ -37,7 +37,8 @@ class Mechanics(T):
         return 'pass'
 
     def test_auto_cond(s, cond='foo'):
-        """key only -> we act like python's if val:...
+        """
+        key only -> we act like python's if val:...
         and insert the 'truthy' operator
         """
 
@@ -236,6 +237,15 @@ class TestComparisonOps(T):
         S['foo'] = 'a'
         cond = ['foo', 'rev', 'contains', [1, 'a']]
         eq(s, parse(cond)[0](), True)
+
+    def test_bool(s):
+        S['a'] = 1
+        eq(s, parse([True])[0](), True)
+        eq(s, parse([False])[0](), False)
+        eq(s, parse([True, 'and', 'a'])[0](), True)
+        eq(s, parse([True, 'and', 'a1'])[0](), False)
+        eq(s, parse([False, 'and', 'a'])[0](), False)
+        eq(s, parse([False, 'or', [True, 'and', 'a']])[0](), True)
 
     def test_gt_eq_not_le_and_rev_lt(s, tcond='foo %s bar'):
         # we look up v as well for this test, so foo AND bar from S:

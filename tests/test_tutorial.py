@@ -230,6 +230,18 @@ class Test1:
             assert f(state={'foo': 'bar'}) == True
 
         """
+        ## Enabling/Disabling of Branches
+
+        Insert booleans like shown:
+        """
+
+        def f3_21():
+            f = pc.pycond(['foo', 'and', ['bar', 'eq', 1]])
+            assert f(state={'foo': 1}) == False
+            f = pc.pycond(['foo', 'and', [True, 'or', ['bar', 'eq', 1]]])
+            assert f(state={'foo': 1}) == True
+
+        """
         ## Building Conditions From Text
 
         Condition functions are created internally from structured expressions -
@@ -729,6 +741,7 @@ class Test1:
                     'listed': [False, False],
                     'thrd': True,
                     'zero': True,
+                    'last': True,
                 }
                 res = f({'c': 'foo', 'x': 1})
                 assert res == {
@@ -736,6 +749,7 @@ class Test1:
                     'listed': [False, True],
                     'thrd': False,
                     'zero': True,
+                    'last': True,
                 }
 
             q = {
@@ -743,12 +757,13 @@ class Test1:
                 'listed': [['foo'], ['c', 'eq', 'foo']],
                 'zero': [['x', 'eq', 1], 'or', 'thrd'],
                 'first': ['a', 'eq', 'b'],
+                'last': True,  # you might want to do this to always get at least one matcher, e.g. for data streaming
             }
             # as list of conditions:
             run(q)
 
             # as dict:
-            q = [[k, v] for k, v in q.items()]
+            q = dict([[k, v] for k, v in q.items()])
             run(q)
 
         """
@@ -780,15 +795,17 @@ class Test1:
             m = q({'bar': 1}, into='conds')
             assert m == {'bar': 1, 'conds': {0: False, 1: True, 2: True}}
 
+            msg = lambda: {'bar': 1, 'pl': {'a': 1}}
+
             # add_cached == True -> it's put into the cond results:
-            m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached=True)
+            m = q(msg(), into='conds', add_cached=True)
             assert m == {
                 'bar': 1,
                 'conds': {0: False, 1: True, 2: True, 'func': True},
                 'pl': {'a': 1},
             }
 
-            m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached='pl')
+            m = q(msg(), into='conds', add_cached='pl')
             assert m == {
                 'bar': 1,
                 'conds': {0: False, 1: True, 2: True},
@@ -799,9 +816,7 @@ class Test1:
             assert m == {0: False, 1: True, 2: True, 'func': True}
 
             # prefix -> bar won't be True, not in pl now:
-            m = q(
-                {'bar': 1, 'pl': {'a': 1}}, prefix='pl', into='conds', add_cached='pl',
-            )
+            m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
             assert m == {
                 'bar': 1,
                 'conds': {0: False, 1: False, 2: True},

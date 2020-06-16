@@ -328,12 +328,14 @@ def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
     return f(p, res)
 
 
-KEY_STR_TYP, KEY_TPL_TYP, KEY_LST_TYP = 1, 2, 3
+KEY_STR_TYP, KEY_TPL_TYP, KEY_LST_TYP, KEY_BOOL_TYP = 1, 2, 3, 4
 
 
 def key_type(key):
     if _is(key, str):
         return KEY_STR_TYP
+    elif _is(key, bool):
+        return KEY_BOOL_TYP
     elif _is(key, tuple):
         return KEY_TPL_TYP
     elif _is(key, list) and is_deep_list_path(key):
@@ -362,6 +364,9 @@ def parse_struct_cond(cond, cfg, nfo):
                     return partial(
                         COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),
                     )
+            elif kt == KEY_BOOL_TYP:
+                f1 = lambda *a, _=key, **kw: bool(_)
+                continue
             elif kt == KEY_LST_TYP:
                 key = tuple(key)
             ac = [key]
@@ -799,6 +804,8 @@ def norm(cond):
     """
     # given as ['foo', 'eq', 'bar'] instead [['foo', 'eq', 'bar']]?
     kt = key_type(cond[0])
+    if kt in [True, False]:
+        return [cond], True
     if kt:
         cond = [cond]
     if len(cond) == 1:
@@ -844,12 +851,15 @@ def init_conds(conds, cfg, built, prefix=()):
     - is_named_listed
     """
     # save some clutter:
+
     def recurse(conds, cfg=cfg, built=built, prefix=prefix):
         return init_conds(conds, cfg, built, prefix)[0]
 
     # a multi cond is a list of conds, with substreams behind
     if _is(conds, str):
         conds = deserialize_str(conds, **cfg)[0]
+    if _is(conds, bool):
+        conds = [conds]
 
     if not _is(conds, (list, dict)) or not conds:
         raise Exception('Cannot parse: %s' % str(conds))
