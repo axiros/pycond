@@ -831,8 +831,7 @@ class Test1:
                     # should never happen:
                     print('exception', a)
 
-                # creates integers: 0, then 1, then 2, ... and so on:
-                stream = Rx.interval(0.01, GS)
+                stream = Rx.interval(0.01)  # numbers, each on its own thread
 
                 # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
                 stream = stream.pipe(
@@ -981,21 +980,39 @@ class Test1:
             # push_through just runs a stream of {'i': <nr>} through a given operator:
             Rx, rx, push_through = rx_setup()
 
+            # Defining a simple 'set' of classifiers, here as list, with one single key: 42:
+            conds = [
+                [
+                    42,
+                    [
+                        ['i', 'lt', 100],
+                        'and',
+                        [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
+                        'and_not',
+                        ['blocking', 'eq', 3],
+                    ],
+                ]
+            ]
+
             class F:
                 """
-                Namespace for condition functions, which we can indicate to be run async.
+                Namespace for condition lookup functions.
                 You may also pass a dict (lookup_provider_dict)
 
-                We provide the Functions 'odd' and 'blocking':
-
+                We provide the functions for 'odd' and 'blocking'.
                 """
 
                 def odd(v, data, cfg, **kw):
-                    _thn('odd', data)  # just print the threadname
+                    # just print the threadname.
+                    # will go up, interval stream has each nr on its own thread:
+                    _thn('odd', data)
+                    # fullfill condition only for odd numbers
+                    # -> even nrs won't even run func 'blocking':
                     return data['i'] % 2, v
 
                 def blocking(v, data, cfg, **kw):
                     i = data['i']
+                    # will be on different thread:
                     _thn('blocking', data)
                     if i == 1:
                         # two others will "overtake the i=1 item,
@@ -1010,20 +1027,6 @@ class Test1:
                     elif i == 5:
                         1 / 0
                     return data['i'], v
-
-            # Defining a simple 'set' of classifiers, here as list, with one single key: 42:
-            conds = [
-                [
-                    42,
-                    [
-                        ['i', 'lt', 100],
-                        'and',
-                        [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
-                        'and_not',
-                        ['blocking', 'eq', 3],
-                    ],
-                ]
-            ]
 
             timeouts = []
 
