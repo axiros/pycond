@@ -1011,10 +1011,10 @@ class Test1:
                         1 / 0
                     return data['i'], v
 
-            # Defining a simple 'set' of classifiers, here as list, with one single key: 2:
+            # Defining a simple 'set' of classifiers, here as list, with one single key: 42:
             conds = [
                 [
-                    2,
+                    42,
                     [
                         ['i', 'lt', 100],
                         'and',
@@ -1048,7 +1048,7 @@ class Test1:
             )
             r = push_through(rxop, items=5)
             assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
-            assert [m['mod'][2] for m in r] == [False, True, False, False, True]
+            assert [m['mod'][42] for m in r] == [False, True, False, False, True]
             # item 2 caused a timeout:
             assert [t['i'] for t in timeouts] == [2, 5]
 
