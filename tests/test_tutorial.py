@@ -756,6 +756,10 @@ class Test1:
 
         #### Options
 
+        - into: Put the matched named conditions into the original data
+        - prefix: Work from a prefix nested in the root
+        - add_cached: Return also the data from function result cache
+
         Here a few variants to parametrize behaviour, by example:
         """
 
@@ -773,21 +777,21 @@ class Test1:
             assert m == {0: False, 1: True, 2: True}
 
             # return data, with matched conds in:
-            m = q({'bar': 1}, add_matched='conds')
-            assert m == {'bar': 1, 'conds': {1: True, 2: True}}
+            m = q({'bar': 1}, into='conds')
+            assert m == {'bar': 1, 'conds': {0: False, 1: True, 2: True}}
 
-            m = q({'bar': 1, 'pl': {'a': 1}}, add_matched='conds', add_cached=True)
+            # add_cached == True -> it's put into the cond results:
+            m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached=True)
             assert m == {
                 'bar': 1,
-                'conds': {1: True, 2: True},
-                'func': True,
+                'conds': {0: False, 1: True, 2: True, 'func': True},
                 'pl': {'a': 1},
             }
 
-            m = q({'bar': 1, 'pl': {'a': 1}}, add_matched='conds', add_cached='pl')
+            m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached='pl')
             assert m == {
                 'bar': 1,
-                'conds': {1: True, 2: True},
+                'conds': {0: False, 1: True, 2: True},
                 'pl': {'a': 1, 'func': True},
             }
 
@@ -796,13 +800,13 @@ class Test1:
 
             # prefix -> bar won't be True, not in pl now:
             m = q(
-                {'bar': 1, 'pl': {'a': 1}},
-                prefix='pl',
-                add_matched='conds',
-                add_cached='pl',
+                {'bar': 1, 'pl': {'a': 1}}, prefix='pl', into='conds', add_cached='pl',
             )
-
-            assert m == {'bar': 1, 'conds': {2: True}, 'pl': {'a': 1, 'func': True}}
+            assert m == {
+                'bar': 1,
+                'conds': {0: False, 1: False, 2: True},
+                'pl': {'a': 1, 'func': True},
+            }
 
         """
 
@@ -949,14 +953,6 @@ class Test1:
             assert len(r) == 4
             assert r == odds
 
-            # We may pass a custom filter function, which will be called,
-            # when data streams through. It gets the built cond. as first argument:
-            def myf(my_built_filter, data):
-                return my_built_filter(data) or data['i'] == 2
-
-            r = push_through(pcfilter(func=myf))
-            assert r == [{'i': 1}, {'i': 2}, {'i': 3}, {'i': 5}]
-
         """
         ## Streaming Classification
 
@@ -1008,6 +1004,7 @@ class Test1:
 
             # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
             r = push_through(pc.rxop(conds, into='mod', root=2, add_cached=True))
+
             assert r == [
                 # evaluation of alt was not required:
                 {'i': 1, 'mod': {2: True}},

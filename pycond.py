@@ -929,14 +929,7 @@ def add_cache(n, kw, into):
 
 
 def run_conds(
-    data,
-    conds,
-    built,
-    is_single,
-    add_cached=None,
-    add_matched=None,
-    match_any=True,
-    **kw,
+    data, conds, built, is_single, add_cached=None, into=None, match_any=True, **kw,
 ):
     """
     In data path (hot). The function which qualify returns, ready for data push.
@@ -975,15 +968,18 @@ def run_conds(
             break
 
     if add_cached:
-        if add_matched:
-            r = data
+        # True: add the cached content into the condition results:
+        if into and not add_cached == True:
+            m = data
         else:
             add_cached = True
-        add_cache(add_cached, kw, r)
+            m = r
+        add_cache(add_cached, kw, m)
 
-    if add_matched:
+    if into:
         # allows a fast subsequent filter on indexed keys (r.get(<filtername>)):
-        data[add_matched] = dict([(k, True) for k in matched])
+        # data[into] = dict([(k, True) for k in matched])
+        data[into] = r
         return data
     return r
 
@@ -1065,9 +1061,14 @@ def import_rx(*incl):
     return r
 
 
-def rxop(cond, func=None, into=None, qualifier=None, **cfg):
+def rxop(cond, func=None, qualifier=None, **cfg):
     """
     Returns a reactive-x operator ror streaming data (optional)
+
+    Runs either
+    - as filter, i.e. returning True / False
+    - as qualifier, then adding condition results directly into messages passing thru, in parametrizable ways
+
 
     It does support to dispatch blocking functions asyncronously, depending if conditions are met - then giving up order.
 
@@ -1111,7 +1112,7 @@ def rxop(cond, func=None, into=None, qualifier=None, **cfg):
     if is_single:
         if asyn:
             raise Exception('Async mode not supported for simple filters')
-        f = func or (lambda qualifier, x: bool(qualifier(x)))
+        f = lambda qualifier, x: bool(qualifier(x))
         return rx.filter(partial(f, qualifier))
 
     # will hold the results of any async op:
@@ -1119,12 +1120,10 @@ def rxop(cond, func=None, into=None, qualifier=None, **cfg):
     # will hold the cached values:
     kw = {}
 
-    def run_item(obs, x, asyn_kw, qualifier=qualifier, cfg=cfg, into=into):
+    def run_item(obs, x, asyn_kw, qualifier=qualifier, cfg=cfg):
         """Run either in sync or async mode, then asyn_kw is not None"""
-        d = x if into is None else x.setdefault(into, {})
         try:
-            m = qualifier(x) if asyn_kw is None else qualifier(x, **asyn_kw)
-            d.update(m)
+            qualifier(x) if asyn_kw is None else qualifier(x, **asyn_kw)
             obs.on_next(x)
         except Async as ex:
             if asyn_kw is not None:
