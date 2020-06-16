@@ -1024,11 +1024,17 @@ class Test1:
             def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
                 # args are: [item, cfg]
                 if 'ups' in str(exc):
+<<<<<<< HEAD
                     assert item['i'] == 2
                     assert exc.__class__ == TimeoutError
                     t.append(item)
                 else:
                     assert item['i'] == 5
+=======
+                    assert exc.__class__ == TimeoutError
+                    t.append(item)
+                else:
+>>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
                     assert exc.__class__ == ZeroDivisionError
 
             # have the operator built for us:

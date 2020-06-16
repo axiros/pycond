@@ -842,7 +842,11 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
+<<<<<<< HEAD
 Calc.Time (delta_q was called twice): 0.2007
+=======
+Calc.Time (delta_q was called twice): 0.2005
+>>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
 ```
 
 
@@ -901,7 +905,11 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
+<<<<<<< HEAD
 Calc.Time (delta_q was called just once): 0.1007
+=======
+Calc.Time (delta_q was called just once): 0.1004
+>>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -1262,11 +1270,17 @@ timeouts = []
 def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
     # args are: [item, cfg]
     if 'ups' in str(exc):
+<<<<<<< HEAD
         assert item['i'] == 2
         assert exc.__class__ == TimeoutError
         t.append(item)
     else:
         assert item['i'] == 5
+=======
+        assert exc.__class__ == TimeoutError
+        t.append(item)
+    else:
+>>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
         assert exc.__class__ == ZeroDivisionError
 
 # have the operator built for us:
@@ -1307,5 +1321,10 @@ thread: DummyThread-10055 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
+<<<<<<< HEAD
 [pycond.py#186]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L186
 [pycond.py#590]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L590
+=======
+[pycond.py#186]: https://github.com/axiros/pycond/blob/a8c845fc5fe43b0b1bda46c94a742ed7b8457dc7/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/a8c845fc5fe43b0b1bda46c94a742ed7b8457dc7/pycond.py#L590
+>>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
