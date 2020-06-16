@@ -978,15 +978,20 @@ class Test1:
         def rx_async():
             _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
+            # push_through just runs a stream of {'i': <nr>} through a given operator:
             Rx, rx, push_through = rx_setup()
 
             class F:
                 """
-                Namespace for condition functions, which we can indicate to be run async. You may also pass a dict (lookup_provider_dict)
+                Namespace for condition functions, which we can indicate to be run async.
+                You may also pass a dict (lookup_provider_dict)
+
+                We provide the Functions 'odd' and 'blocking':
+
                 """
 
                 def odd(v, data, cfg, **kw):
-                    _thn('odd', data)
+                    _thn('odd', data)  # just print the threadname
                     return data['i'] % 2, v
 
                 def blocking(v, data, cfg, **kw):
@@ -1019,6 +1024,7 @@ class Test1:
                     ],
                 ]
             ]
+
             timeouts = []
 
             def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
@@ -1030,6 +1036,7 @@ class Test1:
                 else:
                     assert item['i'] == 5
                     assert exc.__class__ == ZeroDivisionError
+                    t.append(item)
 
             # have the operator built for us:
             rxop = pc.rxop(
@@ -1043,7 +1050,7 @@ class Test1:
             assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
             assert [m['mod'][2] for m in r] == [False, True, False, False, True]
             # item 2 caused a timeout:
-            assert timeouts[0]['i'] == 2
+            assert [t['i'] for t in timeouts] == [2, 5]
 
         ## Data Filtering
         p2m.md_from_source_code()

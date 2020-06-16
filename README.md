@@ -842,7 +842,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2005
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
@@ -901,7 +901,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1006
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -1216,15 +1216,20 @@ pycond allows to define, that blocking operations should be run *async* within t
 ```python
 _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 
+# push_through just runs a stream of {'i': <nr>} through a given operator:
 Rx, rx, push_through = rx_setup()
 
 class F:
     """
-    Namespace for condition functions, which we can indicate to be run async. You may also pass a dict (lookup_provider_dict)
+    Namespace for condition functions, which we can indicate to be run async.
+    You may also pass a dict (lookup_provider_dict)
+
+    We provide the Functions 'odd' and 'blocking':
+
     """
 
     def odd(v, data, cfg, **kw):
-        _thn('odd', data)
+        _thn('odd', data)  # just print the threadname
         return data['i'] % 2, v
 
     def blocking(v, data, cfg, **kw):
@@ -1257,6 +1262,7 @@ conds = [
         ],
     ]
 ]
+
 timeouts = []
 
 def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
@@ -1268,6 +1274,7 @@ def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
     else:
         assert item['i'] == 5
         assert exc.__class__ == ZeroDivisionError
+        t.append(item)
 
 # have the operator built for us:
 rxop = pc.rxop(
@@ -1281,23 +1288,23 @@ r = push_through(rxop, items=5)
 assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
 assert [m['mod'][2] for m in r] == [False, True, False, False, True]
 # item 2 caused a timeout:
-assert timeouts[0]['i'] == 2
+assert [t['i'] for t in timeouts] == [2, 5]
 ```
 Output:
 
 ```
-thread: DummyThread-10000 odd {'i': 1, 'mod': {}}
-thread: DummyThread-10001 blocking {'i': 1, 'mod': {}}
-thread: DummyThread-10002 odd {'i': 2, 'mod': {}}
-thread: DummyThread-10003 blocking {'i': 2, 'mod': {}}
-thread: DummyThread-10004 odd {'i': 3, 'mod': {}}
-thread: DummyThread-10005 blocking {'i': 3, 'mod': {}}
-thread: DummyThread-10006 odd {'i': 4, 'mod': {}}
-thread: DummyThread-10007 odd {'i': 5, 'mod': {}}
-thread: DummyThread-10008 blocking {'i': 5, 'mod': {}}
-thread: DummyThread-10009 odd {'i': 6, 'mod': {}}
-thread: DummyThread-10010 odd {'i': 7, 'mod': {}}
-thread: DummyThread-10011 blocking {'i': 7, 'mod': {}}
+thread: DummyThread-1 odd {'i': 1, 'mod': {}}
+thread: DummyThread-2 blocking {'i': 1, 'mod': {}}
+thread: DummyThread-3 odd {'i': 2, 'mod': {}}
+thread: DummyThread-4 blocking {'i': 2, 'mod': {}}
+thread: DummyThread-5 odd {'i': 3, 'mod': {}}
+thread: DummyThread-6 blocking {'i': 3, 'mod': {}}
+thread: DummyThread-7 odd {'i': 4, 'mod': {}}
+thread: DummyThread-8 odd {'i': 5, 'mod': {}}
+thread: DummyThread-9 blocking {'i': 5, 'mod': {}}
+thread: DummyThread-10 odd {'i': 6, 'mod': {}}
+thread: DummyThread-11 odd {'i': 7, 'mod': {}}
+thread: DummyThread-12 blocking {'i': 7, 'mod': {}}
 ```
 
 
@@ -1307,5 +1314,5 @@ thread: DummyThread-10011 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/28813aaf9fc510e5985ad40fdc9780b7c08c39e4/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/28813aaf9fc510e5985ad40fdc9780b7c08c39e4/pycond.py#L590
+[pycond.py#186]: https://github.com/axiros/pycond/blob/d834d9682364e5e39086cdf4f1bafaebde9074f1/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/d834d9682364e5e39086cdf4f1bafaebde9074f1/pycond.py#L590

@@ -18,9 +18,7 @@ GS = GEventScheduler(gevent)
 
 Rx, rx = pc.import_rx()
 
-now = time.time
-count = 10000
-prnt = 0
+now, count, prnt = time.time, 10000, 0
 
 
 class F:
