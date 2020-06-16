@@ -812,7 +812,7 @@ class Test1:
         def rx_setup():
             # simply `import rx as Rx and rx = rx.operators`:
             # import pycond as pc, like always:
-            Rx, rx = pc.import_rx()
+            Rx, rx, GS = pc.import_rx('GS')
 
             def push_through(*test_pipe, items=4):
                 """
@@ -832,7 +832,7 @@ class Test1:
                     print('exception', a)
 
                 # creates integers: 0, then 1, then 2, ... and so on:
-                stream = Rx.interval(0.01)
+                stream = Rx.interval(0.01, GS)
 
                 # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
                 stream = stream.pipe(
@@ -1024,17 +1024,11 @@ class Test1:
             def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
                 # args are: [item, cfg]
                 if 'ups' in str(exc):
-<<<<<<< HEAD
                     assert item['i'] == 2
                     assert exc.__class__ == TimeoutError
                     t.append(item)
                 else:
                     assert item['i'] == 5
-=======
-                    assert exc.__class__ == TimeoutError
-                    t.append(item)
-                else:
->>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
                     assert exc.__class__ == ZeroDivisionError
 
             # have the operator built for us:

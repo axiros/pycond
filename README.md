@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200610
+version: 20200612
 
 ---
 
@@ -842,11 +842,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-<<<<<<< HEAD
-Calc.Time (delta_q was called twice): 0.2007
-=======
 Calc.Time (delta_q was called twice): 0.2005
->>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
 ```
 
 
@@ -905,11 +901,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-<<<<<<< HEAD
-Calc.Time (delta_q was called just once): 0.1007
-=======
-Calc.Time (delta_q was called just once): 0.1004
->>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
+Calc.Time (delta_q was called just once): 0.1003
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -1053,7 +1045,7 @@ Lets first set up a test data stream, by defining a function `rx_setup` like so:
 ```python
 # simply `import rx as Rx and rx = rx.operators`:
 # import pycond as pc, like always:
-Rx, rx = pc.import_rx()
+Rx, rx, GS = pc.import_rx('GS')
 
 def push_through(*test_pipe, items=4):
     """
@@ -1073,7 +1065,7 @@ def push_through(*test_pipe, items=4):
         print('exception', a)
 
     # creates integers: 0, then 1, then 2, ... and so on:
-    stream = Rx.interval(0.01)
+    stream = Rx.interval(0.01, GS)
 
     # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
     stream = stream.pipe(
@@ -1270,17 +1262,11 @@ timeouts = []
 def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
     # args are: [item, cfg]
     if 'ups' in str(exc):
-<<<<<<< HEAD
         assert item['i'] == 2
         assert exc.__class__ == TimeoutError
         t.append(item)
     else:
         assert item['i'] == 5
-=======
-        assert exc.__class__ == TimeoutError
-        t.append(item)
-    else:
->>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
         assert exc.__class__ == ZeroDivisionError
 
 # have the operator built for us:
@@ -1300,18 +1286,18 @@ assert timeouts[0]['i'] == 2
 Output:
 
 ```
-thread: Thread-10043 odd {'i': 1, 'mod': {}}
-thread: DummyThread-10045 blocking {'i': 1, 'mod': {}}
-thread: Thread-10044 odd {'i': 2, 'mod': {}}
-thread: DummyThread-10047 blocking {'i': 2, 'mod': {}}
-thread: Thread-10046 odd {'i': 3, 'mod': {}}
-thread: DummyThread-10049 blocking {'i': 3, 'mod': {}}
-thread: Thread-10048 odd {'i': 4, 'mod': {}}
-thread: Thread-10050 odd {'i': 5, 'mod': {}}
-thread: DummyThread-10052 blocking {'i': 5, 'mod': {}}
-thread: Thread-10051 odd {'i': 6, 'mod': {}}
-thread: Thread-10053 odd {'i': 7, 'mod': {}}
-thread: DummyThread-10055 blocking {'i': 7, 'mod': {}}
+thread: DummyThread-10000 odd {'i': 1, 'mod': {}}
+thread: DummyThread-10001 blocking {'i': 1, 'mod': {}}
+thread: DummyThread-10002 odd {'i': 2, 'mod': {}}
+thread: DummyThread-10003 blocking {'i': 2, 'mod': {}}
+thread: DummyThread-10004 odd {'i': 3, 'mod': {}}
+thread: DummyThread-10005 blocking {'i': 3, 'mod': {}}
+thread: DummyThread-10006 odd {'i': 4, 'mod': {}}
+thread: DummyThread-10007 odd {'i': 5, 'mod': {}}
+thread: DummyThread-10008 blocking {'i': 5, 'mod': {}}
+thread: DummyThread-10009 odd {'i': 6, 'mod': {}}
+thread: DummyThread-10010 odd {'i': 7, 'mod': {}}
+thread: DummyThread-10011 blocking {'i': 7, 'mod': {}}
 ```
 
 
@@ -1321,10 +1307,5 @@ thread: DummyThread-10055 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
-<<<<<<< HEAD
-[pycond.py#186]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/41dca2df804d70ac3e92cf1039a4871288da45ff/pycond.py#L590
-=======
-[pycond.py#186]: https://github.com/axiros/pycond/blob/a8c845fc5fe43b0b1bda46c94a742ed7b8457dc7/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/a8c845fc5fe43b0b1bda46c94a742ed7b8457dc7/pycond.py#L590
->>>>>>> 998bb838ea5795b886478f4eea0389530204ed31
+[pycond.py#186]: https://github.com/axiros/pycond/blob/28813aaf9fc510e5985ad40fdc9780b7c08c39e4/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/28813aaf9fc510e5985ad40fdc9780b7c08c39e4/pycond.py#L590

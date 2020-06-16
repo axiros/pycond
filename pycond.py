@@ -1013,12 +1013,18 @@ class Completed(Exception):
     """
 
 
-def import_rx():
+def import_rx(*incl):
     """helper for clients, to normalize rx namespace"""
     from rx import operators as rx
     import rx as Rx
 
-    return Rx, rx
+    r = (Rx, rx)
+    if 'GS' in incl:
+        import gevent
+        from rx.scheduler.eventloop import GEventScheduler
+
+        r += (GEventScheduler(gevent),)
+    return r
 
 
 def rxop(cond, func=None, into=None, **cfg):
