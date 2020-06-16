@@ -1064,8 +1064,7 @@ def push_through(*test_pipe, items=4):
         # should never happen:
         print('exception', a)
 
-    # creates integers: 0, then 1, then 2, ... and so on:
-    stream = Rx.interval(0.01, GS)
+    stream = Rx.interval(0.01)  # numbers, each on its own thread
 
     # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
     stream = stream.pipe(
@@ -1156,6 +1155,8 @@ Rx, rx, push_through = rx_setup()
 # generate a set of classifiers:
 conds = [['i', 'mod', i] for i in range(2, 4)]
 
+breakpoint()  # FIXME BREAKPOINT
+
 def run(offs=0):
 
     # and get a classifying operator from pycond, adding the results in place, at key 'mod':
@@ -1219,21 +1220,39 @@ _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
 # push_through just runs a stream of {'i': <nr>} through a given operator:
 Rx, rx, push_through = rx_setup()
 
+# Defining a simple 'set' of classifiers, here as list, with one single key: 42:
+conds = [
+    [
+        42,
+        [
+            ['i', 'lt', 100],
+            'and',
+            [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
+            'and_not',
+            ['blocking', 'eq', 3],
+        ],
+    ]
+]
+
 class F:
     """
-    Namespace for condition functions, which we can indicate to be run async.
+    Namespace for condition lookup functions.
     You may also pass a dict (lookup_provider_dict)
 
-    We provide the Functions 'odd' and 'blocking':
-
+    We provide the functions for 'odd' and 'blocking'.
     """
 
     def odd(v, data, cfg, **kw):
-        _thn('odd', data)  # just print the threadname
+        # just print the threadname.
+        # will go up, interval stream has each nr on its own thread:
+        _thn('odd', data)
+        # fullfill condition only for odd numbers
+        # -> even nrs won't even run func 'blocking':
         return data['i'] % 2, v
 
     def blocking(v, data, cfg, **kw):
         i = data['i']
+        # will be on different thread:
         _thn('blocking', data)
         if i == 1:
             # two others will "overtake the i=1 item,
@@ -1248,20 +1267,6 @@ class F:
         elif i == 5:
             1 / 0
         return data['i'], v
-
-# Defining a simple 'set' of classifiers, here as list, with one single key: 42:
-conds = [
-    [
-        42,
-        [
-            ['i', 'lt', 100],
-            'and',
-            [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
-            'and_not',
-            ['blocking', 'eq', 3],
-        ],
-    ]
-]
 
 timeouts = []
 
@@ -1293,18 +1298,18 @@ assert [t['i'] for t in timeouts] == [2, 5]
 Output:
 
 ```
-thread: DummyThread-1 odd {'i': 1, 'mod': {}}
-thread: DummyThread-2 blocking {'i': 1, 'mod': {}}
-thread: DummyThread-3 odd {'i': 2, 'mod': {}}
-thread: DummyThread-4 blocking {'i': 2, 'mod': {}}
-thread: DummyThread-5 odd {'i': 3, 'mod': {}}
-thread: DummyThread-6 blocking {'i': 3, 'mod': {}}
-thread: DummyThread-7 odd {'i': 4, 'mod': {}}
-thread: DummyThread-8 odd {'i': 5, 'mod': {}}
-thread: DummyThread-9 blocking {'i': 5, 'mod': {}}
-thread: DummyThread-10 odd {'i': 6, 'mod': {}}
-thread: DummyThread-11 odd {'i': 7, 'mod': {}}
-thread: DummyThread-12 blocking {'i': 7, 'mod': {}}
+thread: Thread-44 odd {'i': 1, 'mod': {}}
+thread: DummyThread-46 blocking {'i': 1, 'mod': {}}
+thread: Thread-45 odd {'i': 2, 'mod': {}}
+thread: DummyThread-48 blocking {'i': 2, 'mod': {}}
+thread: Thread-47 odd {'i': 3, 'mod': {}}
+thread: DummyThread-50 blocking {'i': 3, 'mod': {}}
+thread: Thread-49 odd {'i': 4, 'mod': {}}
+thread: Thread-51 odd {'i': 5, 'mod': {}}
+thread: DummyThread-53 blocking {'i': 5, 'mod': {}}
+thread: Thread-52 odd {'i': 6, 'mod': {}}
+thread: Thread-54 odd {'i': 7, 'mod': {}}
+thread: DummyThread-56 blocking {'i': 7, 'mod': {}}
 ```
 
 
@@ -1314,5 +1319,5 @@ thread: DummyThread-12 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/68bac38814f0b91ef53a128f8625c426fa4dd61f/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/68bac38814f0b91ef53a128f8625c426fa4dd61f/pycond.py#L590
+[pycond.py#186]: https://github.com/axiros/pycond/blob/8b510fd2b731111977046be79f39c2669ca42497/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/8b510fd2b731111977046be79f39c2669ca42497/pycond.py#L590

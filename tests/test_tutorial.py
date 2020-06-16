@@ -929,6 +929,9 @@ class Test1:
                     {'i': 4, 'mod': {i: 0, j: 1}},
                 ]
 
+            # this will automatically number the classifiers, from 0:
+            run()
+
             # we can also provide the names of the classifiers by passing a dict:
             # here we pass 2 and 3 as those names:
             conds = dict([(i, ['i', 'mod', i]) for i in range(2, 4)])

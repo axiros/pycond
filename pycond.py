@@ -791,45 +791,6 @@ def add_cache_then_run(f, *a, **kw):
     return f(*a, **kw)
 
 
-def qualify(conds, lookup=state_get, return_type=False, **cfg):
-    """
-    conds = set of conditions in any acceptable format or a single one.
-
-    """
-    if _is(conds, str):
-        conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
-    built = {}  # store all built named conditions here
-    conds, is_single, is_named_listed = init_conds(conds, cfg, built)
-
-    # built dict of named conds - conds is the list of them, i.e. with order:
-    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
-
-    # was a single condition passed?
-    if is_single:
-        built = {'root': b}
-        conds = [['root', conds]]
-
-    root = cfg.get('root')
-    if 'root' in built and root is None:
-        root = cfg['root'] = 'root'
-
-    if root is not None:
-        # put it first, we'll break after evaling that:
-        c = []
-        for k, v in conds:
-            if k == root:
-                c.insert(0, [k, v])
-            else:
-                c.append([k, v])
-        conds = c
-    f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
-    f = partial(add_cache_then_run, f)
-    if return_type:
-        return f, is_single
-    else:
-        return f
-
-
 def norm(cond):
     """
     Do we have a single condition, which we return double bracketted or a list of conds?
@@ -993,6 +954,49 @@ def run_conds(state, conds, built, is_single, **kw):
     return r
 
 
+def qualify(conds, lookup=state_get, get_type=False, **cfg):
+    """
+    conds = set of conditions in any acceptable format or a single one.
+
+    """
+    if _is(conds, str):
+        conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
+    built = {}  # store all built named conditions here
+    conds, is_single, is_named_listed = init_conds(conds, cfg, built)
+
+    # handle the case of the conds given as list but w/o names:
+    if conds and isinstance(conds, list) and isinstance(conds[0], dict):
+        conds = [[i, c] for i, c in zip(range(len(conds)), conds)]
+
+    # built dict of named conds - conds is the list of them, i.e. with order:
+    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
+
+    # was a single condition passed?
+    if is_single:
+        built = {'root': b}
+        conds = [['root', conds]]
+
+    root = cfg.get('root')
+    if 'root' in built and root is None:
+        root = cfg['root'] = 'root'
+
+    if root is not None:
+        # put it first, we'll break after evaling that:
+        c = []
+        for k, v in conds:
+            if k == root:
+                c.insert(0, [k, v])
+            else:
+                c.append([k, v])
+        conds = c
+    f = partial(run_conds, conds=conds, built=built, is_single=is_single, **cfg)
+    f = partial(add_cache_then_run, f)
+    if get_type:
+        return f, is_single
+    else:
+        return f
+
+
 # ---------------------------------------------------------------------------------  rx
 
 import time
@@ -1027,7 +1031,7 @@ def import_rx(*incl):
     return r
 
 
-def rxop(cond, func=None, into=None, **cfg):
+def rxop(cond, func=None, into=None, qualifier=None, **cfg):
     """
     Returns a reactive-x operator ror streaming data (optional)
 
@@ -1065,7 +1069,7 @@ def rxop(cond, func=None, into=None, **cfg):
 
     """
     Rx, rx = import_rx()
-    qualifier, is_single = qualify(cond, return_type=True, **cfg)
+    qualifier, is_single = qualifier or qualify(cond, get_type=True, **cfg)
 
     asyn = cfg.get('asyn')
     if asyn:
