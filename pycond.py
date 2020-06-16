@@ -561,7 +561,7 @@ CACHE_KEY = 'pyc_cache'
 CACHE_KEY_ASYNC = 'async'
 
 
-def pop_cache(kw, prefix):
+def pop_cache(kw):
     """prefix e.g. "payload" in full messages with headers"""
     # if prefix:
     #     = state.get(prefix)
@@ -918,39 +918,73 @@ def sub_lookup(lookup, built):
     return lu
 
 
-def run_conds(state, conds, built, is_single, **kw):
-    """In data path (hot)"""
+def add_cache(n, kw, into):
+    c = pop_cache(kw)  # , kw.get('prefix'))
+    # deliver this as well, contains the function call results.
+    # can't hurt r anyway not part of the original data:
+    if c:
+        # e.g. add_cache = "payload", then add there:
+        r = state_get_deep(n, 0, {}, into)[0] if not n == True else into
+        r.update(c)
+
+
+def run_conds(
+    data,
+    conds,
+    built,
+    is_single,
+    add_cached=None,
+    add_matched=None,
+    match_any=True,
+    **kw,
+):
+    """
+    In data path (hot). The function which qualify returns, ready for data push.
+    kw has also the cfg
+    """
     if is_single:
-        r = built['root'][0](state=state, **kw)
+        r = built['root'][0](state=data, **kw)
         # pop_cache(state, kw.get('prefix'))
+        if add_cached:
+            add_cache(add_cached, kw, data)
         return r
 
     if _is(conds, dict) and conds.get('cond'):
-        f = built[0](state=state, **kw)
+        f = built[0](state=data, **kw)
         return f
 
     r = {}
+    only_root = kw.get('root') not in (None, False)
+    matched = []
     for k, v in conds:
         b = built[k]
         if _is(v, list):
             r[k] = [
-                run_conds(state, c, b[i], is_single, **kw)
+                run_conds(data, c, b[i], is_single, **kw)
                 for i, c in zip(range(len(v)), v)
             ]
         else:
-            r[k] = run_conds(state, v, b, is_single, **kw)
+            r[k] = m = run_conds(data, v, b, is_single, **kw)
+            if m:
+                matched.append(k)
+                if not match_any:
+                    break
 
         # user wants only partial evaluation?
-        if kw.get('root') not in (None, False):
+        if only_root:
             break
 
-    c = pop_cache(kw, kw.get('prefix'))
-    # deliver this as well, contains the function call results.
-    # can't hurt r anyway not part of the original data:
-    if c and kw.get('add_cached'):
-        # r[CACHE_KEY] = c
-        # print('cache', c)
-        r.update(c)
+    if add_cached:
+        if add_matched:
+            r = data
+        else:
+            add_cached = True
+        add_cache(add_cached, kw, r)
+
+    if add_matched:
+        # allows a fast subsequent filter on indexed keys (r.get(<filtername>)):
+        data[add_matched] = dict([(k, True) for k in matched])
+        return data
     return r
 
 

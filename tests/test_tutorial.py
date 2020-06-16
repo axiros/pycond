@@ -744,14 +744,67 @@ class Test1:
                 'zero': [['x', 'eq', 1], 'or', 'thrd'],
                 'first': ['a', 'eq', 'b'],
             }
+            # as list of conditions:
             run(q)
 
-            # The conditions may be passed as list as well:
+            # as dict:
             q = [[k, v] for k, v in q.items()]
             run(q)
 
         """
         WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
+
+        #### Options
+
+        Here a few variants to parametrize behaviour, by example:
+        """
+
+        def f20_31():
+
+            conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
+
+            class F:
+                def func(*a, **kw):
+                    return True, 0
+
+            q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, **kw)(d)
+
+            m = q({'bar': 1})
+            assert m == {0: False, 1: True, 2: True}
+
+            # return data, with matched conds in:
+            m = q({'bar': 1}, add_matched='conds')
+            assert m == {'bar': 1, 'conds': {1: True, 2: True}}
+
+            m = q({'bar': 1, 'pl': {'a': 1}}, add_matched='conds', add_cached=True)
+            assert m == {
+                'bar': 1,
+                'conds': {1: True, 2: True},
+                'func': True,
+                'pl': {'a': 1},
+            }
+
+            m = q({'bar': 1, 'pl': {'a': 1}}, add_matched='conds', add_cached='pl')
+            assert m == {
+                'bar': 1,
+                'conds': {1: True, 2: True},
+                'pl': {'a': 1, 'func': True},
+            }
+
+            m = q({'bar': 1}, add_cached='pl')
+            assert m == {0: False, 1: True, 2: True, 'func': True}
+
+            # prefix -> bar won't be True, not in pl now:
+            m = q(
+                {'bar': 1, 'pl': {'a': 1}},
+                prefix='pl',
+                add_matched='conds',
+                add_cached='pl',
+            )
+
+            assert m == {'bar': 1, 'conds': {2: True}, 'pl': {'a': 1, 'func': True}}
+
+        """
 
 
         ### Partial Evaluation
