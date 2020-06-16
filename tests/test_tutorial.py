@@ -1024,6 +1024,35 @@ class Test1:
 
         pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
+        ### Asyncronous Filter
+
+        First a simple filter, which gives up order but does not block:
+
+        """
+
+        def rx_async_filter():
+            Rx, rx, push_through = rx_setup()
+
+            class F:
+                def check(v, data, cfg, t0=[], **kw):
+                    # will be on different thread:
+                    i = data['i']
+                    if not t0:
+                        t0.append(now())
+                    if i == 1:
+                        # ints are fired at 0.01, i.e. the 1 will land 4 after 1:
+                        time.sleep(0.048)
+                    # demonstrate that item 1 is not blocking anything - just order is disturbed:
+                    print('item %s: %.3fs' % (i, now() - t0[0]))
+                    return i % 2, v
+
+            # have the operator built for us - with a single condition filter:
+            rxop = pc.rxop(['check'], into='mod', lookup_provider=F, asyn=['check'],)
+            r = push_through(rxop, items=5)
+            assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
+
+        """
+        Finally asyncronous classification, i.e. evaluation of multiple conditions:
 
         """
 

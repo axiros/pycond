@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200612
+version: 20200614
 
 ---
 
@@ -61,12 +61,14 @@ version: 20200612
 - <a name="toc37"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
     - <a name="toc38"></a>[Caching](#caching)
     - <a name="toc39"></a>[Named Conditions: Qualification](#named-conditions-qualification)
-        - <a name="toc40"></a>[Partial Evaluation](#partial-evaluation)
-- <a name="toc41"></a>[Streaming Data](#streaming-data)
-    - <a name="toc42"></a>[Filtering](#filtering)
-    - <a name="toc43"></a>[Streaming Classification](#streaming-classification)
-        - <a name="toc44"></a>[Selective Classification](#selective-classification)
-    - <a name="toc45"></a>[Asyncronous Operations](#asyncronous-operations)
+            - <a name="toc40"></a>[Options](#options)
+        - <a name="toc41"></a>[Partial Evaluation](#partial-evaluation)
+- <a name="toc42"></a>[Streaming Data](#streaming-data)
+    - <a name="toc43"></a>[Filtering](#filtering)
+    - <a name="toc44"></a>[Streaming Classification](#streaming-classification)
+        - <a name="toc45"></a>[Selective Classification](#selective-classification)
+    - <a name="toc46"></a>[Asyncronous Operations](#asyncronous-operations)
+        - <a name="toc47"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -842,7 +844,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2007
+Calc.Time (delta_q was called twice): 0.2008
 ```
 
 
@@ -901,7 +903,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1007
+Calc.Time (delta_q was called just once): 0.1004
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -973,9 +975,10 @@ q = {
     'zero': [['x', 'eq', 1], 'or', 'thrd'],
     'first': ['a', 'eq', 'b'],
 }
+# as list of conditions:
 run(q)
 
-# The conditions may be passed as list as well:
+# as dict:
 q = [[k, v] for k, v in q.items()]
 run(q)
 ```
@@ -988,8 +991,63 @@ Running [['thrd', ['k', 'or', 'first']], ['listed', [['foo'], ['c', 'eq', 'foo']
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
+#### <a href="#toc40">Options</a>
 
-### <a href="#toc40">Partial Evaluation</a>
+- into: Put the matched named conditions into the original data
+- prefix: Work from a prefix nested in the root
+- add_cached: Return also the data from function result cache
+
+Here a few variants to parametrize behaviour, by example:  
+
+
+```python
+conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
+
+class F:
+    def func(*a, **kw):
+        return True, 0
+
+q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, **kw)(d)
+
+m = q({'bar': 1})
+assert m == {0: False, 1: True, 2: True}
+
+# return data, with matched conds in:
+m = q({'bar': 1}, into='conds')
+assert m == {'bar': 1, 'conds': {0: False, 1: True, 2: True}}
+
+# add_cached == True -> it's put into the cond results:
+m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached=True)
+assert m == {
+    'bar': 1,
+    'conds': {0: False, 1: True, 2: True, 'func': True},
+    'pl': {'a': 1},
+}
+
+m = q({'bar': 1, 'pl': {'a': 1}}, into='conds', add_cached='pl')
+assert m == {
+    'bar': 1,
+    'conds': {0: False, 1: True, 2: True},
+    'pl': {'a': 1, 'func': True},
+}
+
+m = q({'bar': 1}, add_cached='pl')
+assert m == {0: False, 1: True, 2: True, 'func': True}
+
+# prefix -> bar won't be True, not in pl now:
+m = q(
+    {'bar': 1, 'pl': {'a': 1}}, prefix='pl', into='conds', add_cached='pl',
+)
+assert m == {
+    'bar': 1,
+    'conds': {0: False, 1: False, 2: True},
+    'pl': {'a': 1, 'func': True},
+}
+```
+
+
+
+### <a href="#toc41">Partial Evaluation</a>
 
 If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
   
@@ -1034,7 +1092,7 @@ assert called == [{'a': 1}, {'b': 1}]
 This means pycond can be used as a lightweight declarative function dispatching framework.
   
 
-# <a href="#toc41">Streaming Data</a>
+# <a href="#toc42">Streaming Data</a>
 
 Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
@@ -1105,7 +1163,7 @@ assert r == [{'i': 1}, {'i': 2}, {'i': 3}]
 
 -> test setup works.
 
-## <a href="#toc42">Filtering</a>
+## <a href="#toc43">Filtering</a>
 
 This is the most simple operation: A simple stream filter.
   
@@ -1128,14 +1186,6 @@ print('Full messages passed:', r)
 r = [m[pl] for m in r]
 assert len(r) == 4
 assert r == odds
-
-# We may pass a custom filter function, which will be called,
-# when data streams through. It gets the built cond. as first argument:
-def myf(my_built_filter, data):
-    return my_built_filter(data) or data['i'] == 2
-
-r = push_through(pcfilter(func=myf))
-assert r == [{'i': 1}, {'i': 2}, {'i': 3}, {'i': 5}]
 ```
 Output:
 
@@ -1143,7 +1193,7 @@ Output:
 Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}, {'payload': {'i': 5}}, {'payload': {'i': 7}}]
 ```
 
-## <a href="#toc43">Streaming Classification</a>
+## <a href="#toc44">Streaming Classification</a>
 
 Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
   
@@ -1154,8 +1204,6 @@ Rx, rx, push_through = rx_setup()
 
 # generate a set of classifiers:
 conds = [['i', 'mod', i] for i in range(2, 4)]
-
-breakpoint()  # FIXME BREAKPOINT
 
 def run(offs=0):
 
@@ -1169,6 +1217,9 @@ def run(offs=0):
         {'i': 4, 'mod': {i: 0, j: 1}},
     ]
 
+# this will automatically number the classifiers, from 0:
+run()
+
 # we can also provide the names of the classifiers by passing a dict:
 # here we pass 2 and 3 as those names:
 conds = dict([(i, ['i', 'mod', i]) for i in range(2, 4)])
@@ -1177,7 +1228,7 @@ run(2)
 
 Normally the data has headers, so thats a good place to keep the classification tags.
 
-### <a href="#toc44">Selective Classification</a>
+### <a href="#toc45">Selective Classification</a>
 
 We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
 When it evaluated, possibly requiring evaluation of other conditions, we return:  
@@ -1192,6 +1243,7 @@ conds.append(['alt', ['i', 'gt', 1]])
 
 # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
 r = push_through(pc.rxop(conds, into='mod', root=2, add_cached=True))
+
 assert r == [
     # evaluation of alt was not required:
     {'i': 1, 'mod': {2: True}},
@@ -1202,7 +1254,7 @@ assert r == [
 ]
 ```
 
-## <a href="#toc45">Asyncronous Operations</a>
+## <a href="#toc46">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1211,6 +1263,48 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
+### <a href="#toc47">Asyncronous Filter</a>
+
+First a simple filter, which gives up order but does not block:
+  
+
+
+```python
+Rx, rx, push_through = rx_setup()
+
+class F:
+    def check(v, data, cfg, t0=[], **kw):
+        # will be on different thread:
+        i = data['i']
+        if not t0:
+            t0.append(now())
+        if i == 1:
+            # ints are fired at 0.01, i.e. the 1 will land 4 after 1:
+            time.sleep(0.048)
+        # demonstrate that item 1 is not blocking anything - just order is disturbed:
+        print('item %s: %.3fs' % (i, now() - t0[0]))
+        return i % 2, v
+
+# have the operator built for us - with a single condition filter:
+rxop = pc.rxop(['check'], into='mod', lookup_provider=F, asyn=['check'],)
+r = push_through(rxop, items=5)
+assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
+```
+Output:
+
+```
+item 2: 0.011s
+item 3: 0.022s
+item 4: 0.034s
+item 5: 0.045s
+item 1: 0.048s
+item 6: 0.056s
+item 7: 0.068s
+item 8: 0.078s
+item 9: 0.089s
+```
+
+Finally asyncronous classification, i.e. evaluation of multiple conditions:
   
 
 
@@ -1298,18 +1392,18 @@ assert [t['i'] for t in timeouts] == [2, 5]
 Output:
 
 ```
-thread: Thread-44 odd {'i': 1, 'mod': {}}
-thread: DummyThread-46 blocking {'i': 1, 'mod': {}}
-thread: Thread-45 odd {'i': 2, 'mod': {}}
-thread: DummyThread-48 blocking {'i': 2, 'mod': {}}
-thread: Thread-47 odd {'i': 3, 'mod': {}}
-thread: DummyThread-50 blocking {'i': 3, 'mod': {}}
-thread: Thread-49 odd {'i': 4, 'mod': {}}
-thread: Thread-51 odd {'i': 5, 'mod': {}}
-thread: DummyThread-53 blocking {'i': 5, 'mod': {}}
-thread: Thread-52 odd {'i': 6, 'mod': {}}
-thread: Thread-54 odd {'i': 7, 'mod': {}}
-thread: DummyThread-56 blocking {'i': 7, 'mod': {}}
+thread: Thread-10053 odd {'i': 1}
+thread: DummyThread-10055 blocking {'i': 1}
+thread: Thread-10054 odd {'i': 2}
+thread: DummyThread-10057 blocking {'i': 2}
+thread: Thread-10056 odd {'i': 3}
+thread: DummyThread-10059 blocking {'i': 3}
+thread: Thread-10058 odd {'i': 4}
+thread: Thread-10060 odd {'i': 5}
+thread: DummyThread-10062 blocking {'i': 5}
+thread: Thread-10061 odd {'i': 6}
+thread: Thread-10063 odd {'i': 7}
+thread: DummyThread-10065 blocking {'i': 7}
 ```
 
 
@@ -1319,5 +1413,5 @@ thread: DummyThread-56 blocking {'i': 7, 'mod': {}}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/8b510fd2b731111977046be79f39c2669ca42497/pycond.py#L186
-[pycond.py#590]: https://github.com/axiros/pycond/blob/8b510fd2b731111977046be79f39c2669ca42497/pycond.py#L590
+[pycond.py#186]: https://github.com/axiros/pycond/blob/a8161f7f543ae60bac1670a16daf264897740a47/pycond.py#L186
+[pycond.py#590]: https://github.com/axiros/pycond/blob/a8161f7f543ae60bac1670a16daf264897740a47/pycond.py#L590

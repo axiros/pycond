@@ -1061,7 +1061,7 @@ def import_rx(*incl):
     return r
 
 
-def rxop(cond, func=None, qualifier=None, **cfg):
+def rxop(cond, qualifier=None, **cfg):
     """
     Returns a reactive-x operator ror streaming data (optional)
 
@@ -1109,21 +1109,24 @@ def rxop(cond, func=None, qualifier=None, **cfg):
     asyn = cfg.get('asyn')
     if asyn:
         import gevent
-    if is_single:
-        if asyn:
-            raise Exception('Async mode not supported for simple filters')
+
+    elif is_single:
         f = lambda qualifier, x: bool(qualifier(x))
         return rx.filter(partial(f, qualifier))
 
     # will hold the results of any async op:
     subj_async_results = Rx.subject.Subject()
+
     # will hold the cached values:
     kw = {}
 
     def run_item(obs, x, asyn_kw, qualifier=qualifier, cfg=cfg):
         """Run either in sync or async mode, then asyn_kw is not None"""
         try:
-            qualifier(x) if asyn_kw is None else qualifier(x, **asyn_kw)
+            r = qualifier(x) if asyn_kw is None else qualifier(x, **asyn_kw)
+            if not r:
+                # filter mode
+                return
             obs.on_next(x)
         except Async as ex:
             if asyn_kw is not None:
