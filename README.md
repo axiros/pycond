@@ -1140,7 +1140,8 @@ def push_through(*test_pipe, items=4):
 
     stream = Rx.interval(0.01)  # numbers, each on its own thread
 
-    # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
+    # turns the ints into dicts: {'i': 1}, then {'i': 2} and so on:
+    # (we start from 1, the first 0 we filter out)
     stream = stream.pipe(
         rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
     )
@@ -1310,12 +1311,12 @@ Output:
 
 ```
 item 2: 0.010s
-item 3: 0.022s
-item 4: 0.033s
+item 3: 0.021s
+item 4: 0.032s
 item 5: 0.043s
 item 1: 0.049s
-item 6: 0.054s
-item 7: 0.065s
+item 6: 0.055s
+item 7: 0.066s
 item 8: 0.077s
 item 9: 0.088s
 ```
@@ -1429,5 +1430,5 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/af632a1012be0c82e17e1696c65c6ff1f7b7f0cb/pycond.py#L186
-[pycond.py#595]: https://github.com/axiros/pycond/blob/af632a1012be0c82e17e1696c65c6ff1f7b7f0cb/pycond.py#L595
+[pycond.py#186]: https://github.com/axiros/pycond/blob/1b370cb6730860547be3dd672d543fe9bdb86612/pycond.py#L186
+[pycond.py#595]: https://github.com/axiros/pycond/blob/1b370cb6730860547be3dd672d543fe9bdb86612/pycond.py#L595

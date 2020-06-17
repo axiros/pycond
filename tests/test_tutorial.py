@@ -905,7 +905,8 @@ class Test1:
 
                 stream = Rx.interval(0.01)  # numbers, each on its own thread
 
-                # turns the ints into dicts: {'i': 0}, then {'i': 1} and so on:
+                # turns the ints into dicts: {'i': 1}, then {'i': 2} and so on:
+                # (we start from 1, the first 0 we filter out)
                 stream = stream.pipe(
                     rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
                 )
