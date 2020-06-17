@@ -857,7 +857,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2004
+Calc.Time (delta_q was called twice): 0.2005
 ```
 
 
@@ -1311,15 +1311,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
-item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.043s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.054s 
-item 7: 0.065s 
-item 8: 0.076s 
-item 9: 0.087s
+item 2: 0.011s 
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.044s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.055s 
+item 7: 0.066s 
+item 8: 0.077s 
+item 9: 0.088s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1373,16 +1373,20 @@ class F:
         elif i == 2:
             # Exceptions, incl. timeouts, will simply be forwarded to cfg['err_handler']
             # i.e. also timeout mgmt have to be done here, in the custom functions themselves.
-            # Rationale: Async ops are done with libs, which ship with their own timeout params. No need to re-invent.
-            # In that err handler, then further arrangements can be done.
+
+            # Rationale for not providing a timeout monitoring within pycond itself:
+            # Async ops are done with libs, which ship with their own timeout params.
+            # No need to re-invent / overlay with our own monitoring of that.
+
+            # In the err handler, then further arrangements can be done.
             raise TimeoutError('ups')
         elif i == 5:
             1 / 0
         return data['i'], v
 
-timeouts = []
+errors = []
 
-def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
+def handle_err(item, cfg, ctx, exc, t=errors, **kw):
     # args are: [item, cfg]
     if 'ups' in str(exc):
         assert item['i'] == 2
@@ -1405,7 +1409,7 @@ r = push_through(rxop, items=5)
 assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
 assert [m['mod'][42] for m in r] == [False, True, False, False, True]
 # item 2 caused a timeout:
-assert [t['i'] for t in timeouts] == [2, 5]
+assert [t['i'] for t in errors] == [2, 5]
 ```
 Output:
 
@@ -1431,5 +1435,5 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/1e0dcddc8270d8a3c3692129a4c5688295cb3657/pycond.py#L186
-[pycond.py#595]: https://github.com/axiros/pycond/blob/1e0dcddc8270d8a3c3692129a4c5688295cb3657/pycond.py#L595
+[pycond.py#186]: https://github.com/axiros/pycond/blob/88638cca1a1cfae339a98642484affd0673bacee/pycond.py#L186
+[pycond.py#595]: https://github.com/axiros/pycond/blob/88638cca1a1cfae339a98642484affd0673bacee/pycond.py#L595

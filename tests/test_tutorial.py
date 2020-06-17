@@ -1120,16 +1120,20 @@ class Test1:
                     elif i == 2:
                         # Exceptions, incl. timeouts, will simply be forwarded to cfg['err_handler']
                         # i.e. also timeout mgmt have to be done here, in the custom functions themselves.
-                        # Rationale: Async ops are done with libs, which ship with their own timeout params. No need to re-invent.
-                        # In that err handler, then further arrangements can be done.
+
+                        # Rationale for not providing a timeout monitoring within pycond itself:
+                        # Async ops are done with libs, which ship with their own timeout params.
+                        # No need to re-invent / overlay with our own monitoring of that.
+
+                        # In the err handler, then further arrangements can be done.
                         raise TimeoutError('ups')
                     elif i == 5:
                         1 / 0
                     return data['i'], v
 
-            timeouts = []
+            errors = []
 
-            def handle_err(item, cfg, ctx, exc, t=timeouts, **kw):
+            def handle_err(item, cfg, ctx, exc, t=errors, **kw):
                 # args are: [item, cfg]
                 if 'ups' in str(exc):
                     assert item['i'] == 2
@@ -1152,7 +1156,7 @@ class Test1:
             assert [m['i'] for m in r] == [3, 1, 4, 6, 7]
             assert [m['mod'][42] for m in r] == [False, True, False, False, True]
             # item 2 caused a timeout:
-            assert [t['i'] for t in timeouts] == [2, 5]
+            assert [t['i'] for t in errors] == [2, 5]
 
         ## Data Filtering
         p2m.md_from_source_code()
