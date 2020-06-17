@@ -857,7 +857,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2005
+Calc.Time (delta_q was called twice): 0.2004
 ```
 
 
@@ -916,7 +916,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -1292,14 +1292,15 @@ Rx, rx, push_through = rx_setup()
 class F:
     def check(v, data, cfg, t0=[], **kw):
         # will be on different thread:
-        i = data['i']
+        i, pointer = data['i'], ''
         if not t0:
             t0.append(now())
         if i == 1:
             # ints are fired at 0.01, i.e. the 1 will land 4 after 1:
             time.sleep(0.048)
+            pointer = '   <----- not in order, blocked'
         # demonstrate that item 1 is not blocking anything - just order is disturbed:
-        print('item %s: %.3fs' % (i, now() - t0[0]))
+        print('item %s: %.3fs %s' % (i, now() - t0[0], pointer))
         return i % 2, v
 
 # have the operator built for us - with a single condition filter:
@@ -1310,15 +1311,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s
-item 3: 0.021s
-item 4: 0.032s
-item 5: 0.043s
-item 1: 0.049s
-item 6: 0.055s
-item 7: 0.066s
-item 8: 0.077s
-item 9: 0.088s
+item 2: 0.010s 
+item 3: 0.021s 
+item 4: 0.032s 
+item 5: 0.043s 
+item 1: 0.049s    <----- not in order, blocked
+item 6: 0.054s 
+item 7: 0.065s 
+item 8: 0.076s 
+item 9: 0.087s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1430,5 +1431,5 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/1b370cb6730860547be3dd672d543fe9bdb86612/pycond.py#L186
-[pycond.py#595]: https://github.com/axiros/pycond/blob/1b370cb6730860547be3dd672d543fe9bdb86612/pycond.py#L595
+[pycond.py#186]: https://github.com/axiros/pycond/blob/1e0dcddc8270d8a3c3692129a4c5688295cb3657/pycond.py#L186
+[pycond.py#595]: https://github.com/axiros/pycond/blob/1e0dcddc8270d8a3c3692129a4c5688295cb3657/pycond.py#L595

@@ -1052,14 +1052,15 @@ class Test1:
             class F:
                 def check(v, data, cfg, t0=[], **kw):
                     # will be on different thread:
-                    i = data['i']
+                    i, pointer = data['i'], ''
                     if not t0:
                         t0.append(now())
                     if i == 1:
                         # ints are fired at 0.01, i.e. the 1 will land 4 after 1:
                         time.sleep(0.048)
+                        pointer = '   <----- not in order, blocked'
                     # demonstrate that item 1 is not blocking anything - just order is disturbed:
-                    print('item %s: %.3fs' % (i, now() - t0[0]))
+                    print('item %s: %.3fs %s' % (i, now() - t0[0], pointer))
                     return i % 2, v
 
             # have the operator built for us - with a single condition filter:
