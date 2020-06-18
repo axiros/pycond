@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200613
+version: 20200614
 
 ---
 
@@ -60,16 +60,20 @@ version: 20200613
         - <a name="toc36"></a>[Building](#building)
         - <a name="toc37"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
 - <a name="toc38"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
-    - <a name="toc39"></a>[Caching](#caching)
-    - <a name="toc40"></a>[Named Conditions: Qualification](#named-conditions-qualification)
-            - <a name="toc41"></a>[Options](#options)
-        - <a name="toc42"></a>[Partial Evaluation](#partial-evaluation)
-- <a name="toc43"></a>[Streaming Data](#streaming-data)
-    - <a name="toc44"></a>[Filtering](#filtering)
-    - <a name="toc45"></a>[Streaming Classification](#streaming-classification)
-        - <a name="toc46"></a>[Selective Classification](#selective-classification)
-    - <a name="toc47"></a>[Asyncronous Operations](#asyncronous-operations)
-        - <a name="toc48"></a>[Asyncronous Filter](#asyncronous-filter)
+    - <a name="toc39"></a>[Lazy Eval: Lookup Providers](#lazy-eval-lookup-providers)
+        - <a name="toc40"></a>[Accepted Signatures](#accepted-signatures)
+        - <a name="toc41"></a>[Namespace](#namespace)
+    - <a name="toc42"></a>[Caching](#caching)
+    - <a name="toc43"></a>[Extensions](#extensions)
+- <a name="toc44"></a>[Named Conditions: Qualification](#named-conditions-qualification)
+    - <a name="toc45"></a>[Options](#options)
+    - <a name="toc46"></a>[Partial Evaluation](#partial-evaluation)
+- <a name="toc47"></a>[Streaming Data](#streaming-data)
+    - <a name="toc48"></a>[Filtering](#filtering)
+    - <a name="toc49"></a>[Streaming Classification](#streaming-classification)
+        - <a name="toc50"></a>[Selective Classification](#selective-classification)
+    - <a name="toc51"></a>[Asyncronous Operations](#asyncronous-operations)
+        - <a name="toc52"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -854,12 +858,14 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2007
+Calc.Time (delta_q was called twice): 0.2006
 ```
 
 
 But we can do better. We still calculated values for keys which might be,
 dependent on the data, not needed in dead ends of a lazily evaluated condition.
+
+## <a href="#toc39">Lazy Eval: Lookup Providers</a>
 
 Lets avoid calculating these values, remembering the
 [custom lookup function](#custom-lookup-and-value-passing) feature.
@@ -867,36 +873,110 @@ Lets avoid calculating these values, remembering the
 > pycond does generate such a custom lookup function readily for you,
 > if you pass a getter namespace as `lookup_provider`.
 
-Pycond then [treats the condition keys as function names][pycond.py] within that namespace and calls them, when needed, with the usual signature, except the key:
+Pycond then [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
+
+### <a href="#toc40">Accepted Signatures</a>
+
+Lookup provider functions may have these signatures:
+
   
 
 
 ```python
 class F:
-    def delta_q(*a, **kw):
-        return 1, 1
+    # simple data passing
+    def f1(data):
+        """simple return a value being compared, getting passed the state/data"""
+        return data['a']
 
-f = pc.pycond(['delta_q', 'eq', 1], lookup_provider=F)
-t0 = time.time()
-for i in range(100000):
-    assert f(state={'a': 1}) == True
-print(time.time() - t0)
+    # simple, with ctx
+    def f2(data, **kw):
+        """
+        simple return a value being compared, getting passed the state/data
+        All context information within kw, compare value not modifiable
+        """
+        return data['b']
 
-F = ApiCtxFuncs
+    # full pycond compliant signature
+    def f3(val, data, cfg, **kw):
+        """
+        full pycond signature.
+        val is the value as defined by the condition, and which you could return modified
+        kw holds the cache, cfg holds the setup
+        """
+        return data['c'], 100  # not 45!
 
-# make signature compliant with pycond lookup functions:
-def wrap(fn, f):
-    if callable(f):
+_ = 'and'
+f = pc.pycond(
+    [[':f1', 'eq', 42], _, [':f2', 'eq', 43, _, ':f3', 'eq', 45]],
+    lookup_provider=F,
+)
+assert f(state={'a': 42, 'b': 43, 'c': 100}) == True
+```
 
-        def wrapped(v, data, cfg, f=f, **kw):
-            return f(data), v
 
-        setattr(F, fn, wrapped)
+### <a href="#toc41">Namespace</a>
 
-[wrap(fn, getattr(F, fn)) for fn in dir(F) if fn not in ('__class__',)]
+- Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
+- As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
+- You can switch that behaviour off per condition build as config arg, as shown below
+- You can switch that behaviour off globally via `pc.prefixed_lookup_funcs = False`
 
-# we add a deep condition and let pycond generate the lookup function:
-f = pc.pycond(cond, lookup_provider=F)
+Warning: This is a breaking API change with pre-20200610 versions, where the prefix was not required to find functions in, back then, only flat namespaces. Use the global switch after import to get the old behaviour.
+  
+
+
+```python
+class F:
+    a = lambda data: data['foo']
+
+    class inner:
+        b = lambda data: data['bar']
+
+m = {'c': {'d': {'func': lambda data: data['baz']}}}
+
+# for the inner lookup the first prefix may be omitted:
+_ = 'and'
+cond = [
+    [':a', 'eq', 'foo1'],
+    _,
+    ['inner:b', 'eq', 'bar1'],
+    _,
+    ['c:d', 'eq', 'baz1',],
+]
+c = pc.pycond(cond, lookup_provider=F, lookup_provider_dict=m)
+assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
+
+# Prefix checking on / off:
+try:
+    pc.pycond([':xx', 'and', cond])
+    i = 9 / 0  # above will raise this:
+except pc.MissingLookupFunction:
+    pass
+try:
+    pc.pycond([':xx', 'and', cond], prefixed_lookup_funcs=False)
+    i = 9 / 0  # above will raise this:
+except pc.MissingLookupFunction:
+    pass
+cond[0] = 'a'  # remove prefix, will still be found
+c = pc.pycond(
+    ['xx', 'or', cond],
+    lookup_provider=F,
+    lookup_provider_dict=m,
+    prefixed_lookup_funcs=False,
+)
+assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
+```
+
+You can switch that prefix needs off - and pycond will then check the state for key presence:
+  
+
+
+```python
+# we let pycond generate the lookup function (we use the simple signature type):
+f = pc.pycond(
+    cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False
+)
 # Same events as above:
 data1 = {'group_type': 'xxx'}, False
 data2 = {'group_type': 'lab'}, True
@@ -912,7 +992,12 @@ print(
 
 # The deep switch keeps working:
 cond2 = [cond, 'or', ['a-0-b', 'eq', 42]]
-f = pc.pycond(cond2, lookup_provider=ApiCtxFuncs, deep='-')
+f = pc.pycond(
+    cond2,
+    lookup_provider=ApiCtxFuncs,
+    deep='-',
+    prefixed_lookup_funcs=False,
+)
 data2[0]['a'] = [{'b': 42}]
 print('sample:', data2[0])
 assert f(state=data2[0]) == True
@@ -920,12 +1005,11 @@ assert f(state=data2[0]) == True
 Output:
 
 ```
-0.1630873680114746
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1004
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -938,17 +1022,46 @@ The output demonstrates that we did not even call the value provider functions f
 
 NOTE: Instead of providing a class tree you may also provide a dict of functions as `lookup_provider_dict` argument, see `qualify` examples below.
 
-## <a href="#toc39">Caching</a>
+## <a href="#toc42">Caching</a>
 
 Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
 - Builtin state lookups: Not cached
-- Custom `lookup` functions: Not cached (you can implment caching within those functions)
+- Custom `lookup` functions: Not cached (you can implement caching within those functions)
 - Lookup provider return values: Cached, i.e. called only once, per data set
 - Named condition sets (see below): Cached
 
+## <a href="#toc43">Extensions</a>
 
-## <a href="#toc40">Named Conditions: Qualification</a>
+We deliver a few lookup function [extensions][pycond.py#584]
+
+- for time checks
+- for os.environ checks (re-evaluated at runtime)
+  
+
+
+```python
+from datetime import datetime as dt
+from os import environ as env
+
+this_day = dt.now().day
+this_utc_hour = dt.utcnow().hour
+f = pc.pycond(
+    [
+        ['env:foo', 'eq', 'bar'],
+        'and',
+        ['dt:day', 'eq', this_day],
+        'and',
+        ['utc:hour', 'eq', this_utc_hour],
+    ]
+)
+env['foo'] = 'bar'
+assert f(state={'a': 1}) == True
+```
+
+
+
+# <a href="#toc44">Named Conditions: Qualification</a>
 
 Instead of just delivering booleans, pycond can be used to determine a whole set of
 information about data declaratively, like so:  
@@ -1018,7 +1131,7 @@ Running {'thrd': ['k', 'or', 'first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
-#### <a href="#toc41">Options</a>
+## <a href="#toc45">Options</a>
 
 - into: Put the matched named conditions into the original data
 - prefix: Work from a prefix nested in the root
@@ -1032,9 +1145,11 @@ conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
 
 class F:
     def func(*a, **kw):
-        return True, 0
+        return True
 
-q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, **kw)(d)
+q = lambda d, **kw: pc.qualify(
+    conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
+)(d)
 
 m = q({'bar': 1})
 assert m == {0: False, 1: True, 2: True}
@@ -1074,7 +1189,7 @@ assert m == {
 
 
 
-### <a href="#toc42">Partial Evaluation</a>
+## <a href="#toc46">Partial Evaluation</a>
 
 If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
   
@@ -1094,9 +1209,9 @@ def xx(v, data, cfg, **kw):
 funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
 q = {
     'root': ['foo', 'and', 'bar'],
-    'bar': [['somecond'], 'or', [['exp', 'eq', 1], 'and', 'baz'],],
-    'x': ['xx'],
-    'baz': ['exp', 'lt', 10],
+    'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', 'baz'],],
+    'x': [':xx'],
+    'baz': [':exp', 'lt', 10],
 }
 qualifier = pc.qualify(q, lookup_provider_dict=funcs, add_cached=True)
 
@@ -1119,7 +1234,7 @@ assert called == [{'a': 1}, {'b': 1}]
 This means pycond can be used as a lightweight declarative function dispatching framework.
   
 
-# <a href="#toc43">Streaming Data</a>
+# <a href="#toc47">Streaming Data</a>
 
 Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
@@ -1191,7 +1306,7 @@ assert r == [{'i': 1}, {'i': 2}, {'i': 3}]
 
 -> test setup works.
 
-## <a href="#toc44">Filtering</a>
+## <a href="#toc48">Filtering</a>
 
 This is the most simple operation: A simple stream filter.
   
@@ -1221,7 +1336,7 @@ Output:
 Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}, {'payload': {'i': 5}}, {'payload': {'i': 7}}]
 ```
 
-## <a href="#toc45">Streaming Classification</a>
+## <a href="#toc49">Streaming Classification</a>
 
 Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
   
@@ -1256,7 +1371,7 @@ run(2)
 
 Normally the data has headers, so thats a good place to keep the classification tags.
 
-### <a href="#toc46">Selective Classification</a>
+### <a href="#toc50">Selective Classification</a>
 
 We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
 When it evaluated, possibly requiring evaluation of other conditions, we return:  
@@ -1282,7 +1397,7 @@ assert r == [
 ]
 ```
 
-## <a href="#toc47">Asyncronous Operations</a>
+## <a href="#toc51">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1291,7 +1406,7 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
-### <a href="#toc48">Asyncronous Filter</a>
+### <a href="#toc52">Asyncronous Filter</a>
 
 First a simple filter, which gives up order but does not block:
   
@@ -1315,7 +1430,7 @@ class F:
         return i % 2, v
 
 # have the operator built for us - with a single condition filter:
-rxop = pc.rxop(['check'], into='mod', lookup_provider=F, asyn=['check'],)
+rxop = pc.rxop([':check'], into='mod', lookup_provider=F, asyn=['check'],)
 r = push_through(rxop, items=5)
 assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 ```
@@ -1323,14 +1438,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.042s 
-item 1: 0.048s    <----- not in order, blocked
-item 6: 0.053s 
-item 7: 0.064s 
-item 8: 0.075s 
-item 9: 0.086s
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.045s 
+item 1: 0.049s    <----- not in order, blocked
+item 6: 0.056s 
+item 7: 0.068s 
+item 8: 0.079s 
+item 9: 0.091s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1350,9 +1465,9 @@ conds = [
         [
             ['i', 'lt', 100],
             'and',
-            [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
+            [[':odd', 'eq', 1], 'or', ['i', 'eq', 2]],
             'and_not',
-            ['blocking', 'eq', 3],
+            [':blocking', 'eq', 3],
         ],
     ]
 ]
@@ -1446,5 +1561,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py]: https://github.com/axiros/pycond/blob/529ee1687defddbf7c1f7f52cb4c3089a2fcdfb4/pycond.py
-[pycond.py#186]: https://github.com/axiros/pycond/blob/529ee1687defddbf7c1f7f52cb4c3089a2fcdfb4/pycond.py#L186
+[pycond.py#186]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L186
+[pycond.py#492]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L492
+[pycond.py#584]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L584

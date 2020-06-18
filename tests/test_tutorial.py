@@ -641,42 +641,118 @@ class Test1:
         But we can do better. We still calculated values for keys which might be,
         dependent on the data, not needed in dead ends of a lazily evaluated condition.
 
+        ## Lazy Eval: Lookup Providers
+
         Lets avoid calculating these values, remembering the
         [custom lookup function](#custom-lookup-and-value-passing) feature.
 
         > pycond does generate such a custom lookup function readily for you,
         > if you pass a getter namespace as `lookup_provider`.
 
-        Pycond then [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def lookup_from_provider]<SRC> within that namespace and calls them, when needed, with the usual signature, except the key:
+        Pycond then [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def f_from_lookup_provider]<SRC> within that namespace and calls them, when needed.
+
+        ### Accepted Signatures
+
+        Lookup provider functions may have these signatures:
+
+
+        """
+
+        def f15_11():
+            class F:
+                # simple data passing
+                def f1(data):
+                    """simple return a value being compared, getting passed the state/data"""
+                    return data['a']
+
+                # simple, with ctx
+                def f2(data, **kw):
+                    """
+                    simple return a value being compared, getting passed the state/data
+                    All context information within kw, compare value not modifiable
+                    """
+                    return data['b']
+
+                # full pycond compliant signature
+                def f3(val, data, cfg, **kw):
+                    """
+                    full pycond signature.
+                    val is the value as defined by the condition, and which you could return modified
+                    kw holds the cache, cfg holds the setup
+                    """
+                    return data['c'], 100  # not 45!
+
+            _ = 'and'
+            f = pc.pycond(
+                [[':f1', 'eq', 42], _, [':f2', 'eq', 43, _, ':f3', 'eq', 45]],
+                lookup_provider=F,
+            )
+            assert f(state={'a': 42, 'b': 43, 'c': 100}) == True
+
+        """
+
+        ### Namespace
+
+        - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
+        - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
+        - You can switch that behaviour off per condition build as config arg, as shown below
+        - You can switch that behaviour off globally via `pc.prefixed_lookup_funcs = False`
+
+        Warning: This is a breaking API change with pre-20200610 versions, where the prefix was not required to find functions in, back then, only flat namespaces. Use the global switch after import to get the old behaviour.
+        
+        """
+
+        def f15_15():
+            class F:
+                a = lambda data: data['foo']
+
+                class inner:
+                    b = lambda data: data['bar']
+
+            m = {'c': {'d': {'func': lambda data: data['baz']}}}
+
+            # for the inner lookup the first prefix may be omitted:
+            _ = 'and'
+            cond = [
+                [':a', 'eq', 'foo1'],
+                _,
+                ['inner:b', 'eq', 'bar1'],
+                _,
+                ['c:d', 'eq', 'baz1',],
+            ]
+            c = pc.pycond(cond, lookup_provider=F, lookup_provider_dict=m)
+            assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
+
+            # Prefix checking on / off:
+            try:
+                pc.pycond([':xx', 'and', cond])
+                i = 9 / 0  # above will raise this:
+            except pc.MissingLookupFunction:
+                pass
+            try:
+                pc.pycond([':xx', 'and', cond], prefixed_lookup_funcs=False)
+                i = 9 / 0  # above will raise this:
+            except pc.MissingLookupFunction:
+                pass
+            cond[0] = 'a'  # remove prefix, will still be found
+            c = pc.pycond(
+                ['xx', 'or', cond],
+                lookup_provider=F,
+                lookup_provider_dict=m,
+                prefixed_lookup_funcs=False,
+            )
+            assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
+
+        """
+        You can switch that prefix needs off - and pycond will then check the state for key presence:
 
         """
 
         def f15_2():
-            class F:
-                def delta_q(*a, **kw):
-                    return 1, 1
-
-            f = pc.pycond(['delta_q', 'eq', 1], lookup_provider=F)
-            t0 = time.time()
-            for i in range(100000):
-                assert f(state={'a': 1}) == True
-            print(time.time() - t0)
-
-            F = ApiCtxFuncs
-
-            # make signature compliant with pycond lookup functions:
-            def wrap(fn, f):
-                if callable(f):
-
-                    def wrapped(v, data, cfg, f=f, **kw):
-                        return f(data), v
-
-                    setattr(F, fn, wrapped)
-
-            [wrap(fn, getattr(F, fn)) for fn in dir(F) if fn not in ('__class__',)]
-
-            # we add a deep condition and let pycond generate the lookup function:
-            f = pc.pycond(cond, lookup_provider=F)
+            # we let pycond generate the lookup function (we use the simple signature type):
+            f = pc.pycond(
+                cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False
+            )
             # Same events as above:
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
@@ -692,7 +768,12 @@ class Test1:
 
             # The deep switch keeps working:
             cond2 = [cond, 'or', ['a-0-b', 'eq', 42]]
-            f = pc.pycond(cond2, lookup_provider=ApiCtxFuncs, deep='-')
+            f = pc.pycond(
+                cond2,
+                lookup_provider=ApiCtxFuncs,
+                deep='-',
+                prefixed_lookup_funcs=False,
+            )
             data2[0]['a'] = [{'b': 42}]
             print('sample:', data2[0])
             assert f(state=data2[0]) == True
@@ -709,12 +790,41 @@ class Test1:
         Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
         - Builtin state lookups: Not cached
-        - Custom `lookup` functions: Not cached (you can implment caching within those functions)
+        - Custom `lookup` functions: Not cached (you can implement caching within those functions)
         - Lookup provider return values: Cached, i.e. called only once, per data set
         - Named condition sets (see below): Cached
 
+        ## Extensions
 
-        ## Named Conditions: Qualification
+        We deliver a few lookup function [title: extensions,fmatch:pycond.py,lmatch:class Extensions]<SRC>
+
+        - for time checks
+        - for os.environ checks (re-evaluated at runtime)
+
+        """
+
+        def f16_1():
+            from datetime import datetime as dt
+            from os import environ as env
+
+            this_day = dt.now().day
+            this_utc_hour = dt.utcnow().hour
+            f = pc.pycond(
+                [
+                    ['env:foo', 'eq', 'bar'],
+                    'and',
+                    ['dt:day', 'eq', this_day],
+                    'and',
+                    ['utc:hour', 'eq', this_utc_hour],
+                ]
+            )
+            env['foo'] = 'bar'
+            assert f(state={'a': 1}) == True
+
+        """
+
+
+        # Named Conditions: Qualification
 
         Instead of just delivering booleans, pycond can be used to determine a whole set of
         information about data declaratively, like so:
@@ -778,7 +888,7 @@ class Test1:
         """
         WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
-        #### Options
+        ## Options
 
         - into: Put the matched named conditions into the original data
         - prefix: Work from a prefix nested in the root
@@ -793,9 +903,11 @@ class Test1:
 
             class F:
                 def func(*a, **kw):
-                    return True, 0
+                    return True
 
-            q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, **kw)(d)
+            q = lambda d, **kw: pc.qualify(
+                conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
+            )(d)
 
             m = q({'bar': 1})
             assert m == {0: False, 1: True, 2: True}
@@ -835,7 +947,7 @@ class Test1:
         """
 
 
-        ### Partial Evaluation
+        ## Partial Evaluation
 
         If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
 
@@ -855,9 +967,9 @@ class Test1:
             funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
             q = {
                 'root': ['foo', 'and', 'bar'],
-                'bar': [['somecond'], 'or', [['exp', 'eq', 1], 'and', 'baz'],],
-                'x': ['xx'],
-                'baz': ['exp', 'lt', 10],
+                'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', 'baz'],],
+                'x': [':xx'],
+                'baz': [':exp', 'lt', 10],
             }
             qualifier = pc.qualify(q, lookup_provider_dict=funcs, add_cached=True)
 
@@ -1073,7 +1185,7 @@ class Test1:
                     return i % 2, v
 
             # have the operator built for us - with a single condition filter:
-            rxop = pc.rxop(['check'], into='mod', lookup_provider=F, asyn=['check'],)
+            rxop = pc.rxop([':check'], into='mod', lookup_provider=F, asyn=['check'],)
             r = push_through(rxop, items=5)
             assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 
@@ -1095,9 +1207,9 @@ class Test1:
                     [
                         ['i', 'lt', 100],
                         'and',
-                        [['odd', 'eq', 1], 'or', ['i', 'eq', 2]],
+                        [[':odd', 'eq', 1], 'or', ['i', 'eq', 2]],
                         'and_not',
-                        ['blocking', 'eq', 3],
+                        [':blocking', 'eq', 3],
                     ],
                 ]
             ]

@@ -7,13 +7,16 @@ We have to commit once before setting links, in order to have the hash pointing 
 e.g. such a link can then be generated:
 [mdtool.py]: https://github.com/axiros/pytest2md/blob/bf37bbb1302553d8732713b2ebfb415b27c0616c/pytest2md/mdtool.py
 '
-
 echo "Uploading to pip"
+
+unset P2MRUN # would skip all others
+unset P2MFG  # would not write readme
+export MD_LINKS_FOR=github
+
 set -x
 here="$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && echo "$PWD")"
 cd "$here" || exit 1
 #export NOLINKREPL=true
-export MD_LINKS_FOR=github
 pytest tests || exit 1
 git commit --amend -am 'links auto replaced'
 #unset NOLINKREPL

@@ -39,9 +39,9 @@ class Tests:
     cond = [
         ['i', 'lt', 1000000],  # just make it a bit complex
         'and',
-        [['odd', 'eq', 1], 'and_not', ['i', 'eq', 2]],
+        [[':odd', 'eq', 1], 'and_not', ['i', 'eq', 2]],
         'and_not',
-        ['blocking', 'eq', 3],
+        [':blocking', 'eq', 3],
     ]
 
     conds = [['mycond', cond,]]

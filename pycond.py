@@ -185,6 +185,10 @@ State = {}
 
 
 def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
+    """
+    Hotspot!
+    """
+    # FIXME: why split at runtime?
     # key maybe already path tuple - or string with deep as seperator:
     parts = key.split(deep) if _is(key, str) else list(key)
     while parts:
@@ -487,15 +491,56 @@ def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
 
 
 def f_from_lookup_provider(key, val, cfg, nfo):
-    try:
-        func = getattr(cfg['lookup_provider'], key)
-    except:
-        try:
-            func = cfg['lookup_provider_dict'][key]['func']
-        except Exception as ex:
-            return
+    req_p = prefixed_lookup_funcs and cfg.get('prefixed_lookup_funcs', True)
+    has_p = ':' in key
+    if not has_p and req_p:
+        return
+    key = key[1:] if key[0] == ':' else key
+    func = find_func(key, cfg)
+    if not func:
+        if req_p or has_p:
+            raise MissingLookupFunction('Lookup provider function not found:', key)
+        # prefix was switched off, it has none:
+        return
 
-    def lp_func(state, cfg=cfg, val_=val, key_=key, func_=func, **kw):
+    # Multiple sigs are accepted:
+    sig = inspect.getfullargspec(func)
+    req_params = len(sig.args) - (len(sig.defaults) if sig.defaults else 0)
+    if req_params == 0:
+        # fixed ones, like dt:minutes
+
+        def f(v, state, cfg=cfg, func_=func, **kw):
+            return func_(), v
+
+        func = f
+
+    elif req_params == 1:
+        if sig.varkw:
+
+            def fkw(v, state, cfg=cfg, func_=func, **kw):
+                return func_(state, cfg=cfg, **kw), v
+
+            func = fkw
+        else:
+
+            def f(v, state, cfg=cfg, func_=func, **kw):
+                return func_(state), v
+
+            func = f
+
+    def lp_func(
+        state,
+        cfg=cfg,
+        val_=val,
+        key_=key,
+        asyn_=key in cfg.get('asyn', []),
+        func_=func,
+        **kw,
+    ):
+        if asyn_ and not cache_get(kw, CACHE_KEY_ASYNC):
+            cache_set(kw, CACHE_KEY_ASYNC, True)
+            # bubbling up, triggering a re-run in own greenlet:
+            raise Async([kw])
         kv = cache_get(kw, key_, val_)
         if kv:
             return kv
@@ -503,21 +548,56 @@ def f_from_lookup_provider(key, val, cfg, nfo):
         cache_set(kw, key_, res[0])
         return res
 
-    def lp_func_asyn(state, cfg=cfg, val_=val, key_=key, func_=func, **kw):
-        if not cache_get(kw, CACHE_KEY_ASYNC):
-            # will raise the Async Exception, bubbling up:
-            cache_set(kw, CACHE_KEY_ASYNC, True)
-            raise Async([kw])
-        return lp_func(state, cfg, val_, key_, func_, **kw)
-
-    if key in cfg.get('asyn', []):
-        return lp_func_asyn
-
     return lp_func
+
+
+# ----------------------------------------------- helpers for lookup provider functions
+prefixed_lookup_funcs = True
+
+
+class MissingLookupFunction(Exception):
+    """A lookup function was not found"""
+
+
+def find_func(key, cfg):
+    """
+    Searching all namespaces for a lookup provider function
+    """
+    l, func = ['lookup_provider', 'lookup_provider_dict'], None
+    providers = [cfg.get(l[0]), cfg.get(l[1]), Extensions]
+    for p in providers:
+        g = (lambda m, k, d: m.get(k, d)) if isinstance(p, dict) else getattr
+        for part in key.split(':'):
+            if p is None:
+                break
+            p = g(p, part, None)
+        func = p['func'] if isinstance(p, dict) else p
+        if func:
+            return func
 
 
 # -------------------------------------------------------------------------- Public API
 # (def qualify has it's own section)
+from datetime import datetime
+import os
+
+
+class Extensions:
+    class env:
+        def __getattr__(self, k, v=None):
+            return lambda k=k, v=v: os.environ.get(k, v)
+
+    env = env()
+
+    class dt:
+        pass
+
+    class utc:
+        pass
+
+    for k in ('second', 'minute', 'hour', 'day', 'month', 'year'):
+        setattr(dt, k, lambda k=k: getattr(datetime.now(), k))
+        setattr(utc, k, lambda k=k: getattr(datetime.utcnow(), k))
 
 
 def sorted_keys(l):
@@ -813,7 +893,6 @@ def is_named_listed_set_of_conds(cond):
                 return
     except:
         return
-    # breakpoint()  # FIXME BREAKPOINT
     return True
 
 
