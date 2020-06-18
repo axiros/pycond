@@ -594,9 +594,6 @@ class Test1:
                 def expensive_but_not_needed_here(ctx):
                     raise Exception("Won't run with cond. from above")
 
-                def group_type(ctx):
-                    raise Exception("Won't run since contained in example data")
-
                 def cur_q(ctx):
                     print('Calculating cur_q')
                     return 0.1
@@ -641,8 +638,8 @@ class Test1:
         cond, ApiCtxFuncs = f15_1()
         """
 
-        But we can do better - we still calculated values for keys which might be
-        only needed in dead ends of a lazily evaluated condition.
+        But we can do better. We still calculated values for keys which might be,
+        dependent on the data, not needed in dead ends of a lazily evaluated condition.
 
         Lets avoid calculating these values, remembering the
         [custom lookup function](#custom-lookup-and-value-passing) feature.
@@ -655,9 +652,19 @@ class Test1:
         """
 
         def f15_2():
+            class F:
+                def delta_q(*a, **kw):
+                    return 1, 1
+
+            f = pc.pycond(['delta_q', 'eq', 1], lookup_provider=F)
+            t0 = time.time()
+            for i in range(100000):
+                assert f(state={'a': 1}) == True
+            print(time.time() - t0)
+
             F = ApiCtxFuncs
 
-            # make signature compliant:
+            # make signature compliant with pycond lookup functions:
             def wrap(fn, f):
                 if callable(f):
 
@@ -687,6 +694,7 @@ class Test1:
             cond2 = [cond, 'or', ['a-0-b', 'eq', 42]]
             f = pc.pycond(cond2, lookup_provider=ApiCtxFuncs, deep='-')
             data2[0]['a'] = [{'b': 42}]
+            print('sample:', data2[0])
             assert f(state=data2[0]) == True
 
         from pytest2md import html_table as tbl  # just a table gen.
@@ -702,13 +710,14 @@ class Test1:
 
         - Builtin state lookups: Not cached
         - Custom `lookup` functions: Not cached (you can implment caching within those functions)
-        - Lookup provider return values: Cached, i.e. called only once
-        - Named conditions (see below): Cached
+        - Lookup provider return values: Cached, i.e. called only once, per data set
+        - Named condition sets (see below): Cached
+
 
         ## Named Conditions: Qualification
 
-        Instead of just delivering booleans, pycond can be used to qualify a whole set of
-        information about data, like so:
+        Instead of just delivering booleans, pycond can be used to determine a whole set of
+        information about data declaratively, like so:
         """
 
         def f20_1():

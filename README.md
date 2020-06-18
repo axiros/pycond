@@ -800,9 +800,6 @@ class ApiCtxFuncs:
     def expensive_but_not_needed_here(ctx):
         raise Exception("Won't run with cond. from above")
 
-    def group_type(ctx):
-        raise Exception("Won't run since contained in example data")
-
     def cur_q(ctx):
         print('Calculating cur_q')
         return 0.1
@@ -857,12 +854,12 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2005
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
-But we can do better - we still calculated values for keys which might be
-only needed in dead ends of a lazily evaluated condition.
+But we can do better. We still calculated values for keys which might be,
+dependent on the data, not needed in dead ends of a lazily evaluated condition.
 
 Lets avoid calculating these values, remembering the
 [custom lookup function](#custom-lookup-and-value-passing) feature.
@@ -870,14 +867,24 @@ Lets avoid calculating these values, remembering the
 > pycond does generate such a custom lookup function readily for you,
 > if you pass a getter namespace as `lookup_provider`.
 
-Pycond then [treats the condition keys as function names][pycond.py#595] within that namespace and calls them, when needed, with the usual signature, except the key:
+Pycond then [treats the condition keys as function names][pycond.py] within that namespace and calls them, when needed, with the usual signature, except the key:
   
 
 
 ```python
+class F:
+    def delta_q(*a, **kw):
+        return 1, 1
+
+f = pc.pycond(['delta_q', 'eq', 1], lookup_provider=F)
+t0 = time.time()
+for i in range(100000):
+    assert f(state={'a': 1}) == True
+print(time.time() - t0)
+
 F = ApiCtxFuncs
 
-# make signature compliant:
+# make signature compliant with pycond lookup functions:
 def wrap(fn, f):
     if callable(f):
 
@@ -907,16 +914,19 @@ print(
 cond2 = [cond, 'or', ['a-0-b', 'eq', 42]]
 f = pc.pycond(cond2, lookup_provider=ApiCtxFuncs, deep='-')
 data2[0]['a'] = [{'b': 42}]
+print('sample:', data2[0])
 assert f(state=data2[0]) == True
 ```
 Output:
 
 ```
+0.1630873680114746
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
 Calc.Time (delta_q was called just once): 0.1003
+sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
@@ -934,13 +944,14 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 
 - Builtin state lookups: Not cached
 - Custom `lookup` functions: Not cached (you can implment caching within those functions)
-- Lookup provider return values: Cached, i.e. called only once
-- Named conditions (see below): Cached
+- Lookup provider return values: Cached, i.e. called only once, per data set
+- Named condition sets (see below): Cached
+
 
 ## <a href="#toc40">Named Conditions: Qualification</a>
 
-Instead of just delivering booleans, pycond can be used to qualify a whole set of
-information about data, like so:  
+Instead of just delivering booleans, pycond can be used to determine a whole set of
+information about data declaratively, like so:  
 
 
 ```python
@@ -1312,14 +1323,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.022s 
-item 4: 0.033s 
-item 5: 0.044s 
+item 3: 0.021s 
+item 4: 0.032s 
+item 5: 0.042s 
 item 1: 0.048s    <----- not in order, blocked
-item 6: 0.055s 
-item 7: 0.066s 
-item 8: 0.077s 
-item 9: 0.088s
+item 6: 0.053s 
+item 7: 0.064s 
+item 8: 0.075s 
+item 9: 0.086s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1435,5 +1446,5 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/88638cca1a1cfae339a98642484affd0673bacee/pycond.py#L186
-[pycond.py#595]: https://github.com/axiros/pycond/blob/88638cca1a1cfae339a98642484affd0673bacee/pycond.py#L595
+[pycond.py]: https://github.com/axiros/pycond/blob/529ee1687defddbf7c1f7f52cb4c3089a2fcdfb4/pycond.py
+[pycond.py#186]: https://github.com/axiros/pycond/blob/529ee1687defddbf7c1f7f52cb4c3089a2fcdfb4/pycond.py#L186

@@ -369,6 +369,7 @@ def parse_struct_cond(cond, cfg, nfo):
                 continue
             elif kt == KEY_LST_TYP:
                 key = tuple(key)
+            # atomic condition:
             ac = [key]
             while cond:
                 if _is(cond[0], str) and cond[0] in COMB_OPS:
@@ -432,14 +433,17 @@ def atomic_cond(cond, cfg, nfo):
         if cfg.get('autoconv', True):  # can do this in the build phase already:
             val = py_type(val)  # '42' -> 42
 
-    f_lookup = cfg['lookup']
+    fp_lookup = f_from_lookup_provider(key, val, cfg, nfo)
+
+    if not fp_lookup:
+        f_lookup = cfg['lookup']
+        if 'cfg' in cfg['lookup_args']:
+            fp_lookup = partial(f_lookup, key, val, cfg=cfg)
+        else:
+            fp_lookup = partial(f_lookup, key, val)
+
     # we do what we can in the building not the evaluation phase:
     acl = cfg.get('autoconv_lookups', False)
-    if 'cfg' in cfg['lookup_args']:
-        fp_lookup = partial(f_lookup, key, val, cfg=cfg)
-    else:
-        fp_lookup = partial(f_lookup, key, val)
-
     # try save stackframes and evaluations for the eval phase:
     if any((acl, rev_, not_)):
         f_res = partial(f_atomic_arn, f_op, fp_lookup, key, val, not_, rev_, acl)
@@ -482,7 +486,40 @@ def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
     return not f_op(k, v) if not_ == True else f_op(k, v)
 
 
-# ------------------------------------------------------------------ Public API
+def f_from_lookup_provider(key, val, cfg, nfo):
+    try:
+        func = getattr(cfg['lookup_provider'], key)
+    except:
+        try:
+            func = cfg['lookup_provider_dict'][key]['func']
+        except Exception as ex:
+            return
+
+    def lp_func(state, cfg=cfg, val_=val, key_=key, func_=func, **kw):
+        kv = cache_get(kw, key_, val_)
+        if kv:
+            return kv
+        res = func_(val_, state, cfg=cfg, **kw)
+        cache_set(kw, key_, res[0])
+        return res
+
+    def lp_func_asyn(state, cfg=cfg, val_=val, key_=key, func_=func, **kw):
+        if not cache_get(kw, CACHE_KEY_ASYNC):
+            # will raise the Async Exception, bubbling up:
+            cache_set(kw, CACHE_KEY_ASYNC, True)
+            raise Async([kw])
+        return lp_func(state, cfg, val_, key_, func_, **kw)
+
+    if key in cfg.get('asyn', []):
+        return lp_func_asyn
+
+    return lp_func
+
+
+# -------------------------------------------------------------------------- Public API
+# (def qualify has it's own section)
+
+
 def sorted_keys(l):
     a = [i for i in l if _is(i, tuple)]
     b = l - set(a)
@@ -526,12 +563,6 @@ def parse_cond(cond, lookup=state_get, **cfg):
     if cfg.get('deep'):
         lookup = partial(state_get_deep, deep=cfg['deep'])
 
-    lp = None
-    for _lp in ('lookup_provider', 'lookup_provider_dict'):
-        lp = cfg.get(_lp)
-        if lp:
-            lookup = lookup_from_provider(lp, cfg, lookup, is_dict='dict' in _lp)
-
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
     cond = parse_struct_cond_after_deep_copy(cond, cfg, nfo)
@@ -542,11 +573,6 @@ def parse_cond(cond, lookup=state_get, **cfg):
     # if lp:
     #    cond = partial(post_hook, cond)
     return cond, nfo
-
-
-# def post_hook(cond_func, *a, **kw):
-#     res = cond_func(*a, **kw)
-#     return res
 
 
 def complete_ctx_data(keys, provider):
@@ -585,56 +611,6 @@ def cache_get(kw, key, val=None):
     v = cache.get(key, nil)
     if v != nil:
         return v, val
-
-
-def func_is_async_but_we_are_sync(k, kw, cfg):
-    if k in cfg.get('asyn', '') and not cache_get(kw, CACHE_KEY_ASYNC):
-        # will raise the Async Exception, bubbling up:
-        return True
-
-
-def lookup_from_provider(provider, cfg, lookup, is_dict):
-    """
-    Wrapping the normal lookup function into a fallback to getting a function
-    from a lookup provider and calling it.
-
-    Provider can be dict of functions or a class.
-    """
-
-    def wrapped(provider, lookup, is_dict, k, v, cfg, state=State, **kw):
-        """
-        First try the normal lookup, then fall back to provider.
-
-        Provider lookup result values get cached.
-        """
-        kv = cache_get(kw, k, v)
-        if kv:
-            return kv
-        kv = lookup(k, v, cfg, state=state, **kw)
-        if kv[0] != None:
-            return kv
-        if is_dict:
-            f = provider.get(k)
-            if f:
-                # convention, dict of functions under this key:
-                f = f['func']
-        else:
-            f = getattr(provider, k, None)
-
-        if func_is_async_but_we_are_sync(k, kw, cfg):
-            cache_set(kw, CACHE_KEY_ASYNC, True)
-            # cache_set(kw, 'foo1', True)
-            raise Async([kw])
-
-        if not f:
-            # return what the normal lookup returned:
-            return None, v
-        # key is dropped, it was the function name:
-        kv = f(v, state, cfg, **kw)
-        cache_set(kw, k, kv[0])
-        return kv
-
-    return partial(wrapped, provider, lookup, is_dict, cfg=cfg)
 
 
 def pycond(cond, *a, **cfg):
@@ -680,7 +656,7 @@ def py_type(v):
     )
 
 
-# -------------- Following Code Only for Parsing String Conditions Into Structs
+# ---------------------- Following Code Only for Parsing STRING Conditions Into Structs
 
 KV_DELIM = ' '  # default seperator for strings
 
