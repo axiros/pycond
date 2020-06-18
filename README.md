@@ -59,10 +59,10 @@ version: 20200614
         - <a name="toc35"></a>[Escaping](#escaping)
         - <a name="toc36"></a>[Building](#building)
         - <a name="toc37"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-- <a name="toc38"></a>[Context On Demand And Lazy Evaluation](#context-on-demand-and-lazy-evaluation)
-    - <a name="toc39"></a>[Lazy Eval: Lookup Providers](#lazy-eval-lookup-providers)
-        - <a name="toc40"></a>[Accepted Signatures](#accepted-signatures)
-        - <a name="toc41"></a>[Namespace](#namespace)
+    - <a name="toc38"></a>[Context On Demand](#context-on-demand)
+- <a name="toc39"></a>[Lookup Providers](#lookup-providers)
+    - <a name="toc40"></a>[Accepted Signatures](#accepted-signatures)
+    - <a name="toc41"></a>[Namespace](#namespace)
     - <a name="toc42"></a>[Caching](#caching)
     - <a name="toc43"></a>[Extensions](#extensions)
 - <a name="toc44"></a>[Named Conditions: Qualification](#named-conditions-qualification)
@@ -749,7 +749,7 @@ for id in '1', 1:
 ```
 
 
-# <a href="#toc38">Context On Demand And Lazy Evaluation</a>
+## <a href="#toc38">Context On Demand</a>
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -858,27 +858,25 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2006
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
-But we can do better. We still calculated values for keys which might be,
-dependent on the data, not needed in dead ends of a lazily evaluated condition.
+# <a href="#toc39">Lookup Providers</a>
 
-## <a href="#toc39">Lazy Eval: Lookup Providers</a>
+ContextBuilders are interesting but we can do better.
 
-Lets avoid calculating these values, remembering the
-[custom lookup function](#custom-lookup-and-value-passing) feature.
+We still calculated values for keys which might (dependent on the data) be not needed in dead ends of a lazily evaluated condition.
 
-> pycond does generate such a custom lookup function readily for you,
-> if you pass a getter namespace as `lookup_provider`.
+Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-and-value-passing) feature.
 
-Pycond then [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
+This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-### <a href="#toc40">Accepted Signatures</a>
+Pycond [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
 
-Lookup provider functions may have these signatures:
+## <a href="#toc40">Accepted Signatures</a>
 
+Lookup provider functions may have the following signatures:
   
 
 
@@ -915,7 +913,7 @@ assert f(state={'a': 42, 'b': 43, 'c': 100}) == True
 ```
 
 
-### <a href="#toc41">Namespace</a>
+## <a href="#toc41">Namespace</a>
 
 - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
 - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
@@ -1009,7 +1007,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1438,14 +1436,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.022s 
-item 4: 0.033s 
+item 3: 0.023s 
+item 4: 0.034s 
 item 5: 0.045s 
 item 1: 0.049s    <----- not in order, blocked
-item 6: 0.056s 
+item 6: 0.057s 
 item 7: 0.068s 
 item 8: 0.079s 
-item 9: 0.091s
+item 9: 0.090s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1561,6 +1559,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L186
-[pycond.py#492]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L492
-[pycond.py#584]: https://github.com/axiros/pycond/blob/833461e643db284c20884ad8e34f02d37e2286b3/pycond.py#L584
+[pycond.py#186]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L186
+[pycond.py#492]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L492
+[pycond.py#584]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L584

@@ -539,7 +539,7 @@ class Test1:
 
         """
 
-        # Context On Demand And Lazy Evaluation
+        ## Context On Demand
 
         Often the conditions are in user space, applied on data streams under
         the developer's control only at development time.
@@ -638,23 +638,21 @@ class Test1:
         cond, ApiCtxFuncs = f15_1()
         """
 
-        But we can do better. We still calculated values for keys which might be,
-        dependent on the data, not needed in dead ends of a lazily evaluated condition.
+        # Lookup Providers
 
-        ## Lazy Eval: Lookup Providers
+        ContextBuilders are interesting but we can do better.
 
-        Lets avoid calculating these values, remembering the
-        [custom lookup function](#custom-lookup-and-value-passing) feature.
+        We still calculated values for keys which might (dependent on the data) be not needed in dead ends of a lazily evaluated condition.
 
-        > pycond does generate such a custom lookup function readily for you,
-        > if you pass a getter namespace as `lookup_provider`.
+        Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-and-value-passing) feature.
 
-        Pycond then [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def f_from_lookup_provider]<SRC> within that namespace and calls them, when needed.
+        This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-        ### Accepted Signatures
+        Pycond [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def f_from_lookup_provider]<SRC> within that namespace and calls them, when needed.
 
-        Lookup provider functions may have these signatures:
+        ## Accepted Signatures
 
+        Lookup provider functions may have the following signatures:
 
         """
 
@@ -691,7 +689,7 @@ class Test1:
 
         """
 
-        ### Namespace
+        ## Namespace
 
         - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
         - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
