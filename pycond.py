@@ -23,7 +23,6 @@ A:  The **kw for all functions at run time are for the custom lookup feature:
     assert f(req=req, user='joe') == False 
     assert f(req=req, user='eve') == True
 
-    Note: state= via **kw in the sig is even faster than via state=State in the sig!
 """
 
 from __future__ import print_function
@@ -312,7 +311,7 @@ def is_deep_list_path(key):
     return True
 
 
-def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
+def prepare(cond, cfg, nfo):
     # resolve any conditions builds using the same subcond refs many times -
     # i.e. remove those refs can create unique items we can modify during parsing:
     # NOTE: This is build time, not eval time, i.e. does not hurt much:
@@ -322,14 +321,14 @@ def parse_struct_cond_after_deep_copy(cond, cfg, nfo):
     if not p:
         return res
 
-    def f(prefix, res):
-        def f1(prefix, res, *a, state=State, **kw):
+    def get_prefix(prefix, res):
+        def p(prefix, res, *a, state=State, **kw):
             state = state.get(prefix)
             return res(*a, state=state, **kw)
 
-        return partial(f1, prefix=prefix, res=res)
+        return partial(p, prefix=prefix, res=res)
 
-    return f(p, res)
+    return get_prefix(p, res)
 
 
 KEY_STR_TYP, KEY_TPL_TYP, KEY_LST_TYP, KEY_BOOL_TYP = 1, 2, 3, 4
@@ -355,8 +354,6 @@ def parse_struct_cond(cond, cfg, nfo):
     [a eq foo] and b
     [a eq foo] and [b is baz]
     """
-    cfg['foo'] = 'bar'
-    nfo['foo'] = 'bar1'
     f1 = None
     while cond:
         key = cond.pop(0)
@@ -508,8 +505,8 @@ def f_from_lookup_provider(key, val, cfg, nfo):
     req_params = len(sig.args) - (len(sig.defaults) if sig.defaults else 0)
     if req_params == 0:
         # fixed ones, like dt:minutes
-
-        def f(v, state, cfg=cfg, func_=func, **kw):
+        # FIXME: make faster and allow a small sig function for those
+        def f(k, v, cfg, state=State, func_=func, **kw):
             return func_(), v
 
         func = f
@@ -517,22 +514,22 @@ def f_from_lookup_provider(key, val, cfg, nfo):
     elif req_params == 1:
         if sig.varkw:
 
-            def fkw(v, state, cfg=cfg, func_=func, **kw):
+            def fkw(k, v, cfg, state=State, func_=func, **kw):
                 return func_(state, cfg=cfg, **kw), v
 
             func = fkw
         else:
 
-            def f(v, state, cfg=cfg, func_=func, **kw):
+            def f(k, v, cfg, state=State, func_=func, **kw):
                 return func_(state), v
 
             func = f
 
     def lp_func(
-        state,
-        cfg=cfg,
-        val_=val,
         key_=key,
+        val_=val,
+        cfg=cfg,
+        state=State,
         asyn_=key in cfg.get('asyn', []),
         func_=func,
         **kw,
@@ -544,7 +541,7 @@ def f_from_lookup_provider(key, val, cfg, nfo):
         kv = cache_get(kw, key_, val_)
         if kv:
             return kv
-        res = func_(val_, state, cfg=cfg, **kw)
+        res = func_(key_, val_, cfg, state, **kw)
         cache_set(kw, key_, res[0])
         return res
 
@@ -556,7 +553,7 @@ prefixed_lookup_funcs = True
 
 
 class MissingLookupFunction(Exception):
-    """A lookup function was not found"""
+    """Build time exception"""
 
 
 def find_func(key, cfg):
@@ -645,7 +642,7 @@ def parse_cond(cond, lookup=state_get, **cfg):
 
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
-    cond = parse_struct_cond_after_deep_copy(cond, cfg, nfo)
+    cond = prepare(cond, cfg, nfo)
     nfo['keys'] = sorted_keys(nfo['keys'])
     provider = cfg.get('ctx_provider')
     if provider:
@@ -943,44 +940,45 @@ def init_conds(conds, cfg, built, prefix=()):
     raise  # never
 
 
-def build(conds, lookup, cfg, into):
+def build(conds, cfg, into):
     if _is(conds, dict) and 'cond' in conds:
         # conds['built'] = parse_cond(conds['cond'], lookup)  # , **cfg)
-        return parse_cond(conds['cond'], lookup, **cfg)
+        return parse_cond(conds['cond'], **cfg)
 
     for k, v in conds:
         if _is(v, list):
             if norm(v)[1] == True:
-                into[k] = build(v, lookup, cfg, into)
+                into[k] = build(v, cfg, into)
             else:
-                into[k] = [build(c, lookup, cfg, into) for c in v]
+                into[k] = [build(c, cfg, into) for c in v]
         else:
-            into[k] = build(v, lookup, cfg, into)
+            into[k] = build(v, cfg, into)
 
 
-def sub_lookup(lookup, built):
-    """
-    Returns the wanted lookup function but with a fallback to other named sub conds
-    """
+# def sub_lookup(lookup, built):
+#     """
+#     Returns the wanted lookup function but with a fallback to other named sub conds
+#     """
 
-    def lu(key, v, cfg, state=State, lookup=lookup, built=built, **kw):
-        kv = cache_get(kw, key, v)
-        if kv:
-            return kv
-        kv = lookup(key, v, cfg, state, **kw)
-        if kv[0] != None:
-            return kv
+#     def lu(key, v, cfg, state=State, lookup=lookup, built=built, **kw):
+#         print('-' * 10, str(key))
+#         kv = cache_get(kw, key, v)
+#         if kv:
+#             return kv
+#         kv = lookup(key, v, cfg, state, **kw)
+#         if kv[0] != None:
+#             return kv
 
-        # not found -> check: is the key a named condition?
-        sub_cond_ref = lookup(key, v, cfg, state=built, **kw)
-        if sub_cond_ref[0] == None:
-            # nope - so return the None:
-            return kv
-        # cache value of named condition:
-        val = kw[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
-        return val, v
+#         # not found -> check: is the key a named condition?
+#         sub_cond_ref = lookup(key, v, cfg, state=built, **kw)
+#         if sub_cond_ref[0] == None:
+#             # nope - so return the None:
+#             return kv
+#         # cache value of named condition:
+#         val = kw[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
+#         return val, v
 
-    return lu
+#     return lu
 
 
 def add_cache(n, kw, into):
@@ -1058,13 +1056,26 @@ def qualify(conds, lookup=state_get, get_type=False, **cfg):
         conds, cfg = deserialize_str(conds, check_dict=True, **cfg)
     built = {}  # store all built named conditions here
     conds, is_single, is_named_listed = init_conds(conds, cfg, built)
+    if is_named_listed:
+        subs = [c[0] for c in conds]
+    else:
+        subs = built.keys()
+
+    # now we provide the sub cond results as normal lookup dict functions, i.e. with cacheing:
+    lpd = cfg.setdefault('lookup_provider_dict', {})
+
+    def sub_cond(key, v, cfg, state=State, _built=built, **kw):
+        res = _built[key][0](state=state, **kw)
+        return res, v
+
+    lpd.update(dict([(sub, {'func': sub_cond}) for sub in subs]))
 
     # handle the case of the conds given as list but w/o names:
     if conds and isinstance(conds, list) and isinstance(conds[0], dict):
         conds = [[i, c] for i, c in zip(range(len(conds)), conds)]
 
     # built dict of named conds - conds is the list of them, i.e. with order:
-    b = build(conds, lookup=sub_lookup(lookup, built), cfg=cfg, into=built)
+    b = build(conds, cfg=cfg, into=built)
 
     # was a single condition passed?
     if is_single:

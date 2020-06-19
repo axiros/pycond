@@ -672,7 +672,7 @@ class Test1:
                     return data['b']
 
                 # full pycond compliant signature
-                def f3(val, data, cfg, **kw):
+                def f3(key, val, cfg, data, **kw):
                     """
                     full pycond signature.
                     val is the value as defined by the condition, and which you could return modified
@@ -805,13 +805,14 @@ class Test1:
             from datetime import datetime as dt
             from os import environ as env
 
-            this_day = dt.now().day
+            this_sec = dt.now().second
             this_utc_hour = dt.utcnow().hour
             f = pc.pycond(
                 [
                     ['env:foo', 'eq', 'bar'],
                     'and',
-                    ['dt:day', 'eq', this_day],
+                    # not breaking the build when the sec just jumps:
+                    ['dt:second', 'in', [this_sec, this_sec + 1, 0]],
                     'and',
                     ['utc:hour', 'eq', this_utc_hour],
                 ]
@@ -851,7 +852,12 @@ class Test1:
         def f20_3():
             def run(q):
                 print('Running', q)
-                f = pc.qualify(q)
+
+                class F:
+                    def custom(data):
+                        return data.get('a')
+
+                f = pc.qualify(q, lookup_provider=F)
 
                 assert f({'a': 'b'}) == {
                     'first': True,
@@ -870,10 +876,10 @@ class Test1:
                 }
 
             q = {
-                'thrd': ['k', 'or', 'first'],
+                'thrd': ['k', 'or', ':first'],
                 'listed': [['foo'], ['c', 'eq', 'foo']],
-                'zero': [['x', 'eq', 1], 'or', 'thrd'],
-                'first': ['a', 'eq', 'b'],
+                'zero': [['x', 'eq', 1], 'or', ':thrd'],
+                'first': [':custom', 'eq', 'b'],
                 'last': True,  # you might want to do this to always get at least one matcher, e.g. for data streaming
             }
             # as list of conditions:
@@ -954,18 +960,18 @@ class Test1:
         def f20_4():
             called = []
 
-            def expensive_func(v, data, cfg, **kw):
+            def expensive_func(k, v, cfg, data, **kw):
                 called.append(data)
                 return 1, v
 
-            def xx(v, data, cfg, **kw):
+            def xx(k, v, cfg, data, **kw):
                 called.append(data)
                 return data.get('a'), v
 
             funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
             q = {
-                'root': ['foo', 'and', 'bar'],
-                'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', 'baz'],],
+                'root': ['foo', 'and', ':bar'],
+                'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', ':baz'],],
                 'x': [':xx'],
                 'baz': [':exp', 'lt', 10],
             }
@@ -1134,7 +1140,7 @@ class Test1:
             Rx, rx, push_through = rx_setup()
 
             # using the list style:
-            conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
+            conds = [[i, [['i', 'mod', i], 'or', ':alt']] for i in range(2, 4)]
             conds.append(['alt', ['i', 'gt', 1]])
 
             # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
@@ -1169,7 +1175,7 @@ class Test1:
             Rx, rx, push_through = rx_setup()
 
             class F:
-                def check(v, data, cfg, t0=[], **kw):
+                def check(k, v, cfg, data, t0=[], **kw):
                     # will be on different thread:
                     i, pointer = data['i'], ''
                     if not t0:
@@ -1220,7 +1226,7 @@ class Test1:
                 We provide the functions for 'odd' and 'blocking'.
                 """
 
-                def odd(v, data, cfg, **kw):
+                def odd(k, v, cfg, data, **kw):
                     # just print the threadname.
                     # will go up, interval stream has each nr on its own thread:
                     _thn('odd', data)
@@ -1228,7 +1234,7 @@ class Test1:
                     # -> even nrs won't even run func 'blocking':
                     return data['i'] % 2, v
 
-                def blocking(v, data, cfg, **kw):
+                def blocking(k, v, cfg, data, **kw):
                     i = data['i']
                     # will be on different thread:
                     _thn('blocking', data)

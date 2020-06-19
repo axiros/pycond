@@ -269,7 +269,7 @@ print(nfos)
 Output:
 
 ```
-{'keys': ['a', ('a', 'b', 0, 'c')], 'foo': 'bar1'}
+{'keys': ['a', ('a', 'b', 0, 'c')]}
 ```
 
 ## <a href="#toc12">Prefixed Data</a>
@@ -315,7 +315,7 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 ```
 
 > as you can see in the example, the state parameter is just a convention
-for `pyconds'` [default lookup function][pycond.py#186].
+for `pyconds'` [default lookup function][pycond.py#185].
 
 ## <a href="#toc14">Lazy Evaluation</a>
 
@@ -858,7 +858,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2007
+Calc.Time (delta_q was called twice): 0.201
 ```
 
 
@@ -872,7 +872,7 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-Pycond [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
+Pycond [treats the condition keys as function names][pycond.py#489] within that namespace and calls them, when needed.
 
 ## <a href="#toc40">Accepted Signatures</a>
 
@@ -896,7 +896,7 @@ class F:
         return data['b']
 
     # full pycond compliant signature
-    def f3(val, data, cfg, **kw):
+    def f3(key, val, cfg, data, **kw):
         """
         full pycond signature.
         val is the value as defined by the condition, and which you could return modified
@@ -1007,7 +1007,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1005
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1031,7 +1031,7 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 
 ## <a href="#toc43">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#584]
+We deliver a few lookup function [extensions][pycond.py#581]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1042,13 +1042,14 @@ We deliver a few lookup function [extensions][pycond.py#584]
 from datetime import datetime as dt
 from os import environ as env
 
-this_day = dt.now().day
+this_sec = dt.now().second
 this_utc_hour = dt.utcnow().hour
 f = pc.pycond(
     [
         ['env:foo', 'eq', 'bar'],
         'and',
-        ['dt:day', 'eq', this_day],
+        # not breaking the build when the sec just jumps:
+        ['dt:second', 'in', [this_sec, this_sec + 1, 0]],
         'and',
         ['utc:hour', 'eq', this_utc_hour],
     ]
@@ -1088,7 +1089,12 @@ We may refer to results of other named conditions and also can pass named condit
 ```python
 def run(q):
     print('Running', q)
-    f = pc.qualify(q)
+
+    class F:
+        def custom(data):
+            return data.get('a')
+
+    f = pc.qualify(q, lookup_provider=F)
 
     assert f({'a': 'b'}) == {
         'first': True,
@@ -1107,10 +1113,10 @@ def run(q):
     }
 
 q = {
-    'thrd': ['k', 'or', 'first'],
+    'thrd': ['k', 'or', ':first'],
     'listed': [['foo'], ['c', 'eq', 'foo']],
-    'zero': [['x', 'eq', 1], 'or', 'thrd'],
-    'first': ['a', 'eq', 'b'],
+    'zero': [['x', 'eq', 1], 'or', ':thrd'],
+    'first': [':custom', 'eq', 'b'],
     'last': True,  # you might want to do this to always get at least one matcher, e.g. for data streaming
 }
 # as list of conditions:
@@ -1123,8 +1129,8 @@ run(q)
 Output:
 
 ```
-Running {'thrd': ['k', 'or', 'first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 'zero': [['x', 'eq', 1], 'or', 'thrd'], 'first': ['a', 'eq', 'b'], 'last': True}
-Running {'thrd': ['k', 'or', 'first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 'zero': [['x', 'eq', 1], 'or', 'thrd'], 'first': ['a', 'eq', 'b'], 'last': True}
+Running {'thrd': ['k', 'or', ':first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 'zero': [['x', 'eq', 1], 'or', ':thrd'], 'first': [':custom', 'eq', 'b'], 'last': True}
+Running {'thrd': ['k', 'or', ':first'], 'listed': [['foo'], ['c', 'eq', 'foo']], 'zero': [['x', 'eq', 1], 'or', ':thrd'], 'first': [':custom', 'eq', 'b'], 'last': True}
 ```
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
@@ -1196,18 +1202,18 @@ If you either supply a key called 'root' OR supply it as argument to `qualify`, 
 ```python
 called = []
 
-def expensive_func(v, data, cfg, **kw):
+def expensive_func(k, v, cfg, data, **kw):
     called.append(data)
     return 1, v
 
-def xx(v, data, cfg, **kw):
+def xx(k, v, cfg, data, **kw):
     called.append(data)
     return data.get('a'), v
 
 funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
 q = {
-    'root': ['foo', 'and', 'bar'],
-    'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', 'baz'],],
+    'root': ['foo', 'and', ':bar'],
+    'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', ':baz'],],
     'x': [':xx'],
     'baz': [':exp', 'lt', 10],
 }
@@ -1379,7 +1385,7 @@ When it evaluated, possibly requiring evaluation of other conditions, we return:
 Rx, rx, push_through = rx_setup()
 
 # using the list style:
-conds = [[i, [['i', 'mod', i], 'or', 'alt']] for i in range(2, 4)]
+conds = [[i, [['i', 'mod', i], 'or', ':alt']] for i in range(2, 4)]
 conds.append(['alt', ['i', 'gt', 1]])
 
 # provide the root condition. Only when it evals falsy, the named "alt" condiction will be evaluated:
@@ -1414,7 +1420,7 @@ First a simple filter, which gives up order but does not block:
 Rx, rx, push_through = rx_setup()
 
 class F:
-    def check(v, data, cfg, t0=[], **kw):
+    def check(k, v, cfg, data, t0=[], **kw):
         # will be on different thread:
         i, pointer = data['i'], ''
         if not t0:
@@ -1436,14 +1442,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.023s 
-item 4: 0.034s 
-item 5: 0.045s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.057s 
-item 7: 0.068s 
-item 8: 0.079s 
-item 9: 0.090s
+item 3: 0.022s 
+item 4: 0.032s 
+item 5: 0.042s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.053s 
+item 7: 0.064s 
+item 8: 0.075s 
+item 9: 0.085s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1478,7 +1484,7 @@ class F:
     We provide the functions for 'odd' and 'blocking'.
     """
 
-    def odd(v, data, cfg, **kw):
+    def odd(k, v, cfg, data, **kw):
         # just print the threadname.
         # will go up, interval stream has each nr on its own thread:
         _thn('odd', data)
@@ -1486,7 +1492,7 @@ class F:
         # -> even nrs won't even run func 'blocking':
         return data['i'] % 2, v
 
-    def blocking(v, data, cfg, **kw):
+    def blocking(k, v, cfg, data, **kw):
         i = data['i']
         # will be on different thread:
         _thn('blocking', data)
@@ -1538,18 +1544,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-10053 odd {'i': 1}
-thread: DummyThread-10055 blocking {'i': 1}
-thread: Thread-10054 odd {'i': 2}
-thread: DummyThread-10057 blocking {'i': 2}
-thread: Thread-10056 odd {'i': 3}
-thread: DummyThread-10059 blocking {'i': 3}
-thread: Thread-10058 odd {'i': 4}
-thread: Thread-10060 odd {'i': 5}
-thread: DummyThread-10062 blocking {'i': 5}
-thread: Thread-10061 odd {'i': 6}
-thread: Thread-10063 odd {'i': 7}
-thread: DummyThread-10065 blocking {'i': 7}
+thread: Thread-54 odd {'i': 1}
+thread: DummyThread-56 blocking {'i': 1}
+thread: Thread-55 odd {'i': 2}
+thread: DummyThread-58 blocking {'i': 2}
+thread: Thread-57 odd {'i': 3}
+thread: DummyThread-60 blocking {'i': 3}
+thread: Thread-59 odd {'i': 4}
+thread: Thread-61 odd {'i': 5}
+thread: DummyThread-63 blocking {'i': 5}
+thread: Thread-62 odd {'i': 6}
+thread: Thread-64 odd {'i': 7}
+thread: DummyThread-66 blocking {'i': 7}
 ```
 
 
@@ -1559,6 +1565,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#186]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L186
-[pycond.py#492]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L492
-[pycond.py#584]: https://github.com/axiros/pycond/blob/b82982c4a9f9ec56ab39b3262d98696d334cb65b/pycond.py#L584
+[pycond.py#185]: https://github.com/axiros/pycond/blob/d54bfa64165e2973df3f8f6bf926be2497df76cf/pycond.py#L185
+[pycond.py#489]: https://github.com/axiros/pycond/blob/d54bfa64165e2973df3f8f6bf926be2497df76cf/pycond.py#L489
+[pycond.py#581]: https://github.com/axiros/pycond/blob/d54bfa64165e2973df3f8f6bf926be2497df76cf/pycond.py#L581

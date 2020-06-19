@@ -22,11 +22,11 @@ now, count, prnt = time.time, 10000, 0
 
 
 class F:
-    def odd(v, data, cfg, **kw):
+    def odd(k, v, cfg, data, **kw):
         data['odd'] = tn()  # add the thread name
         return 1, v
 
-    def blocking(v, data, cfg, **kw):
+    def blocking(k, v, cfg, data, **kw):
         data['blocking'] = tn()
         if data['i'] == 0:
             time.sleep(0.001)
