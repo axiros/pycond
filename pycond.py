@@ -317,12 +317,13 @@ def prepare(cond, cfg, nfo):
     # NOTE: This is build time, not eval time, i.e. does not hurt much:
     cond = literal_eval(str(cond))
     res = parse_struct_cond(cond, cfg, nfo)
-    p = cfg.get('prefix')
+    p = cfg.pop('prefix', None)
     if not p:
         return res
 
     def get_prefix(prefix, res):
         def p(prefix, res, *a, state=State, **kw):
+            kw['state_root'] = state
             state = state.get(prefix)
             return res(*a, state=state, **kw)
 
@@ -503,7 +504,7 @@ def f_from_lookup_provider(key, val, cfg, nfo):
     # Multiple sigs are accepted:
     sig = inspect.getfullargspec(func)
     req_params = len(sig.args) - (len(sig.defaults) if sig.defaults else 0)
-    if req_params == 0:
+    if req_params == 0 and not sig.varargs:
         # fixed ones, like dt:minutes
         # FIXME: make faster and allow a small sig function for those
         def f(k, v, cfg, state=State, func_=func, **kw):
@@ -534,6 +535,8 @@ def f_from_lookup_provider(key, val, cfg, nfo):
         func_=func,
         **kw,
     ):
+        # if key == 'add_enforce_2':
+        #    breakpoint()  # FIXME BREAKPOINT
         if asyn_ and not cache_get(kw, CACHE_KEY_ASYNC):
             cache_set(kw, CACHE_KEY_ASYNC, True)
             # bubbling up, triggering a re-run in own greenlet:
@@ -943,7 +946,9 @@ def init_conds(conds, cfg, built, prefix=()):
 def build(conds, cfg, into):
     if _is(conds, dict) and 'cond' in conds:
         # conds['built'] = parse_cond(conds['cond'], lookup)  # , **cfg)
-        return parse_cond(conds['cond'], **cfg)
+        p = cfg.pop('prefix', None)
+        res = parse_cond(conds['cond'], prefix=p, **cfg)
+        return res
 
     for k, v in conds:
         if _is(v, list):
@@ -953,32 +958,6 @@ def build(conds, cfg, into):
                 into[k] = [build(c, cfg, into) for c in v]
         else:
             into[k] = build(v, cfg, into)
-
-
-# def sub_lookup(lookup, built):
-#     """
-#     Returns the wanted lookup function but with a fallback to other named sub conds
-#     """
-
-#     def lu(key, v, cfg, state=State, lookup=lookup, built=built, **kw):
-#         print('-' * 10, str(key))
-#         kv = cache_get(kw, key, v)
-#         if kv:
-#             return kv
-#         kv = lookup(key, v, cfg, state, **kw)
-#         if kv[0] != None:
-#             return kv
-
-#         # not found -> check: is the key a named condition?
-#         sub_cond_ref = lookup(key, v, cfg, state=built, **kw)
-#         if sub_cond_ref[0] == None:
-#             # nope - so return the None:
-#             return kv
-#         # cache value of named condition:
-#         val = kw[CACHE_KEY][key] = sub_cond_ref[0][0](state=state, **kw)
-#         return val, v
-
-#     return lu
 
 
 def add_cache(n, kw, into):
@@ -998,6 +977,7 @@ def run_conds(
     In data path (hot). The function which qualify returns, ready for data push.
     kw has also the cfg
     """
+
     if is_single:
         r = built['root'][0](state=data, **kw)
         # pop_cache(state, kw.get('prefix'))
@@ -1028,6 +1008,10 @@ def run_conds(
 
         # user wants only partial evaluation?
         if only_root:
+            for k, v in conds[1:]:
+                vv = kw[CACHE_KEY].get(k)
+                if vv is not None:
+                    r[k] = vv
             break
 
     if add_cached:
