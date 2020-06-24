@@ -18,6 +18,7 @@ GS = GEventScheduler(gevent)
 
 Rx, rx = pc.import_rx()
 
+# set this higher and watch mem getting constant:
 now, count, prnt = time.time, 10000, 0
 
 
@@ -35,9 +36,18 @@ class F:
         return 3, v
 
 
+perf = {}
+
+
+def clear(p):
+    p.clear
+    p['lasti'] = 0
+    p['lastt'] = now()
+
+
 class Tests:
     cond = [
-        ['i', 'lt', 1000000],  # just make it a bit complex
+        ['i', 'lt', 100000000],  # just make it a bit complex
         'and',
         [[':odd', 'eq', 1], 'and_not', ['i', 'eq', 2]],
         'and_not',
@@ -50,9 +60,21 @@ class Tests:
         res = {}
         print()
 
-        d = lambda i: {'i': i}
+        def stats(m):
+            i = m['i']
+            if i - perf['lasti'] > 1000:
+                p = perf
+                p['lasti'] = i
+                print(i, now() - p['lastt'])
+                p['lastt'] = now()
+
+            return m
+
+        def d(i):
+            return {'i': i}
 
         def _measure(f):
+            clear(perf)
             fn = f.__name__
             t0 = now()
             l = f()
@@ -93,7 +115,9 @@ class Tests:
 
             # Rx.interval(0, scheduler=GS).pipe(
             rxcond = rxop(**kw)
-            s = Rx.from_(range(count)).pipe(rx.map(d), rxcond, rx.take(count))
+            s = Rx.from_(range(count)).pipe(
+                rx.map(d), rxcond, rx.take(count), rx.map(stats)
+            )
             s.subscribe(add, on_completed=unblock)
             ev.wait()
             if not kw:
@@ -123,6 +147,11 @@ class Tests:
         _measure(qual)
         _measure(rxsync)
         _measure(rxasync)
+        # to see that mem goes down after the greenlets are done:
+        # while True:
+        #     time.sleep(5)
+        #     breakpoint()  # FIXME BREAKPOINT
+        # return
         head = '%s Items' % count
         print('\n'.join(('', head, '=' * len(head))))
         [print('%9s' % k, v) for k, v in res.items()]

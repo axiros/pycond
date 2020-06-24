@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200625
+version: 20200626
 
 ---
 
@@ -1483,8 +1483,8 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.022s 
-item 4: 0.033s 
+item 3: 0.021s 
+item 4: 0.032s 
 item 5: 0.044s 
 item 1: 0.049s    <----- not in order, blocked
 item 6: 0.055s 
@@ -1606,6 +1606,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L491
-[pycond.py#588]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L588
+[pycond.py#185]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L491
+[pycond.py#588]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L588
