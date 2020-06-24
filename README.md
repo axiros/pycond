@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200624
+version: 20200625
 
 ---
 
@@ -859,7 +859,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2005
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
@@ -873,7 +873,7 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-Pycond [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
+Pycond [treats the condition keys as function names][pycond.py#491] within that namespace and calls them, when needed.
 
 ## <a href="#toc40">Accepted Signatures</a>
 
@@ -1062,7 +1062,7 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 
 ## <a href="#toc44">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#589]
+We deliver a few lookup function [extensions][pycond.py#588]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1176,12 +1176,16 @@ Here a few variants to parametrize behaviour, by example:
 
 
 ```python
-conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
+conds = {
+    0: ['foo'],
+    1: ['bar'],
+    2: ['func'],
+    3: ['n'],
+    'n': ['bar'],
+}
 
 class F:
     def func(*a, **kw):
-        print('aaaa', a)
-        print(kw)
         return True, 0
 
 q = lambda d, **kw: pc.qualify(
@@ -1189,11 +1193,14 @@ q = lambda d, **kw: pc.qualify(
 )(d)
 
 m = q({'bar': 1})
-assert m == {0: False, 1: True, 2: True}
+assert m == {0: False, 1: True, 2: True, 3: True, 'n': True}
 
 # return data, with matched conds in:
 m = q({'bar': 1}, into='conds')
-assert m == {'bar': 1, 'conds': {0: False, 1: True, 2: True}}
+assert m == {
+    'bar': 1,
+    'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
+}
 
 msg = lambda: {'bar': 1, 'pl': {'a': 1}}
 
@@ -1201,43 +1208,28 @@ msg = lambda: {'bar': 1, 'pl': {'a': 1}}
 m = q(msg(), into='conds', add_cached=True)
 assert m == {
     'bar': 1,
-    'conds': {0: False, 1: True, 2: True, 'func': True},
+    'conds': {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True},
     'pl': {'a': 1},
 }
 
 m = q(msg(), into='conds', add_cached='pl')
 assert m == {
     'bar': 1,
-    'conds': {0: False, 1: True, 2: True},
-    'pl': {'a': 1, 'func': True},
+    'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
+    # n had been put into the cache, was not evaled twice:
+    'pl': {'a': 1, 'func': True, 'n': True},
 }
 
 m = q({'bar': 1}, add_cached='pl')
-assert m == {0: False, 1: True, 2: True, 'func': True}
+assert m == {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True}
 
 # prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
 m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
 assert m == {
     'bar': 1,
-    'conds': {0: False, 1: False, 2: True},
-    'pl': {'a': 1, 'func': True},
+    'conds': {0: False, 1: False, 2: True, 3: False, 'n': False},
+    'pl': {'a': 1, 'func': True, 'n': False},
 }
-```
-Output:
-
-```
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}}, 'pyc_cache': {}}
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}}, 'pyc_cache': {}}
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'add_cached': True, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1, 'pl': {'a': 1}})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}}, 'pyc_cache': {}}
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1, 'pl': {'a': 1}})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}}, 'pyc_cache': {}}
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}}, 'pyc_cache': {}}
-aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'prefix': 'pl', 'into': 'conds', 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'a': 1})
-{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}}, 'pyc_cache': {}, 'state_root': {'bar': 1, 'pl': {'a': 1}}}
 ```
 
 
@@ -1494,9 +1486,9 @@ item 2: 0.011s
 item 3: 0.022s 
 item 4: 0.033s 
 item 5: 0.044s 
-item 1: 0.048s    <----- not in order, blocked
+item 1: 0.049s    <----- not in order, blocked
 item 6: 0.055s 
-item 7: 0.066s 
+item 7: 0.067s 
 item 8: 0.078s 
 item 9: 0.089s
 ```
@@ -1614,6 +1606,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L185
-[pycond.py#492]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L492
-[pycond.py#589]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L589
+[pycond.py#185]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L491
+[pycond.py#588]: https://github.com/axiros/pycond/blob/d0a00db75ebcd7b7f2ca63a25a3f51fcb1e002f9/pycond.py#L588

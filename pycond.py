@@ -323,10 +323,9 @@ def prepare(cond, cfg, nfo):
 
     def get_prefix(prefix, res):
         def p(prefix, res, *a, state=State, **kw):
-            if 'state_root' in kw:
-                return res
-            kw['state_root'] = state
-            state = state.get(prefix)
+            if not 'state_root' in kw:
+                kw['state_root'] = state
+                state = state.get(prefix)
             return res(*a, state=state, **kw)
 
         return partial(p, prefix=prefix, res=res)

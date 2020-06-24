@@ -933,12 +933,16 @@ class Test1:
 
         def f20_31():
 
-            conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
+            conds = {
+                0: ['foo'],
+                1: ['bar'],
+                2: ['func'],
+                3: ['n'],
+                'n': ['bar'],
+            }
 
             class F:
                 def func(*a, **kw):
-                    print('aaaa', a)
-                    print(kw)
                     return True, 0
 
             q = lambda d, **kw: pc.qualify(
@@ -946,11 +950,14 @@ class Test1:
             )(d)
 
             m = q({'bar': 1})
-            assert m == {0: False, 1: True, 2: True}
+            assert m == {0: False, 1: True, 2: True, 3: True, 'n': True}
 
             # return data, with matched conds in:
             m = q({'bar': 1}, into='conds')
-            assert m == {'bar': 1, 'conds': {0: False, 1: True, 2: True}}
+            assert m == {
+                'bar': 1,
+                'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
+            }
 
             msg = lambda: {'bar': 1, 'pl': {'a': 1}}
 
@@ -958,26 +965,27 @@ class Test1:
             m = q(msg(), into='conds', add_cached=True)
             assert m == {
                 'bar': 1,
-                'conds': {0: False, 1: True, 2: True, 'func': True},
+                'conds': {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True},
                 'pl': {'a': 1},
             }
 
             m = q(msg(), into='conds', add_cached='pl')
             assert m == {
                 'bar': 1,
-                'conds': {0: False, 1: True, 2: True},
-                'pl': {'a': 1, 'func': True},
+                'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
+                # n had been put into the cache, was not evaled twice:
+                'pl': {'a': 1, 'func': True, 'n': True},
             }
 
             m = q({'bar': 1}, add_cached='pl')
-            assert m == {0: False, 1: True, 2: True, 'func': True}
+            assert m == {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True}
 
             # prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
             m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
             assert m == {
                 'bar': 1,
-                'conds': {0: False, 1: False, 2: True},
-                'pl': {'a': 1, 'func': True},
+                'conds': {0: False, 1: False, 2: True, 3: False, 'n': False},
+                'pl': {'a': 1, 'func': True, 'n': False},
             }
 
         """
