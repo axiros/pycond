@@ -671,21 +671,51 @@ class Test1:
                     """
                     return data['b']
 
-                # full pycond compliant signature
+                # full pycond compliant signature,
                 def f3(key, val, cfg, data, **kw):
                     """
                     full pycond signature.
                     val is the value as defined by the condition, and which you could return modified
                     kw holds the cache, cfg holds the setup
+                    v has to be returned:
                     """
                     return data['c'], 100  # not 45!
 
+                # applied al
+                def f4(*a, **kw):
+                    """
+                    Full variant (always when varargs are involved)
+                    """
+                    return a[3]['d'], 'foo'
+
             _ = 'and'
             f = pc.pycond(
-                [[':f1', 'eq', 42], _, [':f2', 'eq', 43, _, ':f3', 'eq', 45]],
+                [
+                    [':f1', 'eq', 42],
+                    _,
+                    [':f2', 'eq', 43, _, ':f3', 'eq', 45],
+                    _,
+                    [':f4', 'eq', 'foo'],
+                ],
                 lookup_provider=F,
             )
-            assert f(state={'a': 42, 'b': 43, 'c': 100}) == True
+            assert f(state={'a': 42, 'b': 43, 'c': 100, 'd': 'foo'}) == True
+
+        """
+        ## Parametrized Lookup Functions
+
+        Via the 'params' parameter you may supply keyword args to lookup functions:
+        """
+
+        def f15_16():
+            class F:
+                def hello(k, v, cfg, data, count, **kw):
+                    return data['foo'] == count, 0
+
+            m = pc.pycond(
+                [':hello'], lookup_provider=F, params={'hello': {'count': 2}}
+            )(state={'foo': 2})
+            assert m == True
 
         """
 
@@ -907,7 +937,9 @@ class Test1:
 
             class F:
                 def func(*a, **kw):
-                    return True
+                    print('aaaa', a)
+                    print(kw)
+                    return True, 0
 
             q = lambda d, **kw: pc.qualify(
                 conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
@@ -940,7 +972,7 @@ class Test1:
             m = q({'bar': 1}, add_cached='pl')
             assert m == {0: False, 1: True, 2: True, 'func': True}
 
-            # prefix -> bar won't be True, not in pl now:
+            # prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
             m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
             assert m == {
                 'bar': 1,

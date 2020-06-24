@@ -317,12 +317,14 @@ def prepare(cond, cfg, nfo):
     # NOTE: This is build time, not eval time, i.e. does not hurt much:
     cond = literal_eval(str(cond))
     res = parse_struct_cond(cond, cfg, nfo)
-    p = cfg.pop('prefix', None)
+    p = cfg.get('prefix', None)
     if not p:
         return res
 
     def get_prefix(prefix, res):
         def p(prefix, res, *a, state=State, **kw):
+            if 'state_root' in kw:
+                return res
             kw['state_root'] = state
             state = state.get(prefix)
             return res(*a, state=state, **kw)
@@ -501,6 +503,11 @@ def f_from_lookup_provider(key, val, cfg, nfo):
         # prefix was switched off, it has none:
         return
 
+    # the condition functions may be parametrized:
+    func_params = cfg.get('params', {}).get(key)
+    if func_params:
+        func = partial(func, **func_params)
+
     # Multiple sigs are accepted:
     sig = inspect.getfullargspec(func)
     req_params = len(sig.args) - (len(sig.defaults) if sig.defaults else 0)
@@ -535,8 +542,6 @@ def f_from_lookup_provider(key, val, cfg, nfo):
         func_=func,
         **kw,
     ):
-        # if key == 'add_enforce_2':
-        #    breakpoint()  # FIXME BREAKPOINT
         if asyn_ and not cache_get(kw, CACHE_KEY_ASYNC):
             cache_set(kw, CACHE_KEY_ASYNC, True)
             # bubbling up, triggering a re-run in own greenlet:
@@ -946,8 +951,7 @@ def init_conds(conds, cfg, built, prefix=()):
 def build(conds, cfg, into):
     if _is(conds, dict) and 'cond' in conds:
         # conds['built'] = parse_cond(conds['cond'], lookup)  # , **cfg)
-        p = cfg.pop('prefix', None)
-        res = parse_cond(conds['cond'], prefix=p, **cfg)
+        res = parse_cond(conds['cond'], **cfg)
         return res
 
     for k, v in conds:

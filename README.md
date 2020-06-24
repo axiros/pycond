@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200614
+version: 20200624
 
 ---
 
@@ -62,18 +62,19 @@ version: 20200614
     - <a name="toc38"></a>[Context On Demand](#context-on-demand)
 - <a name="toc39"></a>[Lookup Providers](#lookup-providers)
     - <a name="toc40"></a>[Accepted Signatures](#accepted-signatures)
-    - <a name="toc41"></a>[Namespace](#namespace)
-    - <a name="toc42"></a>[Caching](#caching)
-    - <a name="toc43"></a>[Extensions](#extensions)
-- <a name="toc44"></a>[Named Conditions: Qualification](#named-conditions-qualification)
-    - <a name="toc45"></a>[Options](#options)
-    - <a name="toc46"></a>[Partial Evaluation](#partial-evaluation)
-- <a name="toc47"></a>[Streaming Data](#streaming-data)
-    - <a name="toc48"></a>[Filtering](#filtering)
-    - <a name="toc49"></a>[Streaming Classification](#streaming-classification)
-        - <a name="toc50"></a>[Selective Classification](#selective-classification)
-    - <a name="toc51"></a>[Asyncronous Operations](#asyncronous-operations)
-        - <a name="toc52"></a>[Asyncronous Filter](#asyncronous-filter)
+    - <a name="toc41"></a>[Parametrized Lookup Functions](#parametrized-lookup-functions)
+    - <a name="toc42"></a>[Namespace](#namespace)
+    - <a name="toc43"></a>[Caching](#caching)
+    - <a name="toc44"></a>[Extensions](#extensions)
+- <a name="toc45"></a>[Named Conditions: Qualification](#named-conditions-qualification)
+    - <a name="toc46"></a>[Options](#options)
+    - <a name="toc47"></a>[Partial Evaluation](#partial-evaluation)
+- <a name="toc48"></a>[Streaming Data](#streaming-data)
+    - <a name="toc49"></a>[Filtering](#filtering)
+    - <a name="toc50"></a>[Streaming Classification](#streaming-classification)
+        - <a name="toc51"></a>[Selective Classification](#selective-classification)
+    - <a name="toc52"></a>[Asyncronous Operations](#asyncronous-operations)
+        - <a name="toc53"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -858,7 +859,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2006
+Calc.Time (delta_q was called twice): 0.2005
 ```
 
 
@@ -872,7 +873,7 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-Pycond [treats the condition keys as function names][pycond.py#489] within that namespace and calls them, when needed.
+Pycond [treats the condition keys as function names][pycond.py#492] within that namespace and calls them, when needed.
 
 ## <a href="#toc40">Accepted Signatures</a>
 
@@ -895,25 +896,55 @@ class F:
         """
         return data['b']
 
-    # full pycond compliant signature
+    # full pycond compliant signature,
     def f3(key, val, cfg, data, **kw):
         """
         full pycond signature.
         val is the value as defined by the condition, and which you could return modified
         kw holds the cache, cfg holds the setup
+        v has to be returned:
         """
         return data['c'], 100  # not 45!
 
+    # applied al
+    def f4(*a, **kw):
+        """
+        Full variant (always when varargs are involved)
+        """
+        return a[3]['d'], 'foo'
+
 _ = 'and'
 f = pc.pycond(
-    [[':f1', 'eq', 42], _, [':f2', 'eq', 43, _, ':f3', 'eq', 45]],
+    [
+        [':f1', 'eq', 42],
+        _,
+        [':f2', 'eq', 43, _, ':f3', 'eq', 45],
+        _,
+        [':f4', 'eq', 'foo'],
+    ],
     lookup_provider=F,
 )
-assert f(state={'a': 42, 'b': 43, 'c': 100}) == True
+assert f(state={'a': 42, 'b': 43, 'c': 100, 'd': 'foo'}) == True
+```
+
+## <a href="#toc41">Parametrized Lookup Functions</a>
+
+Via the 'params' parameter you may supply keyword args to lookup functions:  
+
+
+```python
+class F:
+    def hello(k, v, cfg, data, count, **kw):
+        return data['foo'] == count, 0
+
+m = pc.pycond(
+    [':hello'], lookup_provider=F, params={'hello': {'count': 2}}
+)(state={'foo': 2})
+assert m == True
 ```
 
 
-## <a href="#toc41">Namespace</a>
+## <a href="#toc42">Namespace</a>
 
 - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
 - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
@@ -1020,7 +1051,7 @@ The output demonstrates that we did not even call the value provider functions f
 
 NOTE: Instead of providing a class tree you may also provide a dict of functions as `lookup_provider_dict` argument, see `qualify` examples below.
 
-## <a href="#toc42">Caching</a>
+## <a href="#toc43">Caching</a>
 
 Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
@@ -1029,9 +1060,9 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 - Lookup provider return values: Cached, i.e. called only once, per data set
 - Named condition sets (see below): Cached
 
-## <a href="#toc43">Extensions</a>
+## <a href="#toc44">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#581]
+We deliver a few lookup function [extensions][pycond.py#589]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1060,7 +1091,7 @@ assert f(state={'a': 1}) == True
 
 
 
-# <a href="#toc44">Named Conditions: Qualification</a>
+# <a href="#toc45">Named Conditions: Qualification</a>
 
 Instead of just delivering booleans, pycond can be used to determine a whole set of
 information about data declaratively, like so:  
@@ -1135,7 +1166,7 @@ Running {'thrd': ['k', 'or', ':first'], 'listed': [['foo'], ['c', 'eq', 'foo']],
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
-## <a href="#toc45">Options</a>
+## <a href="#toc46">Options</a>
 
 - into: Put the matched named conditions into the original data
 - prefix: Work from a prefix nested in the root
@@ -1149,7 +1180,9 @@ conds = {0: ['foo'], 1: ['bar'], 2: ['func']}
 
 class F:
     def func(*a, **kw):
-        return True
+        print('aaaa', a)
+        print(kw)
+        return True, 0
 
 q = lambda d, **kw: pc.qualify(
     conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
@@ -1182,7 +1215,7 @@ assert m == {
 m = q({'bar': 1}, add_cached='pl')
 assert m == {0: False, 1: True, 2: True, 'func': True}
 
-# prefix -> bar won't be True, not in pl now:
+# prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
 m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
 assert m == {
     'bar': 1,
@@ -1190,10 +1223,26 @@ assert m == {
     'pl': {'a': 1, 'func': True},
 }
 ```
+Output:
+
+```
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a68e560>}}, 'pyc_cache': {}}
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2d40>}}, 'pyc_cache': {}}
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'add_cached': True, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1, 'pl': {'a': 1}})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a2680>}}, 'pyc_cache': {}}
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'into': 'conds', 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1, 'pl': {'a': 1}})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6a20e0>}}, 'pyc_cache': {}}
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'bar': 1})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3d40>}}, 'pyc_cache': {}}
+aaaa ('func', 0, {'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'prefix': 'pl', 'into': 'conds', 'add_cached': 'pl', 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}}, 'lookup': <function state_get at 0x7efe7cdb0a70>, 'lookup_args': ['key', 'val', 'cfg', 'state', 'kw']}, {'a': 1})
+{'lookup_provider': <class 'tests.test_tutorial.Test1.test_mechanics.<locals>.f20_31.<locals>.F'>, 'prefixed_lookup_funcs': False, 'lookup_provider_dict': {0: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 1: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}, 2: {'func': <function qualify.<locals>.sub_cond at 0x7efe7a6d3680>}}, 'pyc_cache': {}, 'state_root': {'bar': 1, 'pl': {'a': 1}}}
+```
 
 
 
-## <a href="#toc46">Partial Evaluation</a>
+## <a href="#toc47">Partial Evaluation</a>
 
 If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
   
@@ -1238,7 +1287,7 @@ assert called == [{'a': 1}, {'b': 1}]
 This means pycond can be used as a lightweight declarative function dispatching framework.
   
 
-# <a href="#toc47">Streaming Data</a>
+# <a href="#toc48">Streaming Data</a>
 
 Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
@@ -1310,7 +1359,7 @@ assert r == [{'i': 1}, {'i': 2}, {'i': 3}]
 
 -> test setup works.
 
-## <a href="#toc48">Filtering</a>
+## <a href="#toc49">Filtering</a>
 
 This is the most simple operation: A simple stream filter.
   
@@ -1340,7 +1389,7 @@ Output:
 Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}, {'payload': {'i': 5}}, {'payload': {'i': 7}}]
 ```
 
-## <a href="#toc49">Streaming Classification</a>
+## <a href="#toc50">Streaming Classification</a>
 
 Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
   
@@ -1375,7 +1424,7 @@ run(2)
 
 Normally the data has headers, so thats a good place to keep the classification tags.
 
-### <a href="#toc50">Selective Classification</a>
+### <a href="#toc51">Selective Classification</a>
 
 We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
 When it evaluated, possibly requiring evaluation of other conditions, we return:  
@@ -1401,7 +1450,7 @@ assert r == [
 ]
 ```
 
-## <a href="#toc51">Asyncronous Operations</a>
+## <a href="#toc52">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1410,7 +1459,7 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
-### <a href="#toc52">Asyncronous Filter</a>
+### <a href="#toc53">Asyncronous Filter</a>
 
 First a simple filter, which gives up order but does not block:
   
@@ -1442,14 +1491,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.042s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.053s 
-item 7: 0.063s 
-item 8: 0.074s 
-item 9: 0.085s
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.044s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.055s 
+item 7: 0.066s 
+item 8: 0.078s 
+item 9: 0.089s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1565,6 +1614,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/f1f8466680e43ba9dab76bcf3b3f796bb30538d0/pycond.py#L185
-[pycond.py#489]: https://github.com/axiros/pycond/blob/f1f8466680e43ba9dab76bcf3b3f796bb30538d0/pycond.py#L489
-[pycond.py#581]: https://github.com/axiros/pycond/blob/f1f8466680e43ba9dab76bcf3b3f796bb30538d0/pycond.py#L581
+[pycond.py#185]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L185
+[pycond.py#492]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L492
+[pycond.py#589]: https://github.com/axiros/pycond/blob/72bdab57a62468694ffce5d8490e538d588efbb5/pycond.py#L589
