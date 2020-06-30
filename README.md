@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200631
+version: 20200701
 
 ---
 
@@ -1486,11 +1486,11 @@ item 2: 0.011s
 item 3: 0.022s 
 item 4: 0.033s 
 item 5: 0.045s 
-item 1: 0.048s    <----- not in order, blocked
-item 6: 0.055s 
-item 7: 0.066s 
-item 8: 0.078s 
-item 9: 0.089s
+item 1: 0.049s    <----- not in order, blocked
+item 6: 0.056s 
+item 7: 0.068s 
+item 8: 0.079s 
+item 9: 0.091s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1606,6 +1606,6 @@ thread: DummyThread-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/eb03765edb99a8cf327c5d9e8766fa77c7c07d56/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/eb03765edb99a8cf327c5d9e8766fa77c7c07d56/pycond.py#L491
-[pycond.py#590]: https://github.com/axiros/pycond/blob/eb03765edb99a8cf327c5d9e8766fa77c7c07d56/pycond.py#L590
+[pycond.py#185]: https://github.com/axiros/pycond/blob/a37329d9c28acb5e199feec7439b40faca597397/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/a37329d9c28acb5e199feec7439b40faca597397/pycond.py#L491
+[pycond.py#590]: https://github.com/axiros/pycond/blob/a37329d9c28acb5e199feec7439b40faca597397/pycond.py#L590
