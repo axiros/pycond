@@ -25,7 +25,7 @@ git commit --amend -am 'links auto replaced'
 #slt="$slt/%(file)s%(#Lline)s"
 #echo "Setting links..."
 #mdtool set_links src_link_tmpl="github" md_file="README.md"
-git push
+git push || exit 1
 
 clean () {
     rm -rf ./dist
