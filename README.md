@@ -1038,7 +1038,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1004
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1062,7 +1062,7 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 
 ## <a href="#toc44">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#588]
+We deliver a few lookup function [extensions][pycond.py#589]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1482,15 +1482,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.011s 
+item 2: 0.010s 
 item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.044s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.055s 
-item 7: 0.067s 
-item 8: 0.078s 
-item 9: 0.089s
+item 4: 0.031s 
+item 5: 0.041s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.052s 
+item 7: 0.063s 
+item 8: 0.073s 
+item 9: 0.084s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1585,18 +1585,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-10053 odd {'i': 1}
-thread: DummyThread-10055 blocking {'i': 1}
-thread: Thread-10054 odd {'i': 2}
-thread: DummyThread-10057 blocking {'i': 2}
-thread: Thread-10056 odd {'i': 3}
-thread: DummyThread-10059 blocking {'i': 3}
-thread: Thread-10058 odd {'i': 4}
-thread: Thread-10060 odd {'i': 5}
-thread: DummyThread-10062 blocking {'i': 5}
-thread: Thread-10061 odd {'i': 6}
-thread: Thread-10063 odd {'i': 7}
-thread: DummyThread-10065 blocking {'i': 7}
+thread: Thread-10054 odd {'i': 1}
+thread: DummyThread-10056 blocking {'i': 1}
+thread: Thread-10055 odd {'i': 2}
+thread: DummyThread-10058 blocking {'i': 2}
+thread: Thread-10057 odd {'i': 3}
+thread: DummyThread-10060 blocking {'i': 3}
+thread: Thread-10059 odd {'i': 4}
+thread: Thread-10061 odd {'i': 5}
+thread: DummyThread-10063 blocking {'i': 5}
+thread: Thread-10062 odd {'i': 6}
+thread: Thread-10064 odd {'i': 7}
+thread: DummyThread-10066 blocking {'i': 7}
 ```
 
 
@@ -1606,6 +1606,6 @@ thread: DummyThread-10065 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L491
-[pycond.py#588]: https://github.com/axiros/pycond/blob/373bf047e38fcdfd6e9cc3aaf47355c7f477567c/pycond.py#L588
+[pycond.py#185]: https://github.com/axiros/pycond/blob/dde78c61c8efc16eabe7e976f9b1e438c9260b57/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/dde78c61c8efc16eabe7e976f9b1e438c9260b57/pycond.py#L491
+[pycond.py#589]: https://github.com/axiros/pycond/blob/dde78c61c8efc16eabe7e976f9b1e438c9260b57/pycond.py#L589
