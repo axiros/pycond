@@ -543,7 +543,9 @@ def f_from_lookup_provider(key, val, cfg, nfo):
     ):
         if asyn_ and not cache_get(kw, CACHE_KEY_ASYNC):
             cache_set(kw, CACHE_KEY_ASYNC, True)
-            # bubbling up, triggering a re-run in own greenlet:
+            # will trigger the prefix replacement in the async greenlet again:
+            kw.pop('state_root', 0)
+            # Exception bubbling up, triggering a re-run in own greenlet:
             raise Async([kw])
         kv = cache_get(kw, key_, val_)
         if kv:
