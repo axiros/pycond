@@ -889,7 +889,10 @@ def is_named_listed_set_of_conds(cond):
     """
     try:
         for c in cond:
-            if _is(c, list) and c and _is(c[0], (int, bool, float)):
+            # bools are NOT treated as names of named conditions, but as conditions themselves:
+            # cond = [[2, [['i', 'mod', 2], 'or', ':alt']], [3, [['i', 'mod', 3], 'or', ':alt']]]
+            # vs: cond = [True, False]
+            if (_is(c, list) and c and _is(c[0], (int, float))) and not _is(c[0], bool):
                 continue
             if not key_type(c[0]):
                 return

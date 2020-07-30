@@ -1196,6 +1196,22 @@ class Test1:
             ]
 
         """
+        #### Treating of Booleans (Conditions, Not Names)
+
+        For the special case of booleans in a condition list we do not treat them as names.
+        """
+
+        def test_bools_are_no_names():
+            # 2 unnamed conditions
+            qs = pc.qualify([True, False])
+            res = qs({'a': 1})
+            assert res == {0: True, 1: False}
+            # 2 named conds
+            qs = pc.qualify([[1, ['a', 'eq', 1]], [2, ['b', 'eq', 42]]])
+            res = qs({'a': 1})
+            assert res == {1: True, 2: False}
+
+        """
         ## Asyncronous Operations
 
         WARNING: Early Version. Only for the gevent platform.
