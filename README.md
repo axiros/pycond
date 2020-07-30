@@ -1449,10 +1449,10 @@ For the special case of booleans in a condition list we do not treat them as nam
 
 
 ```python
-# 2 unnamed conditions
+# 2 unnamed conditions -> keys will be positional
 qs = pc.qualify([True, False])
 res = qs({'a': 1})
-assert res == {0: True, 1: False}
+assert res == {0: True, 1: False}  # and not {True: False}
 # 2 named conds
 qs = pc.qualify([[1, ['a', 'eq', 1]], [2, ['b', 'eq', 42]]])
 res = qs({'a': 1})
@@ -1499,15 +1499,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
+item 2: 0.011s 
 item 3: 0.021s 
-item 4: 0.031s 
-item 5: 0.042s 
-item 1: 0.048s    <----- not in order, blocked
-item 6: 0.052s 
-item 7: 0.063s 
-item 8: 0.073s 
-item 9: 0.083s
+item 4: 0.032s 
+item 5: 0.043s 
+item 1: 0.049s    <----- not in order, blocked
+item 6: 0.054s 
+item 7: 0.065s 
+item 8: 0.075s 
+item 9: 0.086s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1623,6 +1623,6 @@ thread: DummyThread-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L491
-[pycond.py#590]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L590
+[pycond.py#185]: https://github.com/axiros/pycond/blob/dc30b5b81aca08b2ecd4cc9db61869da6db8e54e/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/dc30b5b81aca08b2ecd4cc9db61869da6db8e54e/pycond.py#L491
+[pycond.py#590]: https://github.com/axiros/pycond/blob/dc30b5b81aca08b2ecd4cc9db61869da6db8e54e/pycond.py#L590
