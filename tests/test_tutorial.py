@@ -1202,10 +1202,10 @@ class Test1:
         """
 
         def test_bools_are_no_names():
-            # 2 unnamed conditions
+            # 2 unnamed conditions -> keys will be positional
             qs = pc.qualify([True, False])
             res = qs({'a': 1})
-            assert res == {0: True, 1: False}
+            assert res == {0: True, 1: False}  # and not {True: False}
             # 2 named conds
             qs = pc.qualify([[1, ['a', 'eq', 1]], [2, ['b', 'eq', 42]]])
             res = qs({'a': 1})
