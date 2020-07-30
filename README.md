@@ -73,8 +73,9 @@ version: 20200730
     - <a name="toc49"></a>[Filtering](#filtering)
     - <a name="toc50"></a>[Streaming Classification](#streaming-classification)
         - <a name="toc51"></a>[Selective Classification](#selective-classification)
-    - <a name="toc52"></a>[Asyncronous Operations](#asyncronous-operations)
-        - <a name="toc53"></a>[Asyncronous Filter](#asyncronous-filter)
+            - <a name="toc52"></a>[Treating of Booleans (Conditions, Not Names)](#treating-of-booleans-conditions-not-names)
+    - <a name="toc53"></a>[Asyncronous Operations](#asyncronous-operations)
+        - <a name="toc54"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -1442,7 +1443,23 @@ assert r == [
 ]
 ```
 
-## <a href="#toc52">Asyncronous Operations</a>
+#### <a href="#toc52">Treating of Booleans (Conditions, Not Names)</a>
+
+For the special case of booleans in a condition list we do not treat them as names.  
+
+
+```python
+# 2 unnamed conditions
+qs = pc.qualify([True, False])
+res = qs({'a': 1})
+assert res == {0: True, 1: False}
+# 2 named conds
+qs = pc.qualify([[1, ['a', 'eq', 1]], [2, ['b', 'eq', 42]]])
+res = qs({'a': 1})
+assert res == {1: True, 2: False}
+```
+
+## <a href="#toc53">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1451,7 +1468,7 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
-### <a href="#toc53">Asyncronous Filter</a>
+### <a href="#toc54">Asyncronous Filter</a>
 
 First a simple filter, which gives up order but does not block:
   
@@ -1482,15 +1499,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.011s 
+item 2: 0.010s 
 item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.043s 
+item 4: 0.031s 
+item 5: 0.042s 
 item 1: 0.048s    <----- not in order, blocked
-item 6: 0.054s 
-item 7: 0.065s 
-item 8: 0.076s 
-item 9: 0.088s
+item 6: 0.052s 
+item 7: 0.063s 
+item 8: 0.073s 
+item 9: 0.083s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1606,6 +1623,6 @@ thread: DummyThread-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/5bf7735f60a182f40447011f1f871e7caf71045b/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/5bf7735f60a182f40447011f1f871e7caf71045b/pycond.py#L491
-[pycond.py#590]: https://github.com/axiros/pycond/blob/5bf7735f60a182f40447011f1f871e7caf71045b/pycond.py#L590
+[pycond.py#185]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L491
+[pycond.py#590]: https://github.com/axiros/pycond/blob/c5e7401dce9f4a175098134598a5d2a88309342c/pycond.py#L590
