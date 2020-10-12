@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20200730
+version: 2020.10.10
 
 ---
 
@@ -1039,7 +1039,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1499,14 +1499,14 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
-item 3: 0.021s 
-item 4: 0.032s 
-item 5: 0.043s 
+item 2: 0.011s 
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.044s 
 item 1: 0.049s    <----- not in order, blocked
 item 6: 0.055s 
 item 7: 0.066s 
-item 8: 0.077s 
+item 8: 0.078s 
 item 9: 0.088s
 ```
 
@@ -1623,6 +1623,6 @@ thread: DummyThread-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/aa8fcb6e8001dfeded3ac20a74a4504a96dd311e/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/aa8fcb6e8001dfeded3ac20a74a4504a96dd311e/pycond.py#L491
-[pycond.py#590]: https://github.com/axiros/pycond/blob/aa8fcb6e8001dfeded3ac20a74a4504a96dd311e/pycond.py#L590
+[pycond.py#185]: https://github.com/axiros/pycond/blob/cfc4306ae6899499d10ea7fead0737f28e58e4b2/pycond.py#L185
+[pycond.py#491]: https://github.com/axiros/pycond/blob/cfc4306ae6899499d10ea7fead0737f28e58e4b2/pycond.py#L491
+[pycond.py#590]: https://github.com/axiros/pycond/blob/cfc4306ae6899499d10ea7fead0737f28e58e4b2/pycond.py#L590
