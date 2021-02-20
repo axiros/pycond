@@ -141,6 +141,8 @@ class Mechanics(T):
 
     def test_custom_lookup(s):
         def my_lu(k, v):
+            # (Pdb) pp k, v
+            # ('len4', '3+1')
             return len(k), eval(v)
 
         for k, b in ('len4', True), ('notlen4', False):
@@ -274,7 +276,7 @@ class TestComparisonOps(T):
 
 
 class Filtering(T):
-    users = """
+    users = '''
     id,first_name,last_name,email,gender,ip_address,nr
     1,Rufe,Morstatt,rmorstatt0@newsvine.com,Male,216.70.69.120,1
     2,Kaela,Kaminski,kkaminski1@opera.com,Female,73.248.145.44,2
@@ -289,7 +291,7 @@ class Filtering(T):
     11,Wrong,Email,foobar,Mail,1.2.3.4,11
     12,OK,Email,foo@bar,Mail,1.2.3.4,12
     13,have space,have also space,foo@bar,Mail,1.2.3.4,13
-    """.strip().splitlines()
+    '''.strip().splitlines()
     # argh.. py3 fails, would not find h w/o that, fuck.
     globals()['h'] = users[0].split(',')
     users = [
@@ -553,6 +555,23 @@ class StructConditions(T):
         assert str(struct_cond1) == before
         # evaled all:
         assert len(have) == 3
+
+    def test_getattr(self):
+        class peer:
+            val = 1
+
+        cond = [['foo.peer.val', 'eq', 1], 'or', ['foo.peer.a.a', 'eq', 'b']]
+
+        c = pc.pycond(cond, deep='.')
+        res = c(state={'foo': {'peer': peer()}})
+        assert res == True
+        p = peer
+        p.val = 2
+        res = c(state={'foo': {'peer': p}})
+        assert res == False
+        p.a = {'a': 'b'}
+        res = c(state={'foo': {'peer': p}})
+        assert res == True  # second condition, after or, now matches
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ import rx.scheduler.eventloop as e
 from threading import Event, current_thread as ct
 
 # _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
-tn = lambda: ct().name
+tn = lambda: ct().name.replace('Thread', '')
 GS = GEventScheduler(gevent)
 # GS = None
 
@@ -61,15 +61,12 @@ class Tests:
         s.subscribe(lambda x: l.append(x))
         while not l:
             time.sleep(0.01)
+        # same thread set in def blocking:
+        t = [l[0]['payload'].pop(b) for b in ['blocking', 'blocking2']]
+        assert t[0] == t[1]
+        assert 'Dummy' in t[0]
         assert l == [
-            {
-                'mod': {'b2': True, 'b1': True, 'root': True},
-                'payload': {
-                    'a': 1,
-                    'blocking': 'DummyThread-1',
-                    'blocking2': 'DummyThread-1',
-                },
-            }
+            {'mod': {'b2': True, 'b1': True, 'root': True}, 'payload': {'a': 1}}
         ]
 
 

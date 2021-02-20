@@ -151,6 +151,24 @@ class Test1:
             assert pc.pycond('b.0.c', deep='.', prefix='payload')(state=m) == True
 
         """
+        ## Attributes Access
+
+        Since version 20210221 we try attributes when objects are not dicts:
+
+        """
+
+        def f_22():
+            class MyObj:
+                val = {'a': 'b'}
+
+            m = {'payload': {'obj': MyObj()}}
+            cond = [['obj.val.a', 'eq', 'b']]
+            assert pc.pycond(cond, deep='.', prefix='payload')(state=m) == True
+
+        """
+        Perf Tip: When you have deep nested class or object hirarchies, then a custom lookup
+        function will be faster than pycond's default lookup, which splits the key into parts,
+        then works its way in via getitem, getattr, from root.
 
         ## Custom Lookup And Value Passing
 

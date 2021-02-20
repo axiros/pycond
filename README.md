@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20201010
+version: 20210221
 
 ---
 
@@ -34,48 +34,49 @@ version: 20201010
     - <a name="toc10"></a>[Passing State](#passing-state)
         - <a name="toc11"></a>[Deep Lookup / Nested State / Lists](#deep-lookup-nested-state-lists)
     - <a name="toc12"></a>[Prefixed Data](#prefixed-data)
-    - <a name="toc13"></a>[Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
-    - <a name="toc14"></a>[Lazy Evaluation](#lazy-evaluation)
-- <a name="toc15"></a>[Details](#details)
-    - <a name="toc16"></a>[Debugging Lookups](#debugging-lookups)
-    - <a name="toc17"></a>[Enabling/Disabling of Branches](#enabling-disabling-of-branches)
-    - <a name="toc18"></a>[Building Conditions From Text](#building-conditions-from-text)
-        - <a name="toc19"></a>[Grammar](#grammar)
-        - <a name="toc20"></a>[Atomic Conditions](#atomic-conditions)
-    - <a name="toc21"></a>[Condition Operators](#condition-operators)
-        - <a name="toc22"></a>[Using Symbolic Operators](#using-symbolic-operators)
-        - <a name="toc23"></a>[Extending Condition Operators](#extending-condition-operators)
-        - <a name="toc24"></a>[Negation `not`](#negation-not)
-        - <a name="toc25"></a>[Reversal `rev`](#reversal-rev)
-        - <a name="toc26"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
-            - <a name="toc27"></a>[Global Wrapping](#global-wrapping)
-            - <a name="toc28"></a>[Condition Local Wrapping](#condition-local-wrapping)
-    - <a name="toc29"></a>[Combining Operations](#combining-operations)
-        - <a name="toc30"></a>[Nesting](#nesting)
-    - <a name="toc31"></a>[Tokenizing Details](#tokenizing-details)
-        - <a name="toc32"></a>[Functioning](#functioning)
-        - <a name="toc33"></a>[Separator `sep`](#separator-sep)
-        - <a name="toc34"></a>[Apostrophes](#apostrophes)
-        - <a name="toc35"></a>[Escaping](#escaping)
-        - <a name="toc36"></a>[Building](#building)
-        - <a name="toc37"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
-    - <a name="toc38"></a>[Context On Demand](#context-on-demand)
-- <a name="toc39"></a>[Lookup Providers](#lookup-providers)
-    - <a name="toc40"></a>[Accepted Signatures](#accepted-signatures)
-    - <a name="toc41"></a>[Parametrized Lookup Functions](#parametrized-lookup-functions)
-    - <a name="toc42"></a>[Namespace](#namespace)
-    - <a name="toc43"></a>[Caching](#caching)
-    - <a name="toc44"></a>[Extensions](#extensions)
-- <a name="toc45"></a>[Named Conditions: Qualification](#named-conditions-qualification)
-    - <a name="toc46"></a>[Options](#options)
-    - <a name="toc47"></a>[Partial Evaluation](#partial-evaluation)
-- <a name="toc48"></a>[Streaming Data](#streaming-data)
-    - <a name="toc49"></a>[Filtering](#filtering)
-    - <a name="toc50"></a>[Streaming Classification](#streaming-classification)
-        - <a name="toc51"></a>[Selective Classification](#selective-classification)
-            - <a name="toc52"></a>[Treating of Booleans (Conditions, Not Names)](#treating-of-booleans-conditions-not-names)
-    - <a name="toc53"></a>[Asyncronous Operations](#asyncronous-operations)
-        - <a name="toc54"></a>[Asyncronous Filter](#asyncronous-filter)
+    - <a name="toc13"></a>[Attributes Access](#attributes-access)
+    - <a name="toc14"></a>[Custom Lookup And Value Passing](#custom-lookup-and-value-passing)
+    - <a name="toc15"></a>[Lazy Evaluation](#lazy-evaluation)
+- <a name="toc16"></a>[Details](#details)
+    - <a name="toc17"></a>[Debugging Lookups](#debugging-lookups)
+    - <a name="toc18"></a>[Enabling/Disabling of Branches](#enabling-disabling-of-branches)
+    - <a name="toc19"></a>[Building Conditions From Text](#building-conditions-from-text)
+        - <a name="toc20"></a>[Grammar](#grammar)
+        - <a name="toc21"></a>[Atomic Conditions](#atomic-conditions)
+    - <a name="toc22"></a>[Condition Operators](#condition-operators)
+        - <a name="toc23"></a>[Using Symbolic Operators](#using-symbolic-operators)
+        - <a name="toc24"></a>[Extending Condition Operators](#extending-condition-operators)
+        - <a name="toc25"></a>[Negation `not`](#negation-not)
+        - <a name="toc26"></a>[Reversal `rev`](#reversal-rev)
+        - <a name="toc27"></a>[Wrapping Condition Operators](#wrapping-condition-operators)
+            - <a name="toc28"></a>[Global Wrapping](#global-wrapping)
+            - <a name="toc29"></a>[Condition Local Wrapping](#condition-local-wrapping)
+    - <a name="toc30"></a>[Combining Operations](#combining-operations)
+        - <a name="toc31"></a>[Nesting](#nesting)
+    - <a name="toc32"></a>[Tokenizing Details](#tokenizing-details)
+        - <a name="toc33"></a>[Functioning](#functioning)
+        - <a name="toc34"></a>[Separator `sep`](#separator-sep)
+        - <a name="toc35"></a>[Apostrophes](#apostrophes)
+        - <a name="toc36"></a>[Escaping](#escaping)
+        - <a name="toc37"></a>[Building](#building)
+        - <a name="toc38"></a>[Autoconv: Casting of values into python simple types](#autoconv-casting-of-values-into-python-simple-types)
+    - <a name="toc39"></a>[Context On Demand](#context-on-demand)
+- <a name="toc40"></a>[Lookup Providers](#lookup-providers)
+    - <a name="toc41"></a>[Accepted Signatures](#accepted-signatures)
+    - <a name="toc42"></a>[Parametrized Lookup Functions](#parametrized-lookup-functions)
+    - <a name="toc43"></a>[Namespace](#namespace)
+    - <a name="toc44"></a>[Caching](#caching)
+    - <a name="toc45"></a>[Extensions](#extensions)
+- <a name="toc46"></a>[Named Conditions: Qualification](#named-conditions-qualification)
+    - <a name="toc47"></a>[Options](#options)
+    - <a name="toc48"></a>[Partial Evaluation](#partial-evaluation)
+- <a name="toc49"></a>[Streaming Data](#streaming-data)
+    - <a name="toc50"></a>[Filtering](#filtering)
+    - <a name="toc51"></a>[Streaming Classification](#streaming-classification)
+        - <a name="toc52"></a>[Selective Classification](#selective-classification)
+            - <a name="toc53"></a>[Treating of Booleans (Conditions, Not Names)](#treating-of-booleans-conditions-not-names)
+    - <a name="toc54"></a>[Asyncronous Operations](#asyncronous-operations)
+        - <a name="toc55"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -285,8 +286,26 @@ m = {'payload': {'b': [{'c': 1}], 'id': 123}}
 assert pc.pycond('b.0.c', deep='.', prefix='payload')(state=m) == True
 ```
 
+## <a href="#toc13">Attributes Access</a>
 
-## <a href="#toc13">Custom Lookup And Value Passing</a>
+Since version 20210221 we try attributes when objects are not dicts:
+  
+
+
+```python
+class MyObj:
+    val = {'a': 'b'}
+
+m = {'payload': {'obj': MyObj()}}
+cond = [['obj.val.a', 'eq', 'b']]
+assert pc.pycond(cond, deep='.', prefix='payload')(state=m) == True
+```
+
+Perf Tip: When you have deep nested class or object hirarchies, then a custom lookup
+function will be faster than pycond's default lookup, which splits the key into parts,
+then works its way in via getitem, getattr, from root.
+
+## <a href="#toc14">Custom Lookup And Value Passing</a>
 
 You can supply your own function for value acquisition.
 
@@ -317,9 +336,9 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 ```
 
 > as you can see in the example, the state parameter is just a convention
-for `pyconds'` [default lookup function][pycond.py#185].
+for `pyconds'` [default lookup function][pycond.py#182].
 
-## <a href="#toc14">Lazy Evaluation</a>
+## <a href="#toc15">Lazy Evaluation</a>
 
 This is avoiding unnecessary calculations in many cases:
 
@@ -364,9 +383,9 @@ Output:
 
 Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
 
-# <a href="#toc15">Details</a>
+# <a href="#toc16">Details</a>
 
-## <a href="#toc16">Debugging Lookups</a>
+## <a href="#toc17">Debugging Lookups</a>
 
 pycond provides a key getter which prints out every lookup.  
 
@@ -382,7 +401,7 @@ Lookup: a b -> None
 Lookup: foo bar -> bar
 ```
 
-## <a href="#toc17">Enabling/Disabling of Branches</a>
+## <a href="#toc18">Enabling/Disabling of Branches</a>
 
 Insert booleans like shown:  
 
@@ -394,7 +413,7 @@ f = pc.pycond(['foo', 'and', [True, 'or', ['bar', 'eq', 1]]])
 assert f(state={'foo': 1}) == True
 ```
 
-## <a href="#toc18">Building Conditions From Text</a>
+## <a href="#toc19">Building Conditions From Text</a>
 
 Condition functions are created internally from structured expressions -
 but those are [hard to type](#lazy-dynamic-context-assembly),
@@ -403,7 +422,7 @@ involving many apostropies.
 The text based condition syntax is intended for situations when end users
 type them into text boxes directly.
 
-### <a href="#toc19">Grammar</a>
+### <a href="#toc20">Grammar</a>
 
 Combine atomic conditions with boolean operators and nesting brackets like:
 
@@ -411,7 +430,7 @@ Combine atomic conditions with boolean operators and nesting brackets like:
 [  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
 ```
 
-### <a href="#toc20">Atomic Conditions</a>
+### <a href="#toc21">Atomic Conditions</a>
 
 ```
 [not] <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
@@ -448,7 +467,7 @@ assert pc.pycond('x and not foo')(state=m) == True
 assert pc.pycond('y and not falsy_val')(state=m) == False
 ```
 
-## <a href="#toc21">Condition Operators</a>
+## <a href="#toc22">Condition Operators</a>
 
 All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
 are available by default:
@@ -526,7 +545,7 @@ for k in 'nr', 'str':
 
 
 
-### <a href="#toc22">Using Symbolic Operators</a>
+### <a href="#toc23">Using Symbolic Operators</a>
 
 By default pycond uses text style operators.
 
@@ -553,7 +572,7 @@ except:
 
 > Operator namespace(s) should be assigned at process start, they are global.
 
-### <a href="#toc23">Extending Condition Operators</a>
+### <a href="#toc24">Extending Condition Operators</a>
   
 
 
@@ -564,7 +583,7 @@ assert pc.pycond('a maybe b')() in (True, False)
 ```
 
 
-### <a href="#toc24">Negation `not`</a>
+### <a href="#toc25">Negation `not`</a>
 
 Negates the result of the condition operator:
   
@@ -577,7 +596,7 @@ assert pc.pycond('foo not eq abc')() == False
 ```
 
 
-### <a href="#toc25">Reversal `rev`</a>
+### <a href="#toc26">Reversal `rev`</a>
 
 Reverses the arguments before calling the operator  
 
@@ -591,9 +610,9 @@ assert pc.pycond('foo rev contains abc')() == True
 
 > `rev` and `not` can be combined in any order.
 
-### <a href="#toc26">Wrapping Condition Operators</a>
+### <a href="#toc27">Wrapping Condition Operators</a>
 
-#### <a href="#toc27">Global Wrapping</a>
+#### <a href="#toc28">Global Wrapping</a>
 You may globally wrap all evaluation time condition operations through a custom function:
   
 
@@ -619,7 +638,7 @@ pc.ops_use_symbolic_and_txt()
 
 You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-#### <a href="#toc28">Condition Local Wrapping</a>
+#### <a href="#toc29">Condition Local Wrapping</a>
 
 This is done through the `ops_thru` parameter as shown:
   
@@ -640,7 +659,7 @@ assert f() == True
 > Using `ops_thru` is a good way to debug unexpected results, since you
 > can add breakpoints or loggers there.
 
-## <a href="#toc29">Combining Operations</a>
+## <a href="#toc30">Combining Operations</a>
 
 You can combine single conditions with
 
@@ -654,21 +673,21 @@ The combining functions are stored in `pycond.COMB_OPS` dict and may be extended
 
 > Do not use spaces for the names of combining operators. The user may use them but they are replaced at before tokenizing time, like `and not` -> `and_not`.
 
-### <a href="#toc30">Nesting</a>
+### <a href="#toc31">Nesting</a>
 
 Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
 > Via the `brkts` config parameter you may change those to other separators at build time.
 
-## <a href="#toc31">Tokenizing Details</a>
+## <a href="#toc32">Tokenizing Details</a>
 
 > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
-### <a href="#toc32">Functioning</a>
+### <a href="#toc33">Functioning</a>
 
 The tokenizers job is to take apart expression strings for the builder.
 
-### <a href="#toc33">Separator `sep`</a>
+### <a href="#toc34">Separator `sep`</a>
 
 Separates the different parts of an expression. Default is ' '.
   
@@ -695,7 +714,7 @@ assert (
 > The condition functions themselves do not evaluate equal - those
 > had been assembled two times.
 
-### <a href="#toc34">Apostrophes</a>
+### <a href="#toc35">Apostrophes</a>
 
 By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
   
@@ -707,7 +726,7 @@ assert pc.pycond('a eq "Hello World"')() == True
 ```
 
 
-### <a href="#toc35">Escaping</a>
+### <a href="#toc36">Escaping</a>
 
 Tell the tokenizer to not interpret the next character:
   
@@ -719,9 +738,9 @@ assert pc.pycond('b eq Hello\ World')() == True
 ```
 
 
-### <a href="#toc36">Building</a>
+### <a href="#toc37">Building</a>
 
-### <a href="#toc37">Autoconv: Casting of values into python simple types</a>
+### <a href="#toc38">Autoconv: Casting of values into python simple types</a>
 
 Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
 
@@ -751,7 +770,7 @@ for id in '1', 1:
 ```
 
 
-## <a href="#toc38">Context On Demand</a>
+## <a href="#toc39">Context On Demand</a>
 
 Often the conditions are in user space, applied on data streams under
 the developer's control only at development time.
@@ -860,11 +879,11 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2007
+Calc.Time (delta_q was called twice): 0.2006
 ```
 
 
-# <a href="#toc39">Lookup Providers</a>
+# <a href="#toc40">Lookup Providers</a>
 
 ContextBuilders are interesting but we can do better.
 
@@ -874,9 +893,9 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-Pycond [treats the condition keys as function names][pycond.py#491] within that namespace and calls them, when needed.
+Pycond [treats the condition keys as function names][pycond.py#498] within that namespace and calls them, when needed.
 
-## <a href="#toc40">Accepted Signatures</a>
+## <a href="#toc41">Accepted Signatures</a>
 
 Lookup provider functions may have the following signatures:
   
@@ -928,7 +947,7 @@ f = pc.pycond(
 assert f(state={'a': 42, 'b': 43, 'c': 100, 'd': 'foo'}) == True
 ```
 
-## <a href="#toc41">Parametrized Lookup Functions</a>
+## <a href="#toc42">Parametrized Lookup Functions</a>
 
 Via the 'params' parameter you may supply keyword args to lookup functions:  
 
@@ -945,7 +964,7 @@ assert m == True
 ```
 
 
-## <a href="#toc42">Namespace</a>
+## <a href="#toc43">Namespace</a>
 
 - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
 - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
@@ -1039,7 +1058,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1052,7 +1071,7 @@ The output demonstrates that we did not even call the value provider functions f
 
 NOTE: Instead of providing a class tree you may also provide a dict of functions as `lookup_provider_dict` argument, see `qualify` examples below.
 
-## <a href="#toc43">Caching</a>
+## <a href="#toc44">Caching</a>
 
 Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
@@ -1061,9 +1080,9 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 - Lookup provider return values: Cached, i.e. called only once, per data set
 - Named condition sets (see below): Cached
 
-## <a href="#toc44">Extensions</a>
+## <a href="#toc45">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#590]
+We deliver a few lookup function [extensions][pycond.py#597]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1092,7 +1111,7 @@ assert f(state={'a': 1}) == True
 
 
 
-# <a href="#toc45">Named Conditions: Qualification</a>
+# <a href="#toc46">Named Conditions: Qualification</a>
 
 Instead of just delivering booleans, pycond can be used to determine a whole set of
 information about data declaratively, like so:  
@@ -1167,7 +1186,7 @@ Running {'thrd': ['k', 'or', ':first'], 'listed': [['foo'], ['c', 'eq', 'foo']],
 
 WARNING: For performance reasons there is no built in circular reference check. You'll run into python's built in recursion checker!
 
-## <a href="#toc46">Options</a>
+## <a href="#toc47">Options</a>
 
 - into: Put the matched named conditions into the original data
 - prefix: Work from a prefix nested in the root
@@ -1235,7 +1254,7 @@ assert m == {
 
 
 
-## <a href="#toc47">Partial Evaluation</a>
+## <a href="#toc48">Partial Evaluation</a>
 
 If you either supply a key called 'root' OR supply it as argument to `qualify`, pycond will only evaluate named conditions required to calculate the root key:
   
@@ -1280,7 +1299,7 @@ assert called == [{'a': 1}, {'b': 1}]
 This means pycond can be used as a lightweight declarative function dispatching framework.
   
 
-# <a href="#toc48">Streaming Data</a>
+# <a href="#toc49">Streaming Data</a>
 
 Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
@@ -1352,7 +1371,7 @@ assert r == [{'i': 1}, {'i': 2}, {'i': 3}]
 
 -> test setup works.
 
-## <a href="#toc49">Filtering</a>
+## <a href="#toc50">Filtering</a>
 
 This is the most simple operation: A simple stream filter.
   
@@ -1382,7 +1401,7 @@ Output:
 Full messages passed: [{'payload': {'i': 1}}, {'payload': {'i': 3}}, {'payload': {'i': 5}}, {'payload': {'i': 7}}]
 ```
 
-## <a href="#toc50">Streaming Classification</a>
+## <a href="#toc51">Streaming Classification</a>
 
 Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
   
@@ -1417,7 +1436,7 @@ run(2)
 
 Normally the data has headers, so thats a good place to keep the classification tags.
 
-### <a href="#toc51">Selective Classification</a>
+### <a href="#toc52">Selective Classification</a>
 
 We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
 When it evaluated, possibly requiring evaluation of other conditions, we return:  
@@ -1443,7 +1462,7 @@ assert r == [
 ]
 ```
 
-#### <a href="#toc52">Treating of Booleans (Conditions, Not Names)</a>
+#### <a href="#toc53">Treating of Booleans (Conditions, Not Names)</a>
 
 For the special case of booleans in a condition list we do not treat them as names.  
 
@@ -1459,7 +1478,7 @@ res = qs({'a': 1})
 assert res == {1: True, 2: False}
 ```
 
-## <a href="#toc53">Asyncronous Operations</a>
+## <a href="#toc54">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1468,7 +1487,7 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
 
-### <a href="#toc54">Asyncronous Filter</a>
+### <a href="#toc55">Asyncronous Filter</a>
 
 First a simple filter, which gives up order but does not block:
   
@@ -1499,15 +1518,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.011s 
-item 3: 0.023s 
-item 4: 0.034s 
-item 5: 0.044s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.056s 
-item 7: 0.067s 
-item 8: 0.079s 
-item 9: 0.090s
+item 2: 0.010s 
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.043s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.054s 
+item 7: 0.065s 
+item 8: 0.077s 
+item 9: 0.088s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1603,17 +1622,17 @@ Output:
 
 ```
 thread: Thread-10054 odd {'i': 1}
-thread: DummyThread-10056 blocking {'i': 1}
+thread: Dummy-10056 blocking {'i': 1}
 thread: Thread-10055 odd {'i': 2}
-thread: DummyThread-10058 blocking {'i': 2}
+thread: Dummy-10058 blocking {'i': 2}
 thread: Thread-10057 odd {'i': 3}
-thread: DummyThread-10060 blocking {'i': 3}
+thread: Dummy-10060 blocking {'i': 3}
 thread: Thread-10059 odd {'i': 4}
 thread: Thread-10061 odd {'i': 5}
-thread: DummyThread-10063 blocking {'i': 5}
+thread: Dummy-10063 blocking {'i': 5}
 thread: Thread-10062 odd {'i': 6}
 thread: Thread-10064 odd {'i': 7}
-thread: DummyThread-10066 blocking {'i': 7}
+thread: Dummy-10066 blocking {'i': 7}
 ```
 
 
@@ -1623,6 +1642,6 @@ thread: DummyThread-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#185]: https://github.com/axiros/pycond/blob/2565b44fb2674a249ed22db922ebd9abf549ebd9/pycond.py#L185
-[pycond.py#491]: https://github.com/axiros/pycond/blob/2565b44fb2674a249ed22db922ebd9abf549ebd9/pycond.py#L491
-[pycond.py#590]: https://github.com/axiros/pycond/blob/2565b44fb2674a249ed22db922ebd9abf549ebd9/pycond.py#L590
+[pycond.py#182]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L182
+[pycond.py#498]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L498
+[pycond.py#597]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L597

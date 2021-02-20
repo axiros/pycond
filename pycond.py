@@ -174,9 +174,6 @@ ops_use_txt()
 OPS_HK_APPLIED = False
 
 
-# if val in these we deliver False:
-FALSES = (None, False, '', 0, {}, [], ())
-
 # default lookup of keys here - no, module does NOT need to have state.
 # its a convenience thing, see tests:
 # Discurraged to be used in non-cooperative async situations, since clearly not thread safe - just pass the state into pycond:
@@ -189,6 +186,7 @@ def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
     """
     # FIXME: why split at runtime?
     # key maybe already path tuple - or string with deep as seperator:
+    # Also the try to get list items when part is int can be checked at build time!
     parts = key.split(deep) if _is(key, str) else list(key)
     while parts:
         part = parts.pop(0)
@@ -196,9 +194,12 @@ def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
             state = state.get(part)
         except AttributeError as ex:
             try:
-                state = state[int(part)]
-            except:
-                return None, val
+                i = int(part)
+                state = state[i]
+            except ValueError as ex:  # i no list index, we try attrs:
+                state = getattr(state, part, None)
+            except IndexError as ex:
+                state = None
         if not state:
             break
     return state, val
@@ -210,6 +211,12 @@ def state_get(key, val, cfg, state=State, **kw):
         return state_get_deep(key, val, cfg, state, **kw)
     else:
         return state.get(key), val  # default k, v access function
+
+
+# if val in these we deliver False:
+# FIXME: wtf? was this intended a feature, to allow modifications of python's default?
+# but y then immutable?
+FALSES = (None, False, '', 0, {}, [], ())
 
 
 def dbg_get(key, val, cfg, state=State, *a, **kw):
