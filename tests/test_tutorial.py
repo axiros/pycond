@@ -79,6 +79,8 @@ class Test1:
             assert meta['keys'] == ['foo']
             assert f(state={'foo': 'bar'}) == True
 
+        f1()
+
         """
 
         Note that the `make_filter` function is actually a convencience function for
