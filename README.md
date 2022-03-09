@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20220309
+version: 20220310
 
 ---
 
@@ -212,6 +212,7 @@ f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 assert f(state={'foo': 'bar'}) == True
 ```
+
 
 
 Note that the `make_filter` function is actually a convencience function for
@@ -902,7 +903,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.201
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
@@ -1081,7 +1082,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1006
+Calc.Time (delta_q was called just once): 0.1004
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1542,14 +1543,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.022s 
+item 3: 0.023s 
 item 4: 0.033s 
 item 5: 0.044s 
 item 1: 0.048s    <----- not in order, blocked
-item 6: 0.054s 
-item 7: 0.066s 
-item 8: 0.077s 
-item 9: 0.088s
+item 6: 0.055s 
+item 7: 0.065s 
+item 8: 0.076s 
+item 9: 0.087s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1665,6 +1666,6 @@ thread: Dummy-66 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#182]: https://github.com/axiros/pycond/blob/e600c61f208c101580557a287ae5f2363ad4ac49/pycond.py#L182
-[pycond.py#498]: https://github.com/axiros/pycond/blob/e600c61f208c101580557a287ae5f2363ad4ac49/pycond.py#L498
-[pycond.py#597]: https://github.com/axiros/pycond/blob/e600c61f208c101580557a287ae5f2363ad4ac49/pycond.py#L597
+[pycond.py#182]: https://github.com/axiros/pycond/blob/8c17caf09b55846f882341a04c4fef788ad893fc/pycond.py#L182
+[pycond.py#498]: https://github.com/axiros/pycond/blob/8c17caf09b55846f882341a04c4fef788ad893fc/pycond.py#L498
+[pycond.py#597]: https://github.com/axiros/pycond/blob/8c17caf09b55846f882341a04c4fef788ad893fc/pycond.py#L597
