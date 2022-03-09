@@ -51,7 +51,7 @@ class Test1:
 
             expr = '[a eq b and [c lt 42 or foo eq bar]]'
             cond = pc.to_struct(pc.tokenize(expr, sep=' ', brkts='[]'))
-            print(cond)
+            print('filter:', cond)
 
             # test:
             data = [
@@ -67,9 +67,10 @@ class Test1:
         """
 
         ## Building
-        After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
-        The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
-        available:
+
+        After parsing the builder is assembling a nested set of operator functions,
+        combined via combining operators. The functions are partials, i.e. not yet
+        evaluated but information about the necessary keys is already available:
 
         """
 
@@ -78,10 +79,17 @@ class Test1:
             assert meta['keys'] == ['foo']
 
         """
+
+        Note that the `make_filter` function is actually a convencience function for
+        `parse_cond`, ignoring that meta information and calling with
+        `state=<filter val>`
+
+
         ## Structured Conditions
 
-        Other processes may deliver condition structures via serializable formats (e.g. json).
-        If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+        Other processes may deliver condition structures via serializable formats (e.g.
+        json). If you pass such already tokenized constructs to the `pycond` function,
+        then the tokenizer is bypassed:
 
         """
 
@@ -93,6 +101,8 @@ class Test1:
             assert pc.pycond(cond_as_json)(state={'a': 'b'}) == True
 
         """
+
+        
         # Evaluation
 
         The result of the builder is a 'pycondition', which can be run many times against varying state of the system.
