@@ -2,26 +2,25 @@
 Creates The Tutorial Using pytest2md
 """
 
+import json
+import os
+import sys
+import time
+from functools import partial
+from threading import current_thread as cur_thread
+from uuid import uuid4
+
 # we use gevent
 import gevent
-
+import pycond as pc  # the tested module:
+import pytest
+import pytest2md as p2m  # this is our markdown tutorial generation tool
 from gevent import monkey
 
 try:
     monkey.patch_all()
 except Exception as ex:
     os.environ['P2MSKIP'] = 'rx_async'
-
-import pytest, json, os, time
-import pytest2md as p2m  # this is our markdown tutorial generation tool
-import pycond as pc  # the tested module:
-
-from functools import partial
-from uuid import uuid4
-import time
-import json
-import sys
-from threading import current_thread as cur_thread
 
 
 # py2.7 compat:
@@ -41,6 +40,7 @@ class Test1:
     def test_mechanics(self):
         """
         ## Parsing
+
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
         The result of the tokenizer is given to the builder.
 
@@ -49,12 +49,21 @@ class Test1:
         def f0():
             import pycond as pc
 
-            cond = '[a eq b and [c lt 42 or foo eq bar]]'
-            cond = pc.to_struct(pc.tokenize(cond, sep=' ', brkts='[]'))
+            expr = '[a eq b and [c lt 42 or foo eq bar]]'
+            cond = pc.to_struct(pc.tokenize(expr, sep=' ', brkts='[]'))
             print(cond)
-            return cond
 
-        assert isinstance(f0(), list) and isinstance(f0()[0], list)
+            # test:
+            data = [
+                {'a': 'b', 'c': 1, 'foo': 42},
+                {'a': 'not b', 'c': 1},
+            ]
+            filtered = list(filter(pc.make_filter(expr), data))
+            print('matching:', filtered)
+            return cond, len(filtered)
+
+        l, ln = f0()
+        assert ln == 1 and isinstance(l, list) and isinstance(l[0], list)
         """
 
         ## Building

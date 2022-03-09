@@ -642,6 +642,11 @@ def deserialize_str(cond, check_dict=False, **cfg):
     return to_struct(cond, cfg['brkts']), cfg
 
 
+def make_filter(cond, lookup=state_get, **cfg):
+    """convenience function for filters"""
+    return lambda state, f=parse_cond(cond, lookup=lookup, **cfg)[0]: f(state=state)
+
+
 def parse_cond(cond, lookup=state_get, **cfg):
     """ Main function.
         see tests

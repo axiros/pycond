@@ -97,23 +97,25 @@ id,first_name,last_name,email,gender,ip_address
 You can do it imperatively:
 
 ```python
-foo_users = [ u for u in users
-              if ([u['gender'] == 'Male' or u['last_name'] == 'Scott') and
-                  '@' in u['email']) ]
+foo_users = [
+    u
+    for u in users
+    if (u['gender'] == 'Male' or u['last_name'] == 'Scott') and '@' in u['email']
+]
 ```
 
 or you have this module assemble a condition function from a declaration like:
 
 ```python
-from pycond import parse_cond
+from pycond import make_filter
 cond = 'email contains .de and gender eq Male or last_name eq Scott'
-is_foo = parse_cond(cond)[0]
+is_foo = make_filter(cond) # the built filter function is first
 ```
 
 and then apply as often as you need, against varying state / facts / models (...):
 
 ```
-foo_users = [ u for u in users if is_foo(state=u) ]
+foo_users = filter(is_foo, users)
 ```
 
 with roughly the same performance (factor 2-3) than the handcrafted python.
@@ -167,6 +169,7 @@ compared with handcrafted list comprehensions.
 <!-- autogen tutorial -->
 
 ## <a href="#toc5">Parsing</a>
+
 pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
 The result of the tokenizer is given to the builder.
   
@@ -175,15 +178,24 @@ The result of the tokenizer is given to the builder.
 ```python
 import pycond as pc
 
-cond = '[a eq b and [c lt 42 or foo eq bar]]'
-cond = pc.to_struct(pc.tokenize(cond, sep=' ', brkts='[]'))
+expr = '[a eq b and [c lt 42 or foo eq bar]]'
+cond = pc.to_struct(pc.tokenize(expr, sep=' ', brkts='[]'))
 print(cond)
-return cond
+
+# test:
+data = [
+    {'a': 'b', 'c': 1, 'foo': 42},
+    {'a': 'not b', 'c': 1},
+]
+filtered = list(filter(pc.make_filter(expr), data))
+print('matching:', filtered)
+return cond, len(filtered)
 ```
 Output:
 
 ```
 [['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
+matching: [{'a': 'b', 'c': 1, 'foo': 42}]
 ```
 
 
@@ -879,7 +891,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2006
+Calc.Time (delta_q was called twice): 0.2005
 ```
 
 
@@ -1518,15 +1530,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
+item 2: 0.011s 
 item 3: 0.022s 
 item 4: 0.033s 
 item 5: 0.043s 
-item 1: 0.048s    <----- not in order, blocked
-item 6: 0.054s 
-item 7: 0.065s 
-item 8: 0.077s 
-item 9: 0.088s
+item 1: 0.049s    <----- not in order, blocked
+item 6: 0.053s 
+item 7: 0.064s 
+item 8: 0.074s 
+item 9: 0.085s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1621,18 +1633,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-10054 odd {'i': 1}
-thread: Dummy-10056 blocking {'i': 1}
-thread: Thread-10055 odd {'i': 2}
-thread: Dummy-10058 blocking {'i': 2}
-thread: Thread-10057 odd {'i': 3}
-thread: Dummy-10060 blocking {'i': 3}
-thread: Thread-10059 odd {'i': 4}
-thread: Thread-10061 odd {'i': 5}
-thread: Dummy-10063 blocking {'i': 5}
-thread: Thread-10062 odd {'i': 6}
-thread: Thread-10064 odd {'i': 7}
-thread: Dummy-10066 blocking {'i': 7}
+thread: Thread-54 odd {'i': 1}
+thread: Dummy-56 blocking {'i': 1}
+thread: Thread-55 odd {'i': 2}
+thread: Dummy-58 blocking {'i': 2}
+thread: Thread-57 odd {'i': 3}
+thread: Dummy-60 blocking {'i': 3}
+thread: Thread-59 odd {'i': 4}
+thread: Thread-61 odd {'i': 5}
+thread: Dummy-63 blocking {'i': 5}
+thread: Thread-62 odd {'i': 6}
+thread: Thread-64 odd {'i': 7}
+thread: Dummy-66 blocking {'i': 7}
 ```
 
 
@@ -1642,6 +1654,6 @@ thread: Dummy-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#182]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L182
-[pycond.py#498]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L498
-[pycond.py#597]: https://github.com/axiros/pycond/blob/64ac827197504c5262b1272cb7b7fbbd2d510c74/pycond.py#L597
+[pycond.py#182]: https://github.com/axiros/pycond/blob/b16047f371ab639f1e5c88f814861ea6049f8bf9/pycond.py#L182
+[pycond.py#498]: https://github.com/axiros/pycond/blob/b16047f371ab639f1e5c88f814861ea6049f8bf9/pycond.py#L498
+[pycond.py#597]: https://github.com/axiros/pycond/blob/b16047f371ab639f1e5c88f814861ea6049f8bf9/pycond.py#L597
