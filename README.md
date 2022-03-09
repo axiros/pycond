@@ -180,7 +180,7 @@ import pycond as pc
 
 expr = '[a eq b and [c lt 42 or foo eq bar]]'
 cond = pc.to_struct(pc.tokenize(expr, sep=' ', brkts='[]'))
-print(cond)
+print('filter:', cond)
 
 # test:
 data = [
@@ -194,15 +194,16 @@ return cond, len(filtered)
 Output:
 
 ```
-[['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
+filter: [['a', 'eq', 'b', 'and', ['c', 'lt', '42', 'or', 'foo', 'eq', 'bar']]]
 matching: [{'a': 'b', 'c': 1, 'foo': 42}]
 ```
 
 
 ## <a href="#toc6">Building</a>
-After parsing the builder is assembling a nested set of operator functions, combined via combining operators.
-The functions are partials, i.e. not yet evaluated but information about the necessary keys is already
-available:
+
+After parsing the builder is assembling a nested set of operator functions,
+combined via combining operators. The functions are partials, i.e. not yet
+evaluated but information about the necessary keys is already available:
   
 
 
@@ -211,10 +212,17 @@ f, meta = pc.parse_cond('foo eq bar')
 assert meta['keys'] == ['foo']
 ```
 
+
+Note that the `make_filter` function is actually a convencience function for
+`parse_cond`, ignoring that meta information and calling with
+`state=<filter val>`
+
+
 ## <a href="#toc7">Structured Conditions</a>
 
-Other processes may deliver condition structures via serializable formats (e.g. json).
-If you hand such already tokenized constructs to pycond, then the tokenizer is bypassed:
+Other processes may deliver condition structures via serializable formats (e.g.
+json). If you pass such already tokenized constructs to the `pycond` function,
+then the tokenizer is bypassed:
   
 
 
@@ -225,6 +233,8 @@ assert pc.pycond(cond)(state={'a': 'b'}) == True
 cond_as_json = json.dumps(cond)
 assert pc.pycond(cond_as_json)(state={'a': 'b'}) == True
 ```
+
+
 
 # <a href="#toc8">Evaluation</a>
 
@@ -1070,7 +1080,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1003
+Calc.Time (delta_q was called just once): 0.1005
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1530,15 +1540,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
-item 3: 0.020s 
-item 4: 0.031s 
-item 5: 0.042s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.054s 
-item 7: 0.065s 
-item 8: 0.077s 
-item 9: 0.087s
+item 2: 0.011s 
+item 3: 0.023s 
+item 4: 0.034s 
+item 5: 0.045s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.056s 
+item 7: 0.067s 
+item 8: 0.078s 
+item 9: 0.089s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1633,18 +1643,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-55 odd {'i': 1}
-thread: Dummy-57 blocking {'i': 1}
-thread: Thread-56 odd {'i': 2}
-thread: Dummy-59 blocking {'i': 2}
-thread: Thread-58 odd {'i': 3}
-thread: Dummy-61 blocking {'i': 3}
-thread: Thread-60 odd {'i': 4}
-thread: Thread-62 odd {'i': 5}
-thread: Dummy-64 blocking {'i': 5}
-thread: Thread-63 odd {'i': 6}
-thread: Thread-65 odd {'i': 7}
-thread: Dummy-67 blocking {'i': 7}
+thread: Thread-54 odd {'i': 1}
+thread: Dummy-56 blocking {'i': 1}
+thread: Thread-55 odd {'i': 2}
+thread: Dummy-58 blocking {'i': 2}
+thread: Thread-57 odd {'i': 3}
+thread: Dummy-60 blocking {'i': 3}
+thread: Thread-59 odd {'i': 4}
+thread: Thread-61 odd {'i': 5}
+thread: Dummy-63 blocking {'i': 5}
+thread: Thread-62 odd {'i': 6}
+thread: Thread-64 odd {'i': 7}
+thread: Dummy-66 blocking {'i': 7}
 ```
 
 
@@ -1654,6 +1664,6 @@ thread: Dummy-67 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#182]: https://github.com/axiros/pycond/blob/12befcae071ca248940c88940a9464f13388cf88/pycond.py#L182
-[pycond.py#498]: https://github.com/axiros/pycond/blob/12befcae071ca248940c88940a9464f13388cf88/pycond.py#L498
-[pycond.py#597]: https://github.com/axiros/pycond/blob/12befcae071ca248940c88940a9464f13388cf88/pycond.py#L597
+[pycond.py#182]: https://github.com/axiros/pycond/blob/3124833ea5776191b3eac29c74ad200d3db6aec2/pycond.py#L182
+[pycond.py#498]: https://github.com/axiros/pycond/blob/3124833ea5776191b3eac29c74ad200d3db6aec2/pycond.py#L498
+[pycond.py#597]: https://github.com/axiros/pycond/blob/3124833ea5776191b3eac29c74ad200d3db6aec2/pycond.py#L597
