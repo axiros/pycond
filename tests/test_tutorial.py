@@ -77,6 +77,7 @@ class Test1:
         def f1():
             f, meta = pc.parse_cond('foo eq bar')
             assert meta['keys'] == ['foo']
+            assert f(state={'foo': 'bar'}) == True
 
         """
 
