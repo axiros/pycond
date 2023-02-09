@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20220310
+version: 20230209
 
 ---
 
@@ -909,7 +909,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2007
+Calc.Time (delta_q was called twice): 0.2012
 ```
 
 
@@ -1559,11 +1559,11 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.011s 
+item 2: 0.010s 
 item 3: 0.022s 
-item 4: 0.032s 
-item 5: 0.044s 
-item 1: 0.048s    <----- not in order, blocked
+item 4: 0.033s 
+item 5: 0.045s 
+item 1: 0.049s    <----- not in order, blocked
 item 6: 0.055s 
 item 7: 0.066s 
 item 8: 0.078s 
@@ -1662,18 +1662,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-54 odd {'i': 1}
-thread: Dummy-56 blocking {'i': 1}
-thread: Thread-55 odd {'i': 2}
-thread: Dummy-58 blocking {'i': 2}
-thread: Thread-57 odd {'i': 3}
-thread: Dummy-60 blocking {'i': 3}
-thread: Thread-59 odd {'i': 4}
-thread: Thread-61 odd {'i': 5}
-thread: Dummy-63 blocking {'i': 5}
-thread: Thread-62 odd {'i': 6}
-thread: Thread-64 odd {'i': 7}
-thread: Dummy-66 blocking {'i': 7}
+thread: Thread-10054 odd {'i': 1}
+thread: Dummy-10056 blocking {'i': 1}
+thread: Thread-10055 odd {'i': 2}
+thread: Dummy-10058 blocking {'i': 2}
+thread: Thread-10057 odd {'i': 3}
+thread: Dummy-10060 blocking {'i': 3}
+thread: Thread-10059 odd {'i': 4}
+thread: Thread-10061 odd {'i': 5}
+thread: Dummy-10063 blocking {'i': 5}
+thread: Thread-10062 odd {'i': 6}
+thread: Thread-10064 odd {'i': 7}
+thread: Dummy-10066 blocking {'i': 7}
 ```
 
 
@@ -1683,6 +1683,6 @@ thread: Dummy-66 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#195]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L195
-[pycond.py#517]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L517
-[pycond.py#614]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L614
+[pycond.py#195]: https://github.com/axiros/pycond/blob/064e8b3972a26efa604bb5befb8116872234b4da/pycond.py#L195
+[pycond.py#517]: https://github.com/axiros/pycond/blob/064e8b3972a26efa604bb5befb8116872234b4da/pycond.py#L517
+[pycond.py#614]: https://github.com/axiros/pycond/blob/064e8b3972a26efa604bb5befb8116872234b4da/pycond.py#L614
