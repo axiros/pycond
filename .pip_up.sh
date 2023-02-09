@@ -8,6 +8,11 @@ e.g. such a link can then be generated:
 [mdtool.py]: https://github.com/axiros/pytest2md/blob/bf37bbb1302553d8732713b2ebfb415b27c0616c/pytest2md/mdtool.py
 '
 echo "Uploading to pip"
+clean() {
+    rm -rf ./dist
+    rm -rf ./pytest2md.egg-info
+    rm -rf ./build
+}
 
 unset P2MRUN # would skip all others
 unset P2MFG  # would not write readme
@@ -17,6 +22,8 @@ set -x
 here="$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && echo "$PWD")"
 cd "$here" || exit 1
 #export NOLINKREPL=true
+clean
+rm -f README.md
 pytest tests || exit 1
 git commit --amend -am 'links auto replaced'
 #unset NOLINKREPL
@@ -27,19 +34,6 @@ git commit --amend -am 'links auto replaced'
 #mdtool set_links src_link_tmpl="github" md_file="README.md"
 git push || exit 1
 
-clean () {
-    rm -rf ./dist
-    rm -rf ./pytest2md.egg-info
-    rm -rf ./build
-}
 clean
 python setup.py clean sdist bdist_wheel
 twine upload ./dist/*
-
-
-
-
-
-
-
-

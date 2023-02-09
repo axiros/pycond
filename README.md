@@ -1,7 +1,7 @@
 ---
 
 author: gk
-version: 20230210
+version: 20230211
 
 ---
 
@@ -909,7 +909,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.2008
+Calc.Time (delta_q was called twice): 0.2011
 ```
 
 
@@ -1559,15 +1559,15 @@ assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 Output:
 
 ```
-item 2: 0.010s 
-item 3: 0.021s 
-item 4: 0.031s 
-item 5: 0.042s 
+item 2: 0.011s 
+item 3: 0.022s 
+item 4: 0.033s 
+item 5: 0.044s 
 item 1: 0.049s    <----- not in order, blocked
-item 6: 0.053s 
-item 7: 0.065s 
-item 8: 0.076s 
-item 9: 0.087s
+item 6: 0.055s 
+item 7: 0.066s 
+item 8: 0.077s 
+item 9: 0.089s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1683,6 +1683,6 @@ thread: Dummy-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#195]: https://github.com/axiros/pycond/blob/0939cb760189c631d39e211cb86782476bf5d5a9/pycond.py#L195
-[pycond.py#517]: https://github.com/axiros/pycond/blob/0939cb760189c631d39e211cb86782476bf5d5a9/pycond.py#L517
-[pycond.py#614]: https://github.com/axiros/pycond/blob/0939cb760189c631d39e211cb86782476bf5d5a9/pycond.py#L614
+[pycond.py#195]: https://github.com/axiros/pycond/blob/f533b55599f417b02121caaf3d82facce4dc565c/pycond.py#L195
+[pycond.py#517]: https://github.com/axiros/pycond/blob/f533b55599f417b02121caaf3d82facce4dc565c/pycond.py#L517
+[pycond.py#614]: https://github.com/axiros/pycond/blob/f533b55599f417b02121caaf3d82facce4dc565c/pycond.py#L614
