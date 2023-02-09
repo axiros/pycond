@@ -35,7 +35,7 @@ clean () {
 clean
 python setup.py clean sdist bdist_wheel
 twine upload ./dist/*
-clean
+
 
 
 
