@@ -756,6 +756,10 @@ def py_type(v):
         # returns a str(v) if float and int do not work:
         for t in float, int, str:
             try:
+                # prevent converstion to scientific format:
+                # key, eq, '100688907740199323' would fail:
+                if t == float and int(float(v)) == float(v):
+                    return int(v)
                 return t(v)
             except:
                 pass
