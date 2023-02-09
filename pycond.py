@@ -20,17 +20,18 @@ A:  The **kw for all functions at run time are for the custom lookup feature:
     f = pc.pycond('last_host eq host', lookup=my_lu)
 
     req = {'host': 'somehost'}
-    assert f(req=req, user='joe') == False 
+    assert f(req=req, user='joe') == False
     assert f(req=req, user='eve') == True
-
 """
 
 from __future__ import print_function
-import operator, sys
+import os
+from datetime import datetime
+import operator
+import sys
 import inspect
 import json
 from functools import partial
-from copy import deepcopy
 from ast import literal_eval
 
 _is = isinstance
@@ -39,11 +40,20 @@ nil = '\x01'
 PY2 = sys.version_info[0] == 2
 # is_str = lambda s: _is(s, basestring if PY2 else (bytes, str))
 if PY2:
-    is_str = lambda s: _is(s, basestring)
-    sig_args = lambda f: inspect.getargspec(getattr(f, 'func', f)).args
+
+    def is_str(s):
+        return _is(s, basestring)
+
+    def sig_args(f):
+        return inspect.getargspec(getattr(f, 'func', f)).args
+
 else:
-    is_str = lambda s: _is(s, (bytes, str))
-    sig_args = lambda f: list(inspect.signature(f).parameters.keys())
+
+    def is_str(s):
+        return _is(s, (bytes, str))
+
+    def sig_args(f):
+        return list(inspect.signature(f).parameters.keys())
 
 
 bbb = bool
@@ -108,11 +118,14 @@ OPS = {}
 OPS_SYMBOLIC = {}
 
 # extending operators with those:
+
+
 def truthy(k, v=None):
     return operator.truth(k)
 
 
-falsy = lambda k, v=None: not truthy(k, v)
+def falsy(k, v=None):
+    return not truthy(k, v)
 
 
 def _in(a, b):
@@ -226,7 +239,8 @@ def dbg_get(key, val, cfg, state=State, *a, **kw):
     return res
 
 
-out = lambda *m: print(' '.join([str(s) for s in m]))
+def out(*m):
+    return print(' '.join([str(s) for s in m]))
 
 
 OR, AND, OR_NOT, AND_NOT, XOR = 0, 1, 2, 3, 4
@@ -253,7 +267,7 @@ def comb(op, lazy_on, negate=None):
                 if lazy_on:
                     return True
 
-            elif lazy_on == False:
+            elif lazy_on is False:
                 return False
 
             if op == AND:
@@ -330,7 +344,7 @@ def prepare(cond, cfg, nfo):
 
     def get_prefix(prefix, res):
         def p(prefix, res, *a, state=State, **kw):
-            if not 'state_root' in kw:
+            if 'state_root' not in kw:
                 kw['state_root'] = state
                 state = state.get(prefix)
             return res(*a, state=state, **kw)
@@ -372,10 +386,15 @@ def parse_struct_cond(cond, cfg, nfo):
                 if f1 and key in COMB_OPS:
                     # cond: b eq bar
                     return partial(
-                        COMB_OPS[key], f1, parse_struct_cond(cond, cfg, nfo),
+                        COMB_OPS[key],
+                        f1,
+                        parse_struct_cond(cond, cfg, nfo),
                     )
             elif kt == KEY_BOOL_TYP:
-                f1 = lambda *a, _=key, **kw: bool(_)
+
+                def f1(*a, _=key, **kw):
+                    return bool(_)
+
                 continue
             elif kt == KEY_LST_TYP:
                 key = tuple(key)
@@ -493,7 +512,7 @@ def f_atomic_arn(f_op, fp_lookup, key, val, not_, rev_, acl, **kw):
         k = py_type(k)
     if rev_ is True:
         k, v = v, k
-    return not f_op(k, v) if not_ == True else f_op(k, v)
+    return not f_op(k, v) if not_ is True else f_op(k, v)
 
 
 def f_from_lookup_provider(key, val, cfg, nfo):
@@ -591,8 +610,6 @@ def find_func(key, cfg):
 
 # -------------------------------------------------------------------------- Public API
 # (def qualify has it's own section)
-from datetime import datetime
-import os
 
 
 class Extensions:
@@ -630,7 +647,7 @@ def deserialize_str(cond, check_dict=False, **cfg):
         # in def qualify we accept textual (flat) dicts.
         # The cond strings (v) will be sent again into this method.
         p = cond.split(':', 1)
-        if len(p) > 1 and not ' ' in p[0] and not brkts[0] in p[0]:
+        if len(p) > 1 and ' ' not in p[0] and brkts[0] not in p[0]:
             kvs = [c.strip().split(':', 1) for c in cond.split(',')]
             return dict([(k.strip(), v.strip()) for k, v in kvs]), cfg
 
@@ -648,8 +665,8 @@ def make_filter(cond, lookup=state_get, **cfg):
 
 
 def parse_cond(cond, lookup=state_get, **cfg):
-    """ Main function.
-        see tests
+    """Main function.
+    see tests
     """
     nfo = {'keys': set()}
     if is_str(cond):
@@ -712,12 +729,12 @@ def cache_get(kw, key, val=None):
 
 
 def pycond(cond, *a, **cfg):
-    """ condition function - for those who don't need meta infos """
+    """condition function - for those who don't need meta infos"""
     return parse_cond(cond, *a, **cfg)[0]
 
 
 def run_all_ops_thru(f_hook):
-    """ wraps ALL operator evals within a custom function"""
+    """wraps ALL operator evals within a custom function"""
     global OPS_HK_APPLIED
     if OPS_HK_APPLIED == f_hook:
         return
@@ -743,15 +760,7 @@ def py_type(v):
             except:
                 pass
 
-    return (
-        True
-        if v == 'true'
-        else False
-        if v == 'false'
-        else None
-        if v == 'None'
-        else _(v)
-    )
+    return True if v == 'true' else False if v == 'false' else None if v == 'None' else _(v)
 
 
 # ---------------------- Following Code Only for Parsing STRING Conditions Into Structs
@@ -760,7 +769,7 @@ KV_DELIM = ' '  # default seperator for strings
 
 
 def tokenize(cond, sep=KV_DELIM, brkts=('[', ']')):
-    """ walk throug a single string expression """
+    """walk throug a single string expression"""
     # '[[ a' -> '[ [ a', then split
     esc, escaped, have_apo_seps = [], [], False
 
@@ -865,7 +874,7 @@ def add_cache_then_run(f, *a, **kw):
     - lookup provider results
     - sub cond evaluations
     """
-    if not CACHE_KEY in kw:
+    if CACHE_KEY not in kw:
         kw[CACHE_KEY] = {}
     return f(*a, **kw)
 
@@ -972,7 +981,7 @@ def build(conds, cfg, into):
 
     for k, v in conds:
         if _is(v, list):
-            if norm(v)[1] == True:
+            if norm(v)[1] is True:
                 into[k] = build(v, cfg, into)
             else:
                 into[k] = [build(c, cfg, into) for c in v]
@@ -986,12 +995,19 @@ def add_cache(n, kw, into):
     # can't hurt r anyway not part of the original data:
     if c:
         # e.g. add_cache = "payload", then add there:
-        r = state_get_deep(n, 0, {}, into)[0] if not n == True else into
+        r = state_get_deep(n, 0, {}, into)[0] if n is not True else into
         r.update(c)
 
 
 def run_conds(
-    data, conds, built, is_single, add_cached=None, into=None, match_any=True, **kw,
+    data,
+    conds,
+    built,
+    is_single,
+    add_cached=None,
+    into=None,
+    match_any=True,
+    **kw,
 ):
     """
     In data path (hot). The function which qualify returns, ready for data push.
@@ -1015,10 +1031,7 @@ def run_conds(
     for k, v in conds:
         b = built[k]
         if _is(v, list):
-            r[k] = [
-                run_conds(data, c, b[i], is_single, **kw)
-                for i, c in zip(range(len(v)), v)
-            ]
+            r[k] = [run_conds(data, c, b[i], is_single, **kw) for i, c in zip(range(len(v)), v)]
         else:
             r[k] = m = run_conds(data, v, b, is_single, **kw)
             if m:
@@ -1036,7 +1049,7 @@ def run_conds(
 
     if add_cached:
         # True: add the cached content into the condition results:
-        if into and not add_cached == True:
+        if into and add_cached is not True:
             m = data
         else:
             add_cached = True
@@ -1108,8 +1121,6 @@ def qualify(conds, lookup=state_get, get_type=False, **cfg):
 
 
 # ---------------------------------------------------------------------------------  rx
-
-import time
 
 
 class Async(Exception):
@@ -1191,7 +1202,10 @@ def rxop(cond, qualifier=None, **cfg):
         import gevent
 
     elif is_single:
-        f = lambda qualifier, x: bool(qualifier(x))
+
+        def f(qualifier, x):
+            return bool(qualifier(x))
+
         return rx.filter(partial(f, qualifier))
 
     # will hold the results of any async op:

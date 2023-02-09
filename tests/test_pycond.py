@@ -18,7 +18,7 @@ eq = lambda _, k, v: _.assertEqual(k, v)
 
 
 def parse(cond, *a, **kw):
-    """ do the parsing with a debugging getter """
+    """do the parsing with a debugging getter"""
     # kw['lookup'] = kw.get('lookup', dbg_get)
     print('Parsing', cond)
     return parse_cond(cond, *a, **kw)
@@ -26,7 +26,7 @@ def parse(cond, *a, **kw):
 
 class T(unittest.TestCase):
     def setUp(s):
-        """ clearing state and keys """
+        """clearing state and keys"""
         while keys:
             keys.pop()
         S.clear()
@@ -103,7 +103,7 @@ class Mechanics(T):
                 eq(s, m['keys'], ['k1', 'k2'])
 
     def test_auto_brackets(s):
-        """ you don't need to bracket expr between combining ops"""
+        """you don't need to bracket expr between combining ops"""
         # we auto bracket from left to right:
         # i.e.: 'False and True or True' -> False and [ True or True] = False
         # and not [False and True ] or True = True
@@ -190,6 +190,10 @@ class Mechanics(T):
         # putting apos around numbers also prevents autoconf:
         eq(s, pycond('foo eq "42"')(), True)
 
+    def test_autoconv_huge(s):
+        S['foo'] = 100688907740199323
+        eq(s, pycond('foo eq 100688907740199323')(), True)
+
 
 class TestCombiningOps(T):
     def test_all(s, cond='k1 %s k2'):
@@ -234,7 +238,9 @@ class TestComparisonOps(T):
         eq(s, pycond('foo rev not contains axra')(), True)
         eq(s, pycond('foo rev contains axra')(), False)
         eq(
-            s, pycond('foo rev contains 1,2,3,bar', lookup=val_splitting_get)(), True,
+            s,
+            pycond('foo rev contains 1,2,3,bar', lookup=val_splitting_get)(),
+            True,
         )
         S['foo'] = 'a'
         cond = ['foo', 'rev', 'contains', [1, 'a']]
@@ -276,7 +282,7 @@ class TestComparisonOps(T):
 
 
 class Filtering(T):
-    users = '''
+    users = """
     id,first_name,last_name,email,gender,ip_address,nr
     1,Rufe,Morstatt,rmorstatt0@newsvine.com,Male,216.70.69.120,1
     2,Kaela,Kaminski,kkaminski1@opera.com,Female,73.248.145.44,2
@@ -291,12 +297,10 @@ class Filtering(T):
     11,Wrong,Email,foobar,Mail,1.2.3.4,11
     12,OK,Email,foo@bar,Mail,1.2.3.4,12
     13,have space,have also space,foo@bar,Mail,1.2.3.4,13
-    '''.strip().splitlines()
+    """.strip().splitlines()
     # argh.. py3 fails, would not find h w/o that, fuck.
     globals()['h'] = users[0].split(',')
-    users = [
-        (dict([(h[i], u.split(',')[i]) for i in range(len(h))])) for u in users[1:]
-    ]
+    users = [(dict([(h[i], u.split(',')[i]) for i in range(len(h))])) for u in users[1:]]
     for u in users:
         u['id'] = int(u['id'])
 
@@ -320,7 +324,7 @@ class Filtering(T):
                 assert m['first_name'] == 'Wrong' or m['id'] > 11
 
     def test_filter_dicts(s):
-        """ doing it w/o passing state with the condition as above """
+        """doing it w/o passing state with the condition as above"""
         cond = 'first_name eq Sal or last_name contains i'
 
         matcher = pycond(cond, lookup=lambda k, v, **kw: (S['cur'].get(k), v))
@@ -350,7 +354,7 @@ class Filtering(T):
 
 class OperatorHooks(T):
     def test_global_hk(s):
-        """ globally changing the OPS """
+        """globally changing the OPS"""
         orig = {}
         orig.update(OPS)
         l = []

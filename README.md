@@ -360,7 +360,7 @@ user check. locals: {'k': 'last_host', 'v': 'host', 'req': {'host': 'somehost'},
 ```
 
 > as you can see in the example, the state parameter is just a convention
-for `pyconds'` [default lookup function][pycond.py#182].
+for `pyconds'` [default lookup function][pycond.py#195].
 
 ## <a href="#toc15">Lazy Evaluation</a>
 
@@ -730,9 +730,7 @@ Bracket characters do not need to be separated, the tokenizer will do:
 
 ```python
 # equal:
-assert (
-    pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
-)
+assert pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
 ```
 
 > The condition functions themselves do not evaluate equal - those
@@ -821,7 +819,11 @@ cond = [
     [
         [
             [
-                [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
+                [
+                    ['cur_q', '<', 0.5],
+                    'and',
+                    ['delta_q', '>=', 0.15],
+                ],
                 'and',
                 ['dt_last_enforce', '>', 28800],
             ],
@@ -831,7 +833,11 @@ cond = [
         'or',
         [
             [
-                [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
+                [
+                    ['cur_q', '<', 0.5],
+                    'and',
+                    ['delta_q', '>=', 0.15],
+                ],
                 'and',
                 ['dt_last_enforce', '>', 28800],
             ],
@@ -903,7 +909,7 @@ Calculating cur_hour
 Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
-Calc.Time (delta_q was called twice): 0.201
+Calc.Time (delta_q was called twice): 0.2007
 ```
 
 
@@ -917,7 +923,7 @@ Lets avoid calculating these values, remembering the [custom lookup function](#c
 
 This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-Pycond [treats the condition keys as function names][pycond.py#498] within that namespace and calls them, when needed.
+Pycond [treats the condition keys as function names][pycond.py#517] within that namespace and calls them, when needed.
 
 ## <a href="#toc41">Accepted Signatures</a>
 
@@ -981,9 +987,7 @@ class F:
     def hello(k, v, cfg, data, count, **kw):
         return data['foo'] == count, 0
 
-m = pc.pycond(
-    [':hello'], lookup_provider=F, params={'hello': {'count': 2}}
-)(state={'foo': 2})
+m = pc.pycond([':hello'], lookup_provider=F, params={'hello': {'count': 2}})(state={'foo': 2})
 assert m == True
 ```
 
@@ -1001,10 +1005,10 @@ Warning: This is a breaking API change with pre-20200610 versions, where the pre
 
 ```python
 class F:
-    a = lambda data: data['foo']
+    def a(data): return data['foo']
 
     class inner:
-        b = lambda data: data['bar']
+        def b(data): return data['bar']
 
 m = {'c': {'d': {'func': lambda data: data['baz']}}}
 
@@ -1015,7 +1019,11 @@ cond = [
     _,
     ['inner:b', 'eq', 'bar1'],
     _,
-    ['c:d', 'eq', 'baz1',],
+    [
+        'c:d',
+        'eq',
+        'baz1',
+    ],
 ]
 c = pc.pycond(cond, lookup_provider=F, lookup_provider_dict=m)
 assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
@@ -1047,9 +1055,7 @@ You can switch that prefix needs off - and pycond will then check the state for 
 
 ```python
 # we let pycond generate the lookup function (we use the simple signature type):
-f = pc.pycond(
-    cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False
-)
+f = pc.pycond(cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False)
 # Same events as above:
 data1 = {'group_type': 'xxx'}, False
 data2 = {'group_type': 'lab'}, True
@@ -1060,7 +1066,8 @@ for event, expected in data1, data2:
     assert f(state=event) == expected
 
 print(
-    'Calc.Time (delta_q was called just once):', round(time.time() - t0, 4),
+    'Calc.Time (delta_q was called just once):',
+    round(time.time() - t0, 4),
 )
 
 # The deep switch keeps working:
@@ -1082,7 +1089,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1006
+Calc.Time (delta_q was called just once): 0.1005
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1106,7 +1113,7 @@ Note: Currently you cannot override these defaults. Drop an issue if you need to
 
 ## <a href="#toc45">Extensions</a>
 
-We deliver a few lookup function [extensions][pycond.py#597]
+We deliver a few lookup function [extensions][pycond.py#614]
 
 - for time checks
 - for os.environ checks (re-evaluated at runtime)
@@ -1232,9 +1239,7 @@ class F:
     def func(*a, **kw):
         return True, 0
 
-q = lambda d, **kw: pc.qualify(
-    conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
-)(d)
+q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw)(d)
 
 m = q({'bar': 1})
 assert m == {0: False, 1: True, 2: True, 3: True, 'n': True}
@@ -1246,7 +1251,7 @@ assert m == {
     'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
 }
 
-msg = lambda: {'bar': 1, 'pl': {'a': 1}}
+def msg(): return {'bar': 1, 'pl': {'a': 1}}
 
 # add_cached == True -> it's put into the cond results:
 m = q(msg(), into='conds', add_cached=True)
@@ -1268,7 +1273,12 @@ m = q({'bar': 1}, add_cached='pl')
 assert m == {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True}
 
 # prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
-m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
+m = q(
+    msg(),
+    prefix='pl',
+    into='conds',
+    add_cached='pl',
+)
 assert m == {
     'bar': 1,
     'conds': {0: False, 1: False, 2: True, 3: False, 'n': False},
@@ -1298,7 +1308,11 @@ def xx(k, v, cfg, data, **kw):
 funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
 q = {
     'root': ['foo', 'and', ':bar'],
-    'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', ':baz'],],
+    'bar': [
+        ['somecond'],
+        'or',
+        [[':exp', 'eq', 1], 'and', ':baz'],
+    ],
     'x': [':xx'],
     'baz': [':exp', 'lt', 10],
 }
@@ -1357,9 +1371,7 @@ def push_through(*test_pipe, items=4):
 
     # turns the ints into dicts: {'i': 1}, then {'i': 2} and so on:
     # (we start from 1, the first 0 we filter out)
-    stream = stream.pipe(
-        rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
-    )
+    stream = stream.pipe(rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i}))
 
     # defines the stream through the tested operators:
     test_pipe = test_pipe + (compl,)
@@ -1535,7 +1547,12 @@ class F:
         return i % 2, v
 
 # have the operator built for us - with a single condition filter:
-rxop = pc.rxop([':check'], into='mod', lookup_provider=F, asyn=['check'],)
+rxop = pc.rxop(
+    [':check'],
+    into='mod',
+    lookup_provider=F,
+    asyn=['check'],
+)
 r = push_through(rxop, items=5)
 assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 ```
@@ -1543,14 +1560,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.023s 
-item 4: 0.034s 
-item 5: 0.046s 
-item 1: 0.049s    <----- not in order, blocked
-item 6: 0.057s 
-item 7: 0.068s 
-item 8: 0.079s 
-item 9: 0.090s
+item 3: 0.022s 
+item 4: 0.032s 
+item 5: 0.044s 
+item 1: 0.048s    <----- not in order, blocked
+item 6: 0.055s 
+item 7: 0.066s 
+item 8: 0.078s 
+item 9: 0.089s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1558,7 +1575,7 @@ Finally asyncronous classification, i.e. evaluation of multiple conditions:
 
 
 ```python
-_thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
+def _thn(msg, data): return print('thread:', cur_thread().name, msg, data)
 
 # push_through just runs a stream of {'i': <nr>} through a given operator:
 Rx, rx, push_through = rx_setup()
@@ -1645,18 +1662,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-10054 odd {'i': 1}
-thread: Dummy-10056 blocking {'i': 1}
-thread: Thread-10055 odd {'i': 2}
-thread: Dummy-10058 blocking {'i': 2}
-thread: Thread-10057 odd {'i': 3}
-thread: Dummy-10060 blocking {'i': 3}
-thread: Thread-10059 odd {'i': 4}
-thread: Thread-10061 odd {'i': 5}
-thread: Dummy-10063 blocking {'i': 5}
-thread: Thread-10062 odd {'i': 6}
-thread: Thread-10064 odd {'i': 7}
-thread: Dummy-10066 blocking {'i': 7}
+thread: Thread-54 odd {'i': 1}
+thread: Dummy-56 blocking {'i': 1}
+thread: Thread-55 odd {'i': 2}
+thread: Dummy-58 blocking {'i': 2}
+thread: Thread-57 odd {'i': 3}
+thread: Dummy-60 blocking {'i': 3}
+thread: Thread-59 odd {'i': 4}
+thread: Thread-61 odd {'i': 5}
+thread: Dummy-63 blocking {'i': 5}
+thread: Thread-62 odd {'i': 6}
+thread: Thread-64 odd {'i': 7}
+thread: Dummy-66 blocking {'i': 7}
 ```
 
 
@@ -1666,6 +1683,6 @@ thread: Dummy-10066 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#182]: https://github.com/axiros/pycond/blob/f4c886869a5acd9becd032195b115cd6cef712ff/pycond.py#L182
-[pycond.py#498]: https://github.com/axiros/pycond/blob/f4c886869a5acd9becd032195b115cd6cef712ff/pycond.py#L498
-[pycond.py#597]: https://github.com/axiros/pycond/blob/f4c886869a5acd9becd032195b115cd6cef712ff/pycond.py#L597
+[pycond.py#195]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L195
+[pycond.py#517]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L517
+[pycond.py#614]: https://github.com/axiros/pycond/blob/05b068b9a7b8da1b0d041395085e61423a8121e8/pycond.py#L614

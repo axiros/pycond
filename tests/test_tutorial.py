@@ -515,9 +515,7 @@ class Test1:
 
         def f10():
             # equal:
-            assert (
-                pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
-            )
+            assert pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
 
         """
         > The condition functions themselves do not evaluate equal - those
@@ -606,7 +604,11 @@ class Test1:
                 [
                     [
                         [
-                            [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
+                            [
+                                ['cur_q', '<', 0.5],
+                                'and',
+                                ['delta_q', '>=', 0.15],
+                            ],
                             'and',
                             ['dt_last_enforce', '>', 28800],
                         ],
@@ -616,7 +618,11 @@ class Test1:
                     'or',
                     [
                         [
-                            [['cur_q', '<', 0.5], 'and', ['delta_q', '>=', 0.15],],
+                            [
+                                ['cur_q', '<', 0.5],
+                                'and',
+                                ['delta_q', '>=', 0.15],
+                            ],
                             'and',
                             ['dt_last_enforce', '>', 28800],
                         ],
@@ -752,9 +758,7 @@ class Test1:
                 def hello(k, v, cfg, data, count, **kw):
                     return data['foo'] == count, 0
 
-            m = pc.pycond(
-                [':hello'], lookup_provider=F, params={'hello': {'count': 2}}
-            )(state={'foo': 2})
+            m = pc.pycond([':hello'], lookup_provider=F, params={'hello': {'count': 2}})(state={'foo': 2})
             assert m == True
 
         """
@@ -772,10 +776,10 @@ class Test1:
 
         def f15_15():
             class F:
-                a = lambda data: data['foo']
+                def a(data): return data['foo']
 
                 class inner:
-                    b = lambda data: data['bar']
+                    def b(data): return data['bar']
 
             m = {'c': {'d': {'func': lambda data: data['baz']}}}
 
@@ -786,7 +790,11 @@ class Test1:
                 _,
                 ['inner:b', 'eq', 'bar1'],
                 _,
-                ['c:d', 'eq', 'baz1',],
+                [
+                    'c:d',
+                    'eq',
+                    'baz1',
+                ],
             ]
             c = pc.pycond(cond, lookup_provider=F, lookup_provider_dict=m)
             assert c(state={'foo': 'foo1', 'bar': 'bar1', 'baz': 'baz1'}) == True
@@ -818,9 +826,7 @@ class Test1:
 
         def f15_2():
             # we let pycond generate the lookup function (we use the simple signature type):
-            f = pc.pycond(
-                cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False
-            )
+            f = pc.pycond(cond, lookup_provider=ApiCtxFuncs, prefixed_lookup_funcs=False)
             # Same events as above:
             data1 = {'group_type': 'xxx'}, False
             data2 = {'group_type': 'lab'}, True
@@ -831,7 +837,8 @@ class Test1:
                 assert f(state=event) == expected
 
             print(
-                'Calc.Time (delta_q was called just once):', round(time.time() - t0, 4),
+                'Calc.Time (delta_q was called just once):',
+                round(time.time() - t0, 4),
             )
 
             # The deep switch keeps working:
@@ -985,9 +992,7 @@ class Test1:
                 def func(*a, **kw):
                     return True, 0
 
-            q = lambda d, **kw: pc.qualify(
-                conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
-            )(d)
+            q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw)(d)
 
             m = q({'bar': 1})
             assert m == {0: False, 1: True, 2: True, 3: True, 'n': True}
@@ -999,7 +1004,7 @@ class Test1:
                 'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
             }
 
-            msg = lambda: {'bar': 1, 'pl': {'a': 1}}
+            def msg(): return {'bar': 1, 'pl': {'a': 1}}
 
             # add_cached == True -> it's put into the cond results:
             m = q(msg(), into='conds', add_cached=True)
@@ -1021,7 +1026,12 @@ class Test1:
             assert m == {0: False, 1: True, 2: True, 3: True, 'n': True, 'func': True}
 
             # prefix -> Nr 1, bar,  should NOT be True, since not in pl now:
-            m = q(msg(), prefix='pl', into='conds', add_cached='pl',)
+            m = q(
+                msg(),
+                prefix='pl',
+                into='conds',
+                add_cached='pl',
+            )
             assert m == {
                 'bar': 1,
                 'conds': {0: False, 1: False, 2: True, 3: False, 'n': False},
@@ -1051,7 +1061,11 @@ class Test1:
             funcs = {'exp': {'func': expensive_func}, 'xx': {'func': xx}}
             q = {
                 'root': ['foo', 'and', ':bar'],
-                'bar': [['somecond'], 'or', [[':exp', 'eq', 1], 'and', ':baz'],],
+                'bar': [
+                    ['somecond'],
+                    'or',
+                    [[':exp', 'eq', 1], 'and', ':baz'],
+                ],
                 'x': [':xx'],
                 'baz': [':exp', 'lt', 10],
             }
@@ -1112,9 +1126,7 @@ class Test1:
 
                 # turns the ints into dicts: {'i': 1}, then {'i': 2} and so on:
                 # (we start from 1, the first 0 we filter out)
-                stream = stream.pipe(
-                    rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
-                )
+                stream = stream.pipe(rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i}))
 
                 # defines the stream through the tested operators:
                 test_pipe = test_pipe + (compl,)
@@ -1285,7 +1297,12 @@ class Test1:
                     return i % 2, v
 
             # have the operator built for us - with a single condition filter:
-            rxop = pc.rxop([':check'], into='mod', lookup_provider=F, asyn=['check'],)
+            rxop = pc.rxop(
+                [':check'],
+                into='mod',
+                lookup_provider=F,
+                asyn=['check'],
+            )
             r = push_through(rxop, items=5)
             assert [m['i'] for m in r] == [3, 5, 1, 7, 9]
 
@@ -1295,7 +1312,7 @@ class Test1:
         """
 
         def rx_async():
-            _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
+            def _thn(msg, data): return print('thread:', cur_thread().name, msg, data)
 
             # push_through just runs a stream of {'i': <nr>} through a given operator:
             Rx, rx, push_through = rx_setup()
@@ -1379,6 +1396,6 @@ class Test1:
             # item 2 caused a timeout:
             assert [t['i'] for t in errors] == [2, 5]
 
-        ## Data Filtering
+        # Data Filtering
         p2m.md_from_source_code()
         p2m.write_markdown(with_source_ref=True, make_toc=True)

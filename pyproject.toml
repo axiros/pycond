@@ -1,0 +1,6 @@
+[tool.ruff]
+line-length = 110
+ignore = ["E501", "E202"]
+
+[tool.blue]
+line-length = 110
