@@ -1089,7 +1089,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1003
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1560,14 +1560,14 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.023s 
-item 4: 0.034s 
-item 5: 0.045s 
+item 3: 0.021s 
+item 4: 0.031s 
+item 5: 0.041s 
 item 1: 0.049s    <----- not in order, blocked
-item 6: 0.055s 
-item 7: 0.066s 
-item 8: 0.077s 
-item 9: 0.087s
+item 6: 0.053s 
+item 7: 0.064s 
+item 8: 0.074s 
+item 9: 0.085s
 ```
 
 Finally asyncronous classification, i.e. evaluation of multiple conditions:
@@ -1662,18 +1662,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-55 odd {'i': 1}
-thread: Dummy-57 blocking {'i': 1}
-thread: Thread-56 odd {'i': 2}
-thread: Dummy-59 blocking {'i': 2}
-thread: Thread-58 odd {'i': 3}
-thread: Dummy-61 blocking {'i': 3}
-thread: Thread-60 odd {'i': 4}
-thread: Thread-62 odd {'i': 5}
-thread: Dummy-64 blocking {'i': 5}
-thread: Thread-63 odd {'i': 6}
-thread: Thread-65 odd {'i': 7}
-thread: Dummy-67 blocking {'i': 7}
+thread: Thread-10054 odd {'i': 1}
+thread: Dummy-10056 blocking {'i': 1}
+thread: Thread-10055 odd {'i': 2}
+thread: Dummy-10058 blocking {'i': 2}
+thread: Thread-10057 odd {'i': 3}
+thread: Dummy-10060 blocking {'i': 3}
+thread: Thread-10059 odd {'i': 4}
+thread: Thread-10061 odd {'i': 5}
+thread: Dummy-10063 blocking {'i': 5}
+thread: Thread-10062 odd {'i': 6}
+thread: Thread-10064 odd {'i': 7}
+thread: Dummy-10066 blocking {'i': 7}
 ```
 
 
@@ -1683,6 +1683,6 @@ thread: Dummy-67 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#195]: https://github.com/axiros/pycond/blob/e2181f376d2f5df10635f866ab0b910096e1c9b6/pycond.py#L195
-[pycond.py#517]: https://github.com/axiros/pycond/blob/e2181f376d2f5df10635f866ab0b910096e1c9b6/pycond.py#L517
-[pycond.py#614]: https://github.com/axiros/pycond/blob/e2181f376d2f5df10635f866ab0b910096e1c9b6/pycond.py#L614
+[pycond.py#195]: https://github.com/axiros/pycond/blob/e09605dc4b450722245fb88f8767a940d23c6796/pycond.py#L195
+[pycond.py#517]: https://github.com/axiros/pycond/blob/e09605dc4b450722245fb88f8767a940d23c6796/pycond.py#L517
+[pycond.py#614]: https://github.com/axiros/pycond/blob/e09605dc4b450722245fb88f8767a940d23c6796/pycond.py#L614
