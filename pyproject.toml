@@ -1,6 +1,6 @@
 [tool.ruff]
-line-length = 110
+line-length = 90
 ignore = ["E501", "E202"]
 
 [tool.blue]
-line-length = 110
+line-length = 90

@@ -42,6 +42,7 @@ class Test1:
         ## Parsing
 
         pycond parses the condition expressions according to a set of constraints given to the parser in the `tokenizer` function.
+
         The result of the tokenizer is given to the builder.
 
         """
@@ -52,7 +53,6 @@ class Test1:
             expr = '[a eq b and [c lt 42 or foo eq bar]]'
             cond = pc.to_struct(pc.tokenize(expr, sep=' ', brkts='[]'))
             print('filter:', cond)
-
             # test:
             data = [
                 {'a': 'b', 'c': 1, 'foo': 42},
@@ -68,9 +68,9 @@ class Test1:
 
         ## Building
 
-        After parsing the builder is assembling a nested set of operator functions,
+        After parsing, the builder is assembling a nested set of operator functions,
         combined via combining operators. The functions are partials, i.e. not yet
-        evaluated but information about the necessary keys is already available:
+        evaluated - but information about the necessary keys is already available:
 
         """
 
@@ -83,7 +83,7 @@ class Test1:
 
         """
 
-        Note that the `make_filter` function is actually a convencience function for
+        Note: The `make_filter` function is actually a convencience function for
         `parse_cond`, ignoring that meta information and calling with
         `state=<filter val>`
 
@@ -105,15 +105,17 @@ class Test1:
 
         """
 
-        
-        # Evaluation
 
-        The result of the builder is a 'pycondition', which can be run many times against varying state of the system.
+        ## Evaluation
+
+        The result of the builder is a 'pycondition', i.e. a function which can be run many times against varying state of the system.
         How state is evaluated is customizable at build and run time.
 
         ## Default Lookup
 
-        The default is to get lookup keys within expressions from an initially empty `State` dict within the module - which is *not* thread safe, i.e. not to be used in async or non cooperative multitasking environments.
+        "Lookup" denotes the process of deriving the actual values to evaluate, from a given state. Can be simple gets, getattrs, walks into the structure - or arbitrary, via custom lookup functions.
+
+        The default is to *get* lookup keys within expressions from an initially empty `State` dict within the module. This is *not* thread safe, i.e. not to be used in async or non cooperative multitasking environments.
 
         """
 
@@ -129,7 +131,7 @@ class Test1:
 
         ## Passing State
 
-        Use the state argument at evaluation:
+        Using a state argument at evaluation *is* thread safe:
         """
 
         def f2_1():
@@ -137,7 +139,7 @@ class Test1:
             assert pc.pycond('a gt 2')(state={'a': -2}) == False
 
         """
-        ### Deep Lookup / Nested State / Lists
+        ## Deep Lookup / Nested State / Lists
 
         You may supply a path seperator for diving into nested structures like so:
         """
@@ -159,9 +161,56 @@ class Test1:
             f, nfos = pc.parse_cond(c)
             # sorting order for keys: tuples at end, sorted by len, rest default py sorted:
             assert f(state=m) == True and nfos['keys'] == ['a', ('a', 'b', 0, 'c')]
-            print(nfos)
 
         """
+
+        - The structure may also contain objects, then we use getattribute to get to the next value.
+
+        - `deep="."` is actually just convience notation for supplying the following "lookup function" (see below):
+
+        """
+
+        def f2_20():
+            m = {'a': {'b': [{'c': 1}]}}
+            assert pc.pycond('a.b.0.c', lookup=pc.state_get_deep)(state=m) == True
+
+        """
+
+        ### Lookup Performance: Prebuilt Deep Getters
+
+        The value lookup within nested structures can be stored into item and attribute getters (or , alternatively, an evaluated synthesized lookup function), built, when the first item has a matching structure.
+
+        - Upside: [Performance](./test/test_getter_perf.py) is a few times better compared to when the structure of items is explored each time, as with the 'deep' parameter.
+        - Downside: The lookup remains as built for the first structurely matching item. Schematic changes like from a key within a dict to an attribute will not except but deliver always False for the
+          actual condition value matching.
+
+        - `pycond.Getters.state_get_deep2`: A list of item and attribute getters is built at first successfull lookup evaluation.
+        - `pycond.Getters.state_get_evl`: An expression like "lambda state=state['a'].b[0]['c']" is built and evaluated, then applied to the items. 
+           - Fastest way to get to the values at evaluation time.   
+           - Security: Round brackets within key names are forbidden and deliver always false - but an eval is an eval i.e. potentially evil.
+
+        These two additional "deep" lookup functions are conveniently made accessible by supplying a `deep2` or `deep3` argument:
+
+        """
+
+        def f2_201():
+            m = {'a': {'b': [{'c': 1}]}}
+            # 3 times faster than deep. Safe.
+            assert pc.pycond('a.b.0.c', deep2='.')(state=m) == True
+            # 4 times faster than deep. Eval involved.
+            assert pc.pycond('a.b.0.c', deep3='.')(state=m) == True
+
+        """
+        The evaluation results for the keys are cached. The cache is cleared after 1Mio entries but can be cleared manually via `pc.clear_caches()` any time before that.
+        
+        ### Best Practices
+
+        - Lookup keys change all the time, not many items checked for specific key: Use `deep`
+        - Many items to be checked with same keys, input from untrusted users: Use `deep2`
+        - Many items to be checked with same keys, input from trusted users: Use `deep3`
+
+
+
         ## Prefixed Data
 
         When data is passed through processing pipelines, it often is passed with headers. So it may be useful to pass a global prefix to access the payload like so:
@@ -188,9 +237,6 @@ class Test1:
             assert pc.pycond(cond, deep='.', prefix='payload')(state=m) == True
 
         """
-        Perf Tip: When you have deep nested class or object hirarchies, then a custom lookup
-        function will be faster than pycond's default lookup, which splits the key into parts,
-        then works its way in via getitem, getattr, from root.
 
         ## Custom Lookup And Value Passing
 
@@ -217,7 +263,7 @@ class Test1:
 
         """
         > as you can see in the example, the state parameter is just a convention
-        for `pyconds'` [title: default lookup function,fmatch:pycond.py,lmatch:def state_get]<SRC>.
+        for `pyconds'` [title: default lookup function, fmatch:pycond.py, lmatch:def state_get] < SRC > .
 
         ## Lazy Evaluation
 
@@ -256,89 +302,11 @@ class Test1:
             print(evaluated)
 
         """
-        Remember that all keys occurring in a condition (which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts [can be done](#context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
+        Remember that all keys occurring in a condition(which may be provided by the user at runtime) are returned by the condition parser. Means that building of evaluation contexts[can be done](  # context-on-demand-and-lazy-evaluation), based on the data actually needed and not more.
 
-        # Details
+        ## Condition Operators (Comparators)
 
-        ## Debugging Lookups
-
-        pycond provides a key getter which prints out every lookup.
-        """
-
-        def f3_2():
-            f = pc.pycond('[[a eq b] or foo eq bar] or [baz eq bar]', lookup=pc.dbg_get)
-            assert f(state={'foo': 'bar'}) == True
-
-        """
-        ## Enabling/Disabling of Branches
-
-        Insert booleans like shown:
-        """
-
-        def f3_21():
-            f = pc.pycond(['foo', 'and', ['bar', 'eq', 1]])
-            assert f(state={'foo': 1}) == False
-            f = pc.pycond(['foo', 'and', [True, 'or', ['bar', 'eq', 1]]])
-            assert f(state={'foo': 1}) == True
-
-        """
-        ## Building Conditions From Text
-
-        Condition functions are created internally from structured expressions -
-        but those are [hard to type](#lazy-dynamic-context-assembly),
-        involving many apostropies.
-
-        The text based condition syntax is intended for situations when end users
-        type them into text boxes directly.
-
-        ### Grammar
-
-        Combine atomic conditions with boolean operators and nesting brackets like:
-
-        ```
-        [  <atom1> <and|or|and not|...> <atom2> ] <and|or...> [ [ <atom3> ....
-        ```
-
-        ### Atomic Conditions
-
-        ```
-        [not] <lookup_key> [ [rev] [not] <condition operator (co)> <value> ]
-        ```
-        - When just `lookup_key` is given, then `co` is set to the `truthy` function:
-        ```python
-        def truthy(key, val=None):
-            return operatur.truth(k)
-        ```
-
-        so such an expression is valid and True:
-
-        """
-
-        def f4():
-            pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
-            assert pc.pycond('[ foo and bar and not baz]')() == True
-
-        """
-        - When `not lookup_key` is given, then `co` is set to the `falsy`
-          function:
-
-        """
-
-        def f4_11():
-            m = {'x': 'y', 'falsy_val': {}}
-            # normal way
-            assert pc.pycond(['foo', 'eq', None])(state=m) == True
-            # using "not" as prefix:
-            assert pc.pycond('not foo')(state=m) == True
-            assert pc.pycond(['not', 'foo'])(state=m) == True
-            assert pc.pycond('not falsy_val')(state=m) == True
-            assert pc.pycond('x and not foo')(state=m) == True
-            assert pc.pycond('y and not falsy_val')(state=m) == False
-
-        """
-        ## Condition Operators
-
-        All boolean [standardlib operators](https://docs.python.org/2/library/operator.html)
+        All boolean[standardlib operators](https://docs.python.org/2/library/operator.html)
         are available by default:
 
         """
@@ -422,6 +390,7 @@ class Test1:
         ### Wrapping Condition Operators
 
         #### Global Wrapping
+
         You may globally wrap all evaluation time condition operations through a custom function:
 
         """
@@ -447,7 +416,7 @@ class Test1:
 
         You may compose such wrappers via repeated application of the `run_all_ops_thru` API function.
 
-        #### Condition Local Wrapping
+        ### Condition Local Wrapping
 
         This is done through the `ops_thru` parameter as shown:
 
@@ -468,7 +437,7 @@ class Test1:
         > Using `ops_thru` is a good way to debug unexpected results, since you
         > can add breakpoints or loggers there.
 
-        ## Combining Operations
+        ### Combining Operations
 
         You can combine single conditions with
 
@@ -482,21 +451,100 @@ class Test1:
 
         > Do not use spaces for the names of combining operators. The user may use them but they are replaced at before tokenizing time, like `and not` -> `and_not`.
 
-        ### Nesting
+        ## Details
+
+        ### Debugging Lookups
+
+        pycond provides a key getter which prints out every lookup.
+        """
+
+        def f3_2():
+            f = pc.pycond('[[a eq b] or foo eq bar] or [baz eq bar]', lookup=pc.dbg_get)
+            assert f(state={'foo': 'bar'}) == True
+
+        """
+        ### Enabling/Disabling of Branches
+
+        Insert booleans like shown:
+        """
+
+        def f3_21():
+            f = pc.pycond(['foo', 'and', ['bar', 'eq', 1]])
+            assert f(state={'foo': 1}) == False
+            f = pc.pycond(['foo', 'and', [True, 'or', ['bar', 'eq', 1]]])
+            assert f(state={'foo': 1}) == True
+
+        """
+        ### Building Conditions From Text
+
+        Condition functions are created internally from structured expressions -
+        but those are[hard to type](  # lazy-dynamic-context-assembly),
+        involving many apostropies.
+
+        The text based condition syntax is intended for situations when end users
+        type them into text boxes directly.
+
+        #### Grammar
+
+        Combine atomic conditions with boolean operators and nesting brackets like:
+
+        ```
+        [< atom1 > < and | or | and not|... > <atom2 > ] < and|or... > [ [ < atom3 > ....
+        ```
+
+        #### Atomic Conditions
+
+        ```
+        [not] < lookup_key > [[rev] [not] < condition operator (co) > <value > ]
+        ```
+        - When just `lookup_key` is given, then `co` is set to the `truthy` function:
+        ```python
+        def truthy(key, val=None):
+            return operatur.truth(k)
+        ```
+
+        so such an expression is valid and True:
+
+        """
+
+        def f4():
+            pc.State.update({'foo': 1, 'bar': 'a', 'baz': []})
+            assert pc.pycond('[ foo and bar and not baz]')() == True
+
+        """
+        - When `not lookup_key` is given, then `co` is set to the `falsy`
+          function:
+
+        """
+
+        def f4_11():
+            m = {'x': 'y', 'falsy_val': {}}
+            # normal way
+            assert pc.pycond(['foo', 'eq', None])(state=m) == True
+            # using "not" as prefix:
+            assert pc.pycond('not foo')(state=m) == True
+            assert pc.pycond(['not', 'foo'])(state=m) == True
+            assert pc.pycond('not falsy_val')(state=m) == True
+            assert pc.pycond('x and not foo')(state=m) == True
+            assert pc.pycond('y and not falsy_val')(state=m) == False
+
+        """
+        
+        #### Nesting
 
         Combined conditions may be arbitrarily nested using brackets "[" and "]".
 
         > Via the `brkts` config parameter you may change those to other separators at build time.
 
-        ## Tokenizing Details
+        ### Tokenizing Details
 
         > Brackets as strings in this flat list form, e.g. `['[', 'a', 'and' 'b', ']'...]`
 
-        ### Functioning
+        #### Functioning
 
         The tokenizers job is to take apart expression strings for the builder.
 
-        ### Separator `sep`
+        #### Separator `sep`
 
         Separates the different parts of an expression. Default is ' '.
 
@@ -515,13 +563,15 @@ class Test1:
 
         def f10():
             # equal:
-            assert pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
+            assert (
+                pc.pycond('[[a eq 42] and b]')() == pc.pycond('[ [ a eq 42 ] and b ]')()
+            )
 
         """
         > The condition functions themselves do not evaluate equal - those
         > had been assembled two times.
 
-        ### Apostrophes
+        #### Apostrophes
 
         By putting strings into Apostrophes you can tell the tokenizer to not further inspect them, e.g. for the seperator:
 
@@ -533,7 +583,7 @@ class Test1:
 
         """
 
-        ### Escaping
+        #### Escaping
 
         Tell the tokenizer to not interpret the next character:
 
@@ -547,7 +597,7 @@ class Test1:
 
         ### Building
 
-        ### Autoconv: Casting of values into python simple types
+        #### Autoconv: Casting of values into python simple types
 
         Expression string values are automatically cast into bools and numbers via the public `pycond.py_type` function.
 
@@ -565,7 +615,7 @@ class Test1:
 
         """
 
-        If you do not want to provide a custom lookup function (where you can do what you want)
+        If you do not want to provide a custom lookup function(where you can do what you want)
         but want to have looked up keys autoconverted then use:
 
         """
@@ -586,7 +636,7 @@ class Test1:
 
         pycond's `ctx_builder` allows to only calculate those keys at runtime,
         the user decided to base conditions upon:
-        At condition build time hand over a namespace for *all* functions which
+        At condition build time hand over a namespace for *all * functions which
         are available to build the ctx.
 
         `pycon` will return a context builder function for you, calling only those functions
@@ -662,7 +712,7 @@ class Test1:
                     return 0
 
             if sys.version_info[0] < 3:
-                # we don't think it is a good idea to make the getter API stateful:
+                # we don't think it is a good idea to make the getter API stateful ;-)
                 p2m.convert_to_staticmethods(ApiCtxFuncs)
 
             f, nfos = pc.parse_cond(cond, ctx_provider=ApiCtxFuncs)
@@ -684,19 +734,19 @@ class Test1:
         cond, ApiCtxFuncs = f15_1()
         """
 
-        # Lookup Providers
+        ## Lookup Providers
 
         ContextBuilders are interesting but we can do better.
 
-        We still calculated values for keys which might (dependent on the data) be not needed in dead ends of a lazily evaluated condition.
+        We still calculated values for keys which might(dependent on the data) be not needed in dead ends of a lazily evaluated condition.
 
         Lets avoid calculating these values, remembering the [custom lookup function](#custom-lookup-and-value-passing) feature.
 
         This is where lookup providers come in, providing namespaces for functions to be called conditionally.
 
-        Pycond [title: treats the condition keys as function names,fmatch:pycond.py,lmatch:def f_from_lookup_provider]<SRC> within that namespace and calls them, when needed.
+        Pycond [title:treats the condition keys as function names, fmatch:pycond.py, lmatch:def f_from_lookup_provider]<SRC> within that namespace and calls them, when needed.
 
-        ## Accepted Signatures
+        ### Accepted Signatures
 
         Lookup provider functions may have the following signatures:
 
@@ -730,7 +780,7 @@ class Test1:
                 # applied al
                 def f4(*a, **kw):
                     """
-                    Full variant (always when varargs are involved)
+                    Full variant(always when varargs are involved)
                     """
                     return a[3]['d'], 'foo'
 
@@ -748,7 +798,7 @@ class Test1:
             assert f(state={'a': 42, 'b': 43, 'c': 100, 'd': 'foo'}) == True
 
         """
-        ## Parametrized Lookup Functions
+        ### Parametrized Lookup Functions
 
         Via the 'params' parameter you may supply keyword args to lookup functions:
         """
@@ -758,28 +808,32 @@ class Test1:
                 def hello(k, v, cfg, data, count, **kw):
                     return data['foo'] == count, 0
 
-            m = pc.pycond([':hello'], lookup_provider=F, params={'hello': {'count': 2}})(state={'foo': 2})
+            m = pc.pycond([':hello'], lookup_provider=F, params={'hello': {'count': 2}})(
+                state={'foo': 2}
+            )
             assert m == True
 
         """
 
-        ## Namespace
+        ### Namespace
 
-        - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon (':')
-        - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception (MissingLookupFunction) when not present
+        - Lookup functions can be found in nested class hirarchies or dicts. Separator is colon(':')
+        - As shown above, if they are flat within a toplevel class or dict you should still prefix with ':', to get build time exception(MissingLookupFunction) when not present
         - You can switch that behaviour off per condition build as config arg, as shown below
-        - You can switch that behaviour off globally via `pc.prefixed_lookup_funcs = False`
+        - You can switch that behaviour off globally via `pc.prefixed_lookup_funcs=False`
 
         Warning: This is a breaking API change with pre-20200610 versions, where the prefix was not required to find functions in, back then, only flat namespaces. Use the global switch after import to get the old behaviour.
-        
+
         """
 
         def f15_15():
             class F:
-                def a(data): return data['foo']
+                def a(data):
+                    return data['foo']
 
                 class inner:
-                    def b(data): return data['bar']
+                    def b(data):
+                        return data['bar']
 
             m = {'c': {'d': {'func': lambda data: data['baz']}}}
 
@@ -865,16 +919,16 @@ class Test1:
         Note: Currently you cannot override these defaults. Drop an issue if you need to.
 
         - Builtin state lookups: Not cached
-        - Custom `lookup` functions: Not cached (you can implement caching within those functions)
+        - Custom `lookup` functions: Not cached(you can implement caching within those functions)
         - Lookup provider return values: Cached, i.e. called only once, per data set
-        - Named condition sets (see below): Cached
+        - Named condition sets(see below): Cached
 
         ## Extensions
 
-        We deliver a few lookup function [title: extensions,fmatch:pycond.py,lmatch:class Extensions]<SRC>
+        We deliver a few lookup function [title:extensions, fmatch:pycond.py, lmatch:class Extensions]<SRC>
 
         - for time checks
-        - for os.environ checks (re-evaluated at runtime)
+        - for os.environ checks(re-evaluated at runtime)
 
         """
 
@@ -900,7 +954,7 @@ class Test1:
         """
 
 
-        # Named Conditions: Qualification
+        ## Named Conditions: Qualification
 
         Instead of just delivering booleans, pycond can be used to determine a whole set of
         information about data declaratively, like so:
@@ -992,7 +1046,9 @@ class Test1:
                 def func(*a, **kw):
                     return True, 0
 
-            q = lambda d, **kw: pc.qualify(conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw)(d)
+            q = lambda d, **kw: pc.qualify(
+                conds, lookup_provider=F, prefixed_lookup_funcs=False, **kw
+            )(d)
 
             m = q({'bar': 1})
             assert m == {0: False, 1: True, 2: True, 3: True, 'n': True}
@@ -1004,7 +1060,8 @@ class Test1:
                 'conds': {0: False, 1: True, 2: True, 3: True, 'n': True},
             }
 
-            def msg(): return {'bar': 1, 'pl': {'a': 1}}
+            def msg():
+                return {'bar': 1, 'pl': {'a': 1}}
 
             # add_cached == True -> it's put into the cond results:
             m = q(msg(), into='conds', add_cached=True)
@@ -1092,9 +1149,9 @@ class Test1:
         """
 
         """
-        # Streaming Data
+        ## Streaming Data
 
-        Since version 20200601 and Python 3.x versions, pycond can deliver [ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
+        Since version 20200601 and Python 3.x versions, pycond can deliver[ReactiveX](https://github.com/ReactiveX/RxPY) compliant stream operators.
 
         Lets first set up a test data stream, by defining a function `rx_setup` like so:
 
@@ -1126,7 +1183,9 @@ class Test1:
 
                 # turns the ints into dicts: {'i': 1}, then {'i': 2} and so on:
                 # (we start from 1, the first 0 we filter out)
-                stream = stream.pipe(rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i}))
+                stream = stream.pipe(
+                    rx.filter(lambda i: i > 0), rx.map(lambda i: {'i': i})
+                )
 
                 # defines the stream through the tested operators:
                 test_pipe = test_pipe + (compl,)
@@ -1162,7 +1221,7 @@ class Test1:
         """
         -> test setup works.
 
-        ## Filtering
+        ### Filtering
 
         This is the most simple operation: A simple stream filter.
 
@@ -1187,7 +1246,7 @@ class Test1:
             assert r == odds
 
         """
-        ## Streaming Classification
+        ### Streaming Classification
 
         Using named condition dicts we can classify data, i.e. tag it, in order to process subsequently:
 
@@ -1224,7 +1283,7 @@ class Test1:
 
         ### Selective Classification
 
-        We fall back to an alternative condition evaluation (which could be a function call) *only* when a previous condition evaluation returns something falsy - by providing a *root condition*.
+        We fall back to an alternative condition evaluation(which could be a function call) * only * when a previous condition evaluation returns something falsy - by providing a * root condition*.
         When it evaluated, possibly requiring evaluation of other conditions, we return:
         """
 
@@ -1248,7 +1307,7 @@ class Test1:
             ]
 
         """
-        #### Treating of Booleans (Conditions, Not Names)
+        ## Treating of Booleans (Conditions, Not Names)
 
         For the special case of booleans in a condition list we do not treat them as names.
         """
@@ -1271,7 +1330,7 @@ class Test1:
         Selective classification allows to call condition functions only when other criteria are met.
         That makes it possible to read e.g. from a database only when data is really required - and not always, "just in case".
 
-        pycond allows to define, that blocking operations should be run *async* within the stream, possibly giving up order.
+        pycond allows to define, that blocking operations should be run * async* within the stream, possibly giving up order.
 
         ### Asyncronous Filter
 
@@ -1312,7 +1371,8 @@ class Test1:
         """
 
         def rx_async():
-            def _thn(msg, data): return print('thread:', cur_thread().name, msg, data)
+            def _thn(msg, data):
+                return print('thread:', cur_thread().name, msg, data)
 
             # push_through just runs a stream of {'i': <nr>} through a given operator:
             Rx, rx, push_through = rx_setup()
@@ -1334,7 +1394,7 @@ class Test1:
             class F:
                 """
                 Namespace for condition lookup functions.
-                You may also pass a dict (lookup_provider_dict)
+                You may also pass a dict(lookup_provider_dict)
 
                 We provide the functions for 'odd' and 'blocking'.
                 """

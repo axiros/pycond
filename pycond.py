@@ -193,50 +193,147 @@ OPS_HK_APPLIED = False
 State = {}
 
 
-def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
-    """
-    Hotspot!
-    """
-    # FIXME: why split at runtime?
-    # key maybe already path tuple - or string with deep as seperator:
-    # Also the try to get list items when part is int can be checked at build time!
-    parts = key.split(deep) if _is(key, str) else list(key)
-    while parts:
-        part = parts.pop(0)
-        try:
-            state = state.get(part)
-        except AttributeError as ex:
+class Getters:
+    def state_get_deep(key, val, cfg, state=State, deep='.', **kw):
+        """
+        Hotspot!
+        """
+        # FIXME: why split at runtime?
+        # key maybe already path tuple - or string with deep as seperator:
+        # Also the try to get list items when part is int can be checked at build time!
+        # parts = key.split(deep) if _is(key, str) else list(key)
+        parts = key.split(deep) if _is(key, str) else key
+        for part in parts:
             try:
-                i = int(part)
-                state = state[i]
-            except ValueError as ex:  # i no list index, we try attrs:
-                state = getattr(state, part, None)
-            except IndexError as ex:
-                state = None
-        if not state:
-            break
-    return state, val
+                state = state.get(part)
+            except AttributeError as ex:
+                try:
+                    i = int(part)
+                    state = state[i]
+                except ValueError as ex:  # i no list index, we try attrs:
+                    state = getattr(state, part, None)
+                except IndexError as ex:
+                    state = None
+            if not state:
+                break
+        return state, val
+
+    def state_get(key, val, cfg, state=State, **kw):
+        # a lookup function can modify key AND value, i.e. returns both:
+        if _is(key, tuple):
+            return state_get_deep(key, val, cfg, state, **kw)
+        else:
+            return state.get(key), val  # default k, v access function
+
+    def dbg_get(key, val, cfg, state=State, *a, **kw):
+        res = Getters.state_get(key, val, cfg, state, *a, **kw)
+        val = 'FALSES' if val == FALSES else val
+        out('Lookup:', key, val, '->', res[0])
+        return res
+
+    def _diginto(state, key, sep):
+        """Helper which is, on the first matching state structure,
+        delivering the keys we needed"""
+        g = ()
+        parts = key.split(sep) if _is(key, str) else key
+        for part in parts:
+            try:
+                state = state.get(part)
+                g += (part,)
+            except AttributeError as ex:
+                try:
+                    i = int(part)
+                    state = state[i]
+                    g += (i,)
+                except ValueError as ex:  # i no list index, we try attrs:
+                    state = getattr(state, part, None)
+                    g += ((part, 0),)   # attrgetter below
+                except IndexError as ex:
+                    state = None
+            if not state:
+                return None, None
+        return state, g
+
+    _get_deep2_cache = {}
+
+    def get_deep2(key, val, cfg, state, deep='.', _c=_get_deep2_cache, **kw):
+        """
+        Here we cache the split result
+        """
+        funcs = _c.get(key)
+        if funcs:
+            try:
+                if funcs[0] == True:
+                    for f in funcs[1:]:
+                        state = state[f]
+                else:
+                    for f in funcs:
+                        state = f(state)  # we have itemgetters and attrsgettr
+                return state, val
+            except Exception:
+                return None, val
+
+        state, g = Getters._diginto(state, key, sep=deep)
+        if state is None:
+            return state, val
+
+        # we have matching structure => invest in assembling the getter functions
+        # If there are no getattr (=>no tuple), then just []-ing the values is even faster then using itemgetter:
+        # so we mark those with a True in the beginning and just remember the values:
+        if len(_c) > 1000000:
+            _c.clear()   # safety belt
+        if not any([i for i in g if _is(i, tuple)]):
+            _c[key] = g = list(g)
+            g.insert(0, True)
+        else:
+            a, i = operator.attrgetter, operator.itemgetter
+            _c[key] = [a(f[0]) if isinstance(f, tuple) else i(f) for f in g]
+        return state, val
+
+    _get_deep3_cache = {}
+
+    def get_deep_evl(key, val, cfg, state, deep='.', _c=_get_deep3_cache, **kw):
+        """
+        Fastest, but we must disallow ( )
+        """
+        funcs = _c.get(key)
+        if funcs:
+            try:
+                return funcs(state), val
+            except Exception:
+                return None, val
+        state, g = Getters._diginto(state, key, sep=deep)
+        if state is None:
+            return state, val
+
+        g = [
+            f'["{p}"]' if _is(p, str) else f'.{p[0]}' if _is(p, tuple) else f'[{p}]'
+            for p in g
+        ]
+        g = ''.join(g)
+        g = f'lambda s: s{g}'
+        if '(' in g and ')' in g:
+            g = 'lambda s: None'
+        if len(_c) > 1000000:
+            _c.clear()   # safety belt
+        _c[key] = eval(g)
+        return state, val
 
 
-def state_get(key, val, cfg, state=State, **kw):
-    # a lookup function can modify key AND value, i.e. returns both:
-    if _is(key, tuple):
-        return state_get_deep(key, val, cfg, state, **kw)
-    else:
-        return state.get(key), val  # default k, v access function
+def clear_caches():
+    Getters._get_deep2_cache.clear()
+    Getters._get_deep3_cache.clear()
+
+
+state_get_deep = Getters.state_get_deep
+dbg_get = Getters.dbg_get
+state_get = Getters.state_get
 
 
 # if val in these we deliver False:
 # FIXME: wtf? was this intended a feature, to allow modifications of python's default?
 # but y then immutable?
 FALSES = (None, False, '', 0, {}, [], ())
-
-
-def dbg_get(key, val, cfg, state=State, *a, **kw):
-    res = state_get(key, val, cfg, state, *a, **kw)
-    val = 'FALSES' if val == FALSES else val
-    out('Lookup:', key, val, '->', res[0])
-    return res
 
 
 def out(*m):
@@ -677,6 +774,10 @@ def parse_cond(cond, lookup=state_get, **cfg):
 
     if cfg.get('deep'):
         lookup = partial(state_get_deep, deep=cfg['deep'])
+    elif cfg.get('deep2'):
+        lookup = partial(Getters.get_deep2, deep=cfg['deep2'])
+    elif cfg.get('deep3'):
+        lookup = partial(Getters.get_deep_evl, deep=cfg['deep3'])
 
     cfg['lookup'] = lookup
     cfg['lookup_args'] = sig_args(lookup)
@@ -764,7 +865,9 @@ def py_type(v):
             except:
                 pass
 
-    return True if v == 'true' else False if v == 'false' else None if v == 'None' else _(v)
+    return (
+        True if v == 'true' else False if v == 'false' else None if v == 'None' else _(v)
+    )
 
 
 # ---------------------- Following Code Only for Parsing STRING Conditions Into Structs
@@ -1035,7 +1138,10 @@ def run_conds(
     for k, v in conds:
         b = built[k]
         if _is(v, list):
-            r[k] = [run_conds(data, c, b[i], is_single, **kw) for i, c in zip(range(len(v)), v)]
+            r[k] = [
+                run_conds(data, c, b[i], is_single, **kw)
+                for i, c in zip(range(len(v)), v)
+            ]
         else:
             r[k] = m = run_conds(data, v, b, is_single, **kw)
             if m:
@@ -1261,4 +1367,5 @@ def rxop(cond, qualifier=None, **cfg):
 
         return Rx.merge(Rx.create(subscribe), subj_async_results)
 
+    return _run
     return _run

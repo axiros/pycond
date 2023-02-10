@@ -1,6 +1,12 @@
 #!/usr/bin/env python -tt
 
-import unittest, sys, os
+import pycond as pc
+from pycond import run_all_ops_thru
+from pycond import parse_cond, State as S
+from pycond import pycond, state_get, dbg_get, OPS, COMB_OPS
+import unittest
+import sys
+import os
 import operator
 import time
 
@@ -8,13 +14,12 @@ d = os.path.dirname
 pth = d(d(os.path.abspath(__file__)))
 sys.path.insert(0, pth)
 
-from pycond import pycond, state_get, dbg_get, OPS, COMB_OPS
-from pycond import parse_cond, State as S
-from pycond import run_all_ops_thru
 
 keys = []
 
-eq = lambda _, k, v: _.assertEqual(k, v)
+
+def eq(_, k, v):
+    return _.assertEqual(k, v)
 
 
 def parse(cond, *a, **kw):
@@ -163,6 +168,30 @@ class Mechanics(T):
         assert f(req=req, user='joe') == True
         assert f(req=req, user='foo') == False
 
+    def test_any_in_list(s):
+        # https://github.com/axiros/pycond/issues/3
+        def foo(a, b):
+            return b in a if isinstance(a, set) else a == b
+
+        eq = pc.OPS['eq']
+        pc.OPS['eq'] = foo
+
+        def lu(k, v, state):
+            for part in k.split('.'):
+                if isinstance(state, list):
+                    state = set({i.get(part) for i in state})
+                else:
+                    state = state.get(part)
+            return state, v
+
+        data = [{'x': [{'a': 1}, {'a': 2}]}, {'x': [{'a': 1}, {'a': 3}]}]
+        expr = 'x.a eq 2'
+        f = pc.make_filter(expr, lookup=lu)
+        filtered = list(filter(f, data))
+        assert filtered == [{'x': [{'a': 1}, {'a': 2}]}]
+
+        pc.OPS['eq'] = eq
+
     def test_custom_sep(s, cond='[[foo.eq.b ar]and.not.bar.eq.foo]'):
         S['foo'] = 'b ar'
         eq(s, parse(cond, sep='.')[0](), True)
@@ -216,7 +245,8 @@ class TestCombiningOps(T):
                 eq(s, parse(cnd_under)[0](), exp)
 
 
-val_splitting_get = lambda k, v: (S.get(k), v.split(','))
+def val_splitting_get(k, v):
+    return (S.get(k), v.split(','))
 
 
 class TestComparisonOps(T):
@@ -460,9 +490,6 @@ class Perf(T):
         msg = 'One pycond run of %s levels deeply nested conditions: %.4fs '
         print(msg % (levels, dt1 / levels))
         assert dt1 / dt2 < 8, 'Expected max 8 times slower, is %s' % (dt1 / dt2)
-
-
-import pycond as pc
 
 
 class TokenizerToStruct(T):

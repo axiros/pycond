@@ -25,7 +25,7 @@ cd "$here" || exit 1
 clean
 rm -f README.md
 pytest tests || exit 1
-git commit --amend -am 'links auto replaced'
+lazygit
 #unset NOLINKREPL
 #git commit -am 'pre_pypi_upload' # to have the commit hash for the links
 #slt="https://github.com/axiros/DevApps/blob/`git rev-parse  HEAD`"

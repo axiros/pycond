@@ -1,16 +1,21 @@
-'''
+"""
 Abusing the travis environment param. possiblities to compare a few perf.
 statements...
 E.g. Did they change 'is' vs '==' in Py2 vs Py3 ?
 And Is there a significant effect?
-'''
-print('\n\nSome Performance Tests\n\n')
-from time import time
-from timeit import timeit, Timer
-import unittest
-from functools import partial
-from collections import OrderedDict as OD
+"""
+
+import time
 import sys
+from collections import OrderedDict as OD
+from functools import partial
+import unittest
+from operator import itemgetter
+from timeit import timeit, Timer
+from time import time
+
+print('\n\nSome Performance Tests\n\n')
+
 PY2 = sys.version_info[0] == 2
 range = xrange if PY2 else range
 
@@ -18,14 +23,15 @@ loops = range(100000)
 number = 10
 repeat = 10
 R = []
-class T(unittest.TestCase):
 
+
+class T(unittest.TestCase):
     def init(self, k1, k2, setup=None):
         print('')
         self.res = OD({k1: 0})
         self.res[k2] = 0
         print('\n%s\n' % ('- ' * 40))
-        print ('Test: "%s" vs "%s"' % tuple(self.res.keys()))
+        print('Test: "%s" vs "%s"' % tuple(self.res.keys()))
         print('\n%s\n' % ('- ' * 40))
         if setup:
             print('setup: %s' % setup)
@@ -41,7 +47,7 @@ class T(unittest.TestCase):
         if q > 1:
             k1, k2 = k2, k1
             q = vs[1] / vs[0]
-        msg = ('=> "%s" is better than "%s" by:' % (k1, k2))
+        msg = '=> "%s" is better than "%s" by:' % (k1, k2)
         print(msg)
         print('\n>>>> %.2f <<<<<' % q)
         R.append((q, msg))
@@ -67,14 +73,13 @@ class Tests(T):
         assert lf(42) == pf(42) == 52
         """
         m = self.init(k1, k2, setup)
-        self.run_(k1, "for i in range(1000): lf(i)", setup)
-        self.run_(k2, "for i in range(1000): pf(i)", setup)
-
+        self.run_(k1, 'for i in range(1000): lf(i)', setup)
+        self.run_(k2, 'for i in range(1000): pf(i)', setup)
 
     def test_if_vs_if_is_None(self):
-        '''if foo:...  must check for all kinds of truthyness.
+        """if foo:...  must check for all kinds of truthyness.
         => is explictly saying e.g. if foo == None better?
-        '''
+        """
         k1 = 'if'
         k2 = 'if is None'
 
@@ -84,9 +89,8 @@ class Tests(T):
         self.run_(k1, e % '', number=nr)
         self.run_(k2, e % 'is None', number=nr)
 
-
     def test_eq_vs_is(self):
-        '''if foo is None vs if foo == None'''
+        """if foo is None vs if foo == None"""
         k1 = 'is None'
         k2 = '== None'
         m = self.init(k1, k2)
@@ -94,8 +98,6 @@ class Tests(T):
         e = "[j for j in (0, [1,2], {'a': 'b'}, {}, 'a', '') if j %s]"
         self.run_(k1, e % '== None', number=nr)
         self.run_(k2, e % 'is None', number=nr)
-
-
 
     def test_local_scope(self):
         k1 = 'global lookup'
@@ -113,7 +115,6 @@ class Tests(T):
         self.run_(k2, e % 'locl', setup=setup, number=1000)
 
 
-
 if __name__ == '__main__':
     # tests/test_pycond.py PyCon.test_auto_brackets
     try:
@@ -121,4 +122,4 @@ if __name__ == '__main__':
     except:
         print('\nAll Results Again\n')
         for q, msg in R:
-            print ('%s\n%.2f' % (msg, q))
+            print('%s\n%.2f' % (msg, q))

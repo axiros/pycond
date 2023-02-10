@@ -1,17 +1,20 @@
 # we use gevent
+import pycond as pc
+import gevent
+from threading import Event, current_thread as ct
+import rx.scheduler.eventloop as e
+from rx.scheduler.eventloop import GEventScheduler
 from gevent import monkey
-import time, sys
+import time
+import sys
 
 monkey.patch_all()
-import gevent, pycond as pc
 
-from rx.scheduler.eventloop import GEventScheduler
-import rx.scheduler.eventloop as e
-
-from threading import Event, current_thread as ct
 
 # _thn = lambda msg, data: print('thread:', cur_thread().name, msg, data)
-tn = lambda: ct().name.replace('Thread', '')
+def tn(): return ct().name.replace('Thread', '')
+
+
 GS = GEventScheduler(gevent)
 # GS = None
 
@@ -65,10 +68,8 @@ class Tests:
         t = [l[0]['payload'].pop(b) for b in ['blocking', 'blocking2']]
         assert t[0] == t[1]
         assert 'Dummy' in t[0]
-        assert l == [
-            {'mod': {'b2': True, 'b1': True, 'root': True}, 'payload': {'a': 1}}
-        ]
+        assert l == [{'mod': {'b2': True, 'b1': True, 'root': True}, 'payload': {'a': 1}}]
 
 
 if __name__ == '__main__':
-    Tests().test_perf_compare()
+    Tests().test_rx_async1_prefix()
