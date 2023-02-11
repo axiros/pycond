@@ -1281,7 +1281,7 @@ class Test1:
         """
         Normally the data has headers, so thats a good place to keep the classification tags.
 
-        ### Selective Classification
+        #### Selective Classification
 
         We fall back to an alternative condition evaluation(which could be a function call) * only * when a previous condition evaluation returns something falsy - by providing a * root condition*.
         When it evaluated, possibly requiring evaluation of other conditions, we return:
@@ -1307,7 +1307,7 @@ class Test1:
             ]
 
         """
-        ## Treating of Booleans (Conditions, Not Names)
+        ##### Treating of Booleans (Conditions, Not Names)
 
         For the special case of booleans in a condition list we do not treat them as names.
         """
@@ -1323,7 +1323,7 @@ class Test1:
             assert res == {1: True, 2: False}
 
         """
-        ## Asyncronous Operations
+        ### Asyncronous Operations
 
         WARNING: Early Version. Only for the gevent platform.
 
@@ -1332,7 +1332,7 @@ class Test1:
 
         pycond allows to define, that blocking operations should be run * async* within the stream, possibly giving up order.
 
-        ### Asyncronous Filter
+        #### Asyncronous Filter
 
         First a simple filter, which gives up order but does not block:
 

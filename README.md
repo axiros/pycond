@@ -75,10 +75,10 @@ version: 20230212
     - <a name="toc51"></a>[Streaming Data](#streaming-data)
         - <a name="toc52"></a>[Filtering](#filtering)
         - <a name="toc53"></a>[Streaming Classification](#streaming-classification)
-        - <a name="toc54"></a>[Selective Classification](#selective-classification)
-    - <a name="toc55"></a>[Treating of Booleans (Conditions, Not Names)](#treating-of-booleans-conditions-not-names)
-    - <a name="toc56"></a>[Asyncronous Operations](#asyncronous-operations)
-        - <a name="toc57"></a>[Asyncronous Filter](#asyncronous-filter)
+            - <a name="toc54"></a>[Selective Classification](#selective-classification)
+                - <a name="toc55"></a>[Treating of Booleans (Conditions, Not Names)](#treating-of-booleans-conditions-not-names)
+        - <a name="toc56"></a>[Asyncronous Operations](#asyncronous-operations)
+            - <a name="toc57"></a>[Asyncronous Filter](#asyncronous-filter)
 
 <!-- TOC -->
 
@@ -1140,7 +1140,7 @@ Calculating cur_q
 Calculating (expensive) delta_q
 Calculating dt_last_enforce
 Calculating cur_hour
-Calc.Time (delta_q was called just once): 0.1004
+Calc.Time (delta_q was called just once): 0.1007
 sample: {'group_type': 'lab', 'a': [{'b': 42}]}
 Calculating cur_q
 Calculating (expensive) delta_q
@@ -1528,7 +1528,7 @@ run(2)
 
 Normally the data has headers, so thats a good place to keep the classification tags.
 
-### <a href="#toc54">Selective Classification</a>
+#### <a href="#toc54">Selective Classification</a>
 
 We fall back to an alternative condition evaluation(which could be a function call) * only * when a previous condition evaluation returns something falsy - by providing a * root condition*.
 When it evaluated, possibly requiring evaluation of other conditions, we return:  
@@ -1554,7 +1554,7 @@ assert r == [
 ]
 ```
 
-## <a href="#toc55">Treating of Booleans (Conditions, Not Names)</a>
+##### <a href="#toc55">Treating of Booleans (Conditions, Not Names)</a>
 
 For the special case of booleans in a condition list we do not treat them as names.  
 
@@ -1570,7 +1570,7 @@ res = qs({'a': 1})
 assert res == {1: True, 2: False}
 ```
 
-## <a href="#toc56">Asyncronous Operations</a>
+### <a href="#toc56">Asyncronous Operations</a>
 
 WARNING: Early Version. Only for the gevent platform.
 
@@ -1579,7 +1579,7 @@ That makes it possible to read e.g. from a database only when data is really req
 
 pycond allows to define, that blocking operations should be run * async* within the stream, possibly giving up order.
 
-### <a href="#toc57">Asyncronous Filter</a>
+#### <a href="#toc57">Asyncronous Filter</a>
 
 First a simple filter, which gives up order but does not block:
   
@@ -1616,9 +1616,9 @@ Output:
 
 ```
 item 2: 0.011s 
-item 3: 0.022s 
+item 3: 0.023s 
 item 4: 0.034s 
-item 5: 0.045s 
+item 5: 0.046s 
 item 1: 0.049s    <----- not in order, blocked
 item 6: 0.057s 
 item 7: 0.068s 
@@ -1719,18 +1719,18 @@ assert [t['i'] for t in errors] == [2, 5]
 Output:
 
 ```
-thread: Thread-55 odd {'i': 1}
-thread: Dummy-57 blocking {'i': 1}
-thread: Thread-56 odd {'i': 2}
-thread: Dummy-59 blocking {'i': 2}
-thread: Thread-58 odd {'i': 3}
-thread: Dummy-61 blocking {'i': 3}
-thread: Thread-60 odd {'i': 4}
-thread: Thread-62 odd {'i': 5}
-thread: Dummy-64 blocking {'i': 5}
-thread: Thread-63 odd {'i': 6}
-thread: Thread-65 odd {'i': 7}
-thread: Dummy-67 blocking {'i': 7}
+thread: Thread-54 odd {'i': 1}
+thread: Dummy-56 blocking {'i': 1}
+thread: Thread-55 odd {'i': 2}
+thread: Dummy-58 blocking {'i': 2}
+thread: Thread-57 odd {'i': 3}
+thread: Dummy-60 blocking {'i': 3}
+thread: Thread-59 odd {'i': 4}
+thread: Thread-61 odd {'i': 5}
+thread: Dummy-63 blocking {'i': 5}
+thread: Thread-62 odd {'i': 6}
+thread: Thread-64 odd {'i': 7}
+thread: Dummy-66 blocking {'i': 7}
 ```
 
 
@@ -1740,5 +1740,5 @@ thread: Dummy-67 blocking {'i': 7}
 
 
 <!-- autogenlinks -->
-[pycond.py#614]: https://github.com/axiros/pycond/blob/54fea4c6b0cdc62bcf0b984214649344b1a77230/pycond.py#L614
-[pycond.py#711]: https://github.com/axiros/pycond/blob/54fea4c6b0cdc62bcf0b984214649344b1a77230/pycond.py#L711
+[pycond.py#614]: https://github.com/axiros/pycond/blob/1ecb45a67eaec9bf1278a0f2b50f376deb9abcfb/pycond.py#L614
+[pycond.py#711]: https://github.com/axiros/pycond/blob/1ecb45a67eaec9bf1278a0f2b50f376deb9abcfb/pycond.py#L711
